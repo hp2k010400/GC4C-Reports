@@ -724,6 +724,19 @@ tbody tr:hover td { background: #f0f9f4 !important; }
   flex-shrink: 0;
 }
 
+/* --- Date range label --- */
+.date-range-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #888;
+  background: #f0f2f5;
+  border: 1px solid #e4e4e4;
+  border-radius: 7px;
+  padding: 8px 14px;
+  white-space: nowrap;
+  align-self: flex-end;
+}
+
 /* --- Settings --- */
 .settings-section {
   background: white;

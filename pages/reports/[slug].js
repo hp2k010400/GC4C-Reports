@@ -143,6 +143,11 @@ export default function ReportPage({ slug, name, description, requiresDates }) {
               <label>To</label>
               <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} min={startDate} max={today} />
             </div>
+            {startDate && endDate && (
+              <div className="date-range-label">
+                {Math.round((new Date(endDate) - new Date(startDate)) / 86400000) + 1} days
+              </div>
+            )}
           </>
         )}
         <button className="btn btn-primary" onClick={runReport} disabled={loading}>
