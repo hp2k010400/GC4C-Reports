@@ -18,6 +18,7 @@ export async function getStaticProps({ params }) {
       name: report.name,
       description: report.description,
       requiresDates: report.requiresDates,
+      supportsTypeFilter: report.supportsTypeFilter || false,
     },
   }
 }
@@ -54,13 +55,15 @@ function saveHistory(entry) {
   } catch {}
 }
 
-export default function ReportPage({ slug, name, description, requiresDates }) {
+export default function ReportPage({ slug, name, description, requiresDates, supportsTypeFilter }) {
   const router = useRouter()
   const today = new Date().toISOString().slice(0, 10)
   const thirtyDaysAgo = new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10)
 
   const [startDate, setStartDate] = useState(thirtyDaysAgo)
   const [endDate, setEndDate] = useState(today)
+  const [productType, setProductType] = useState('')
+  const [productTypes, setProductTypes] = useState([])
   const [rows, setRows] = useState(null)
   const [loading, setLoading] = useState(false)
   const [progress, setProgress] = useState(null)
@@ -70,6 +73,14 @@ export default function ReportPage({ slug, name, description, requiresDates }) {
     if (router.query.start) setStartDate(router.query.start)
     if (router.query.end) setEndDate(router.query.end)
   }, [router.query])
+
+  useEffect(() => {
+    if (!supportsTypeFilter) return
+    fetch('/api/product-types')
+      .then(r => r.json())
+      .then(d => { if (d.types) setProductTypes(d.types) })
+      .catch(() => {})
+  }, [supportsTypeFilter])
 
   async function runReport() {
     setLoading(true)
@@ -87,6 +98,7 @@ export default function ReportPage({ slug, name, description, requiresDates }) {
           params.set('startDate', startDate)
           params.set('endDate', endDate)
         }
+        if (productType) params.set('productType', productType)
         if (pageInfo) params.set('page_info', pageInfo)
 
         const res = await fetch(`/api/reports/${slug}?${params}`)
@@ -149,6 +161,21 @@ export default function ReportPage({ slug, name, description, requiresDates }) {
               </div>
             )}
           </>
+        )}
+        {supportsTypeFilter && (
+          <div className="field">
+            <label>Product Type</label>
+            <select
+              value={productType}
+              onChange={e => setProductType(e.target.value)}
+              className="type-select"
+            >
+              <option value="">All types</option>
+              {productTypes.map(t => (
+                <option key={t} value={t}>{t}</option>
+              ))}
+            </select>
+          </div>
         )}
         <button className="btn btn-primary" onClick={runReport} disabled={loading}>
           {loading ? 'Loading…' : 'Generate Report'}
