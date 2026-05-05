@@ -169,7 +169,9 @@ export default function ReportPage({ slug, name, description, requiresDates }) {
               : 'Connecting to Shopify…'}
           </div>
           {progress?.count > 0 && (
-            <div style={{ fontSize: 12, color: '#bbb', marginTop: 6 }}>Large date ranges may take a moment</div>
+            <div style={{ fontSize: 12, color: '#bbb', marginTop: 6 }}>
+              {requiresDates ? 'Large date ranges may take a moment' : 'Fetching all products — this may take a moment'}
+            </div>
           )}
         </div>
       )}
