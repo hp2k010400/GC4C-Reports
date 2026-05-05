@@ -12,6 +12,7 @@ export async function getStaticPaths() {
 
 export async function getStaticProps({ params }) {
   const report = reports[params.slug]
+  const { TYPE_GROUPS } = await import('../../lib/typeGroups.js')
   return {
     props: {
       slug: params.slug,
@@ -19,6 +20,7 @@ export async function getStaticProps({ params }) {
       description: report.description,
       requiresDates: report.requiresDates,
       supportsTypeFilter: report.supportsTypeFilter || false,
+      typeOptions: report.supportsTypeFilter ? Object.keys(TYPE_GROUPS) : [],
     },
   }
 }
@@ -55,7 +57,7 @@ function saveHistory(entry) {
   } catch {}
 }
 
-export default function ReportPage({ slug, name, description, requiresDates, supportsTypeFilter }) {
+export default function ReportPage({ slug, name, description, requiresDates, supportsTypeFilter, typeOptions = [] }) {
   const router = useRouter()
   const today = new Date().toISOString().slice(0, 10)
   const thirtyDaysAgo = new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10)
@@ -63,7 +65,6 @@ export default function ReportPage({ slug, name, description, requiresDates, sup
   const [startDate, setStartDate] = useState(thirtyDaysAgo)
   const [endDate, setEndDate] = useState(today)
   const [productType, setProductType] = useState('')
-  const [productTypes, setProductTypes] = useState([])
   const [rows, setRows] = useState(null)
   const [loading, setLoading] = useState(false)
   const [progress, setProgress] = useState(null)
@@ -74,20 +75,6 @@ export default function ReportPage({ slug, name, description, requiresDates, sup
     if (router.query.end) setEndDate(router.query.end)
   }, [router.query])
 
-  const FALLBACK_TYPES = [
-    'Bags', 'Balls', 'Clothing', 'Drivers', 'Gloves', 'Grips',
-    'Headcovers', 'Hybrids', 'Individual Irons', 'Iron Sets',
-    'Putters', 'Shafts', 'Wedges',
-  ]
-
-  useEffect(() => {
-    if (!supportsTypeFilter) return
-    setProductTypes(FALLBACK_TYPES)
-    fetch('/api/product-types')
-      .then(r => r.json())
-      .then(d => { if (d.types?.length > 0) setProductTypes(d.types) })
-      .catch(() => {})
-  }, [supportsTypeFilter])
 
   async function runReport() {
     setLoading(true)
@@ -178,7 +165,7 @@ export default function ReportPage({ slug, name, description, requiresDates, sup
               className="type-select"
             >
               <option value="">All types</option>
-              {productTypes.map(t => (
+              {typeOptions.map(t => (
                 <option key={t} value={t}>{t}</option>
               ))}
             </select>
