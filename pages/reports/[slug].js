@@ -74,11 +74,18 @@ export default function ReportPage({ slug, name, description, requiresDates, sup
     if (router.query.end) setEndDate(router.query.end)
   }, [router.query])
 
+  const FALLBACK_TYPES = [
+    'Bags', 'Balls', 'Clothing', 'Drivers', 'Gloves', 'Grips',
+    'Headcovers', 'Hybrids', 'Individual Irons', 'Iron Sets',
+    'Putters', 'Shafts', 'Wedges',
+  ]
+
   useEffect(() => {
     if (!supportsTypeFilter) return
+    setProductTypes(FALLBACK_TYPES)
     fetch('/api/product-types')
       .then(r => r.json())
-      .then(d => { if (d.types) setProductTypes(d.types) })
+      .then(d => { if (d.types?.length > 0) setProductTypes(d.types) })
       .catch(() => {})
   }, [supportsTypeFilter])
 
