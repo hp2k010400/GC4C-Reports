@@ -21,6 +21,7 @@ export async function getStaticProps({ params }) {
       requiresDates: report.requiresDates,
       supportsTypeFilter: report.supportsTypeFilter || false,
       typeOptions: report.supportsTypeFilter ? Object.keys(TYPE_GROUPS) : [],
+      typeGroups: report.supportsTypeFilter ? TYPE_GROUPS : {},
     },
   }
 }
@@ -57,7 +58,7 @@ function saveHistory(entry) {
   } catch {}
 }
 
-export default function ReportPage({ slug, name, description, requiresDates, supportsTypeFilter, typeOptions = [] }) {
+export default function ReportPage({ slug, name, description, requiresDates, supportsTypeFilter, typeOptions = [], typeGroups = {} }) {
   const router = useRouter()
   const today = new Date().toISOString().slice(0, 10)
   const thirtyDaysAgo = new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10)
@@ -82,31 +83,38 @@ export default function ReportPage({ slug, name, description, requiresDates, sup
     setRows(null)
     setProgress({ count: 0 })
 
+    // Expand selected type into all Shopify variants (e.g. Drivers → Driver/driver/DRIVER/Drivers)
+    const variants = productType && supportsTypeFilter
+      ? (typeGroups[productType] || [productType])
+      : [null]
+
     let allRows = []
-    let pageInfo = null
 
     try {
-      do {
-        const params = new URLSearchParams()
-        if (requiresDates) {
-          params.set('startDate', startDate)
-          params.set('endDate', endDate)
-        }
-        if (productType) params.set('productType', productType)
-        if (pageInfo) params.set('page_info', pageInfo)
+      for (const variant of variants) {
+        let pageInfo = null
+        do {
+          const params = new URLSearchParams()
+          if (requiresDates) {
+            params.set('startDate', startDate)
+            params.set('endDate', endDate)
+          }
+          if (variant) params.set('productType', variant)
+          if (pageInfo) params.set('page_info', pageInfo)
 
-        const res = await fetch(`/api/reports/${slug}?${params}`)
-        const json = await res.json()
+          const res = await fetch(`/api/reports/${slug}?${params}`)
+          const json = await res.json()
 
-        if (!res.ok) {
-          setError(json.error)
-          return
-        }
+          if (!res.ok) {
+            setError(json.error)
+            return
+          }
 
-        allRows = allRows.concat(json.rows)
-        pageInfo = json.nextPageInfo
-        setProgress({ count: allRows.length })
-      } while (pageInfo)
+          allRows = allRows.concat(json.rows)
+          pageInfo = json.nextPageInfo
+          setProgress({ count: allRows.length })
+        } while (pageInfo)
+      }
 
       setRows(allRows)
       saveHistory({
