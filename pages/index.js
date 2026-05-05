@@ -57,72 +57,118 @@ export default function Dashboard() {
     } catch {}
   }, [])
 
+  const reportRuns = history.filter(h => !h.type || h.type === 'report')
+  const bulkEdits = history.filter(h => h.type === 'bulk-edit')
+  const totalRows = reportRuns.reduce((s, h) => s + (h.rowCount || 0), 0)
+  const totalUpdated = bulkEdits.reduce((s, h) => s + (h.updated || 0), 0)
+
   return (
-    <>
-      <div className="header">
-        <div className="header-left">
-          <div className="header-logo">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
-            </svg>
-          </div>
-          <span className="header-title">GC4C Reports</span>
+    <div className="container">
+      <div className="stats-row">
+        <div className="stat-card">
+          <div className="stat-value">{reportRuns.length}</div>
+          <div className="stat-label">Report runs</div>
         </div>
-        <span className="header-live">
-          <span className="header-live-dot" />
-          Live
-        </span>
+        <div className="stat-card">
+          <div className="stat-value">{totalRows.toLocaleString()}</div>
+          <div className="stat-label">Rows fetched</div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-value">{bulkEdits.length}</div>
+          <div className="stat-label">Bulk edits</div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-value">{totalUpdated.toLocaleString()}</div>
+          <div className="stat-label">Products updated</div>
+        </div>
       </div>
 
-      <div className="container">
-        <div className="page-title">Reports</div>
-        <div className="page-sub">Select a report to view live data. All data is pulled directly from Shopify — no sync delay, no missing SKUs.</div>
+      <div className="quick-actions">
+        <Link href="/reports/sales-by-sku" className="quick-action">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/>
+          </svg>
+          Run a report
+        </Link>
+        <Link href="/reports/product-export" className="quick-action">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+          </svg>
+          Export products
+        </Link>
+        <Link href="/bulk-update" className="quick-action">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/>
+            <path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/>
+          </svg>
+          Bulk edit products
+        </Link>
+      </div>
 
-        <div className="report-grid">
-          {Object.entries(reports).map(([slug, report]) => (
-            <Link key={slug} href={`/reports/${slug}`} className="report-card">
-              <div className="report-card-icon">{ICONS[slug]}</div>
-              <div className="report-card-name">{report.name}</div>
-              <div className="report-card-desc">{report.description}</div>
-              <div className="report-card-footer">
-                <span className="report-card-tag">{report.requiresDates ? 'Date range' : 'Live snapshot'}</span>
-                {ARROW}
-              </div>
-            </Link>
-          ))}
-          <Link href="/bulk-update" className="report-card">
-            <div className="report-card-icon">{ICONS['bulk-update']}</div>
-            <div className="report-card-name">Bulk Product Update</div>
-            <div className="report-card-desc">Upload an edited Product Export CSV to update prices, SKUs, compare-at prices and more across your entire catalogue in one go.</div>
+      <div className="section-label" style={{ marginBottom: 14 }}>Available reports</div>
+
+      <div className="report-grid">
+        {Object.entries(reports).map(([slug, report]) => (
+          <Link key={slug} href={`/reports/${slug}`} className="report-card">
+            <div className="report-card-icon">{ICONS[slug]}</div>
+            <div className="report-card-name">{report.name}</div>
+            <div className="report-card-desc">{report.description}</div>
             <div className="report-card-footer">
-              <span className="report-card-tag">Upload CSV</span>
+              <span className="report-card-tag">{report.requiresDates ? 'Date range' : 'Live snapshot'}</span>
               {ARROW}
             </div>
           </Link>
-        </div>
-
-        {history.length > 0 && (
-          <div style={{ marginTop: 48 }}>
-            <div className="section-label">Recent runs</div>
-            <div className="history-list">
-              {history.map((h, i) => (
-                <Link
-                  key={i}
-                  href={`/reports/${h.slug}${h.startDate ? `?start=${h.startDate}&end=${h.endDate}` : ''}`}
-                  className="history-item"
-                >
-                  <span className="history-name">{h.name}</span>
-                  {h.startDate && (
-                    <span className="history-dates">{h.startDate} → {h.endDate}</span>
-                  )}
-                  <span className="history-count">{h.rowCount.toLocaleString()} rows</span>
-                  <span className="history-ts">{timeAgo(h.ts)}</span>
-                </Link>
-              ))}
-            </div>
+        ))}
+        <Link href="/bulk-update" className="report-card">
+          <div className="report-card-icon">{ICONS['bulk-update']}</div>
+          <div className="report-card-name">Bulk Product Update</div>
+          <div className="report-card-desc">Upload an edited Product Export CSV to update prices, SKUs, compare-at prices and more across your entire catalogue in one go.</div>
+          <div className="report-card-footer">
+            <span className="report-card-tag">Upload CSV</span>
+            {ARROW}
           </div>
-        )}
+        </Link>
       </div>
-    </>
+
+      {history.length > 0 && (
+        <div style={{ marginTop: 44 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+            <div className="section-label">Recent activity</div>
+            <Link href="/history" style={{ fontSize: 12, color: '#005F2C', fontWeight: 600, textDecoration: 'none' }}>
+              View all →
+            </Link>
+          </div>
+          <div className="history-list">
+            {history.slice(0, 5).map((h, i) => (
+              <div key={i} className="history-item">
+                <span className={`history-type-badge ${h.type === 'bulk-edit' ? 'badge-bulk' : 'badge-report'}`}>
+                  {h.type === 'bulk-edit' ? 'Bulk Edit' : 'Report'}
+                </span>
+                <span className="history-name">{h.name}</span>
+                {h.startDate && (
+                  <span className="history-dates">{h.startDate} → {h.endDate}</span>
+                )}
+                <span className="history-count">
+                  {h.type === 'bulk-edit'
+                    ? `${(h.updated || 0).toLocaleString()} updated`
+                    : `${(h.rowCount || 0).toLocaleString()} rows`}
+                </span>
+                <span className="history-ts">{timeAgo(h.ts)}</span>
+                {h.slug && (
+                  <Link
+                    href={`/reports/${h.slug}${h.startDate ? `?start=${h.startDate}&end=${h.endDate}` : ''}`}
+                    className="history-rerun"
+                    onClick={e => e.stopPropagation()}
+                  >
+                    Re-run →
+                  </Link>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
   )
 }

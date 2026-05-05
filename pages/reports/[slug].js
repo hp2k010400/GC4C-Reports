@@ -50,7 +50,7 @@ function saveHistory(entry) {
   try {
     const hist = JSON.parse(localStorage.getItem('gc4c_history') || '[]')
     hist.unshift(entry)
-    localStorage.setItem('gc4c_history', JSON.stringify(hist.slice(0, 20)))
+    localStorage.setItem('gc4c_history', JSON.stringify(hist.slice(0, 50)))
   } catch {}
 }
 
@@ -104,6 +104,7 @@ export default function ReportPage({ slug, name, description, requiresDates }) {
 
       setRows(allRows)
       saveHistory({
+        type: 'report',
         slug,
         name,
         startDate: requiresDates ? startDate : null,
@@ -125,103 +126,86 @@ export default function ReportPage({ slug, name, description, requiresDates }) {
     : `${slug}-${new Date().toISOString().slice(0, 10)}.csv`
 
   return (
-    <>
-      <div className="header">
-        <div className="header-left">
-          <div className="header-logo">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
-            </svg>
-          </div>
-          <span className="header-title">GC4C Reports</span>
-        </div>
-        <span className="header-live">
-          <span className="header-live-dot" />
-          Live
-        </span>
-      </div>
+    <div className="container">
+      <Link href="/" className="back-link">← Reports</Link>
 
-      <div className="container">
-        <Link href="/" className="back-link">← Back to reports</Link>
+      <div className="page-title">{name}</div>
+      <div className="page-sub">{description}</div>
 
-        <div className="page-title">{name}</div>
-        <div className="page-sub">{description}</div>
-
-        <div className="controls">
-          {requiresDates && (
-            <>
-              <div className="field">
-                <label>From</label>
-                <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} max={endDate} />
-              </div>
-              <div className="field">
-                <label>To</label>
-                <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} min={startDate} max={today} />
-              </div>
-            </>
-          )}
-          <button className="btn btn-primary" onClick={runReport} disabled={loading}>
-            {loading ? 'Loading…' : 'Generate Report'}
-          </button>
-          {rows?.length > 0 && (
-            <button className="btn btn-secondary" onClick={() => downloadCSV(rows, csvFilename)}>
-              Download CSV
-            </button>
-          )}
-        </div>
-
-        {loading && (
-          <div className="state-box">
-            <div className="spinner" />
-            <div style={{ fontWeight: 500 }}>
-              {progress?.count > 0
-                ? `Fetched ${progress.count.toLocaleString()} records — still going…`
-                : 'Connecting to Shopify…'}
-            </div>
-            {progress?.count > 0 && (
-              <div style={{ fontSize: 12, color: '#bbb', marginTop: 6 }}>Large date ranges may take a moment</div>
-            )}
-          </div>
-        )}
-
-        {error && (
-          <div className="state-box error">Error: {error}</div>
-        )}
-
-        {rows && !loading && (
+      <div className="controls">
+        {requiresDates && (
           <>
-            <div className="results-bar">
-              <span className="results-count">{rows.length.toLocaleString()} rows</span>
-              {rows.length > 0 && (
-                <button className="btn btn-secondary" onClick={() => downloadCSV(rows, csvFilename)}>
-                  Download CSV
-                </button>
-              )}
+            <div className="field">
+              <label>From</label>
+              <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} max={endDate} />
             </div>
-
-            {rows.length === 0 ? (
-              <div className="state-box">No data found for this period.</div>
-            ) : (
-              <div className="table-wrap">
-                <table>
-                  <thead>
-                    <tr>{columns.map(col => <th key={col}>{col}</th>)}</tr>
-                  </thead>
-                  <tbody>
-                    {rows.map((row, i) => (
-                      <tr key={i}>
-                        {columns.map(col => (
-                          <td key={col} className={col === 'SKU' ? 'sku-cell' : ''}>{row[col]}</td>
-                        ))}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
+            <div className="field">
+              <label>To</label>
+              <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} min={startDate} max={today} />
+            </div>
           </>
         )}
+        <button className="btn btn-primary" onClick={runReport} disabled={loading}>
+          {loading ? 'Loading…' : 'Generate Report'}
+        </button>
+        {rows?.length > 0 && (
+          <button className="btn btn-secondary" onClick={() => downloadCSV(rows, csvFilename)}>
+            Download CSV
+          </button>
+        )}
       </div>
-    </>
+
+      {loading && (
+        <div className="state-box">
+          <div className="spinner" />
+          <div style={{ fontWeight: 500 }}>
+            {progress?.count > 0
+              ? `Fetched ${progress.count.toLocaleString()} records — still going…`
+              : 'Connecting to Shopify…'}
+          </div>
+          {progress?.count > 0 && (
+            <div style={{ fontSize: 12, color: '#bbb', marginTop: 6 }}>Large date ranges may take a moment</div>
+          )}
+        </div>
+      )}
+
+      {error && (
+        <div className="state-box error">Error: {error}</div>
+      )}
+
+      {rows && !loading && (
+        <>
+          <div className="results-bar">
+            <span className="results-count">{rows.length.toLocaleString()} rows</span>
+            {rows.length > 0 && (
+              <button className="btn btn-secondary" onClick={() => downloadCSV(rows, csvFilename)}>
+                Download CSV
+              </button>
+            )}
+          </div>
+
+          {rows.length === 0 ? (
+            <div className="state-box">No data found for this period.</div>
+          ) : (
+            <div className="table-wrap">
+              <table>
+                <thead>
+                  <tr>{columns.map(col => <th key={col}>{col}</th>)}</tr>
+                </thead>
+                <tbody>
+                  {rows.map((row, i) => (
+                    <tr key={i}>
+                      {columns.map(col => (
+                        <td key={col} className={col === 'SKU' ? 'sku-cell' : ''}>{row[col]}</td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </>
+      )}
+    </div>
   )
 }
