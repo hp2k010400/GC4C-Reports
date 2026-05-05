@@ -55,8 +55,18 @@ export default function BulkUpdate() {
   return (
     <>
       <div className="header">
-        <span className="header-title">GC4C Reports</span>
-        <span className="header-sub">Live data — direct from Shopify</span>
+        <div className="header-left">
+          <div className="header-logo">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+            </svg>
+          </div>
+          <span className="header-title">GC4C Reports</span>
+        </div>
+        <span className="header-live">
+          <span className="header-live-dot" />
+          Live
+        </span>
       </div>
 
       <div className="container">
@@ -77,10 +87,10 @@ export default function BulkUpdate() {
           </p>
         </div>
 
-        {error && <div className="state-box error" style={{ marginBottom: 16 }}>Error: {error}</div>}
+        {error && <div className="state-box error" style={{ marginBottom: 16, padding: '20px 24px', textAlign: 'left' }}>Error: {error}</div>}
 
         {result && (
-          <div className="state-box" style={{ color: '#005F2C', marginBottom: 16 }}>
+          <div className="state-box success" style={{ marginBottom: 16, padding: '20px 24px', textAlign: 'left' }}>
             Done — {result.updated} variants updated, {result.skipped} skipped.
           </div>
         )}

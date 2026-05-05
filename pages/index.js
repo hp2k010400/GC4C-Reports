@@ -2,6 +2,38 @@ import { useEffect } from 'react'
 import Link from 'next/link'
 import { reports } from '../lib/reports/index.js'
 
+const ICONS = {
+  'sales-by-sku': (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/>
+    </svg>
+  ),
+  'inventory-on-hand': (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+      <polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/>
+    </svg>
+  ),
+  'product-export': (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+      <polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/>
+    </svg>
+  ),
+  'bulk-update': (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/>
+      <path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/>
+    </svg>
+  ),
+}
+
+const ARROW = (
+  <svg className="report-card-arrow" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
+  </svg>
+)
+
 export default function Dashboard() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
@@ -15,8 +47,18 @@ export default function Dashboard() {
   return (
     <>
       <div className="header">
-        <span className="header-title">GC4C Reports</span>
-        <span className="header-sub">Live data — direct from Shopify</span>
+        <div className="header-left">
+          <div className="header-logo">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+            </svg>
+          </div>
+          <span className="header-title">GC4C Reports</span>
+        </div>
+        <span className="header-live">
+          <span className="header-live-dot" />
+          Live
+        </span>
       </div>
 
       <div className="container">
@@ -26,15 +68,23 @@ export default function Dashboard() {
         <div className="report-grid">
           {Object.entries(reports).map(([slug, report]) => (
             <Link key={slug} href={`/reports/${slug}`} className="report-card">
+              <div className="report-card-icon">{ICONS[slug]}</div>
               <div className="report-card-name">{report.name}</div>
               <div className="report-card-desc">{report.description}</div>
-              <span className="report-card-tag">{report.requiresDates ? 'Date range' : 'Live snapshot'}</span>
+              <div className="report-card-footer">
+                <span className="report-card-tag">{report.requiresDates ? 'Date range' : 'Live snapshot'}</span>
+                {ARROW}
+              </div>
             </Link>
           ))}
           <Link href="/bulk-update" className="report-card">
+            <div className="report-card-icon">{ICONS['bulk-update']}</div>
             <div className="report-card-name">Bulk Product Update</div>
             <div className="report-card-desc">Upload an edited Product Export CSV to update prices, SKUs, compare-at prices and more across your entire catalogue in one go.</div>
-            <span className="report-card-tag">Upload CSV</span>
+            <div className="report-card-footer">
+              <span className="report-card-tag">Upload CSV</span>
+              {ARROW}
+            </div>
           </Link>
         </div>
       </div>

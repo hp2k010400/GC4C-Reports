@@ -78,8 +78,18 @@ export default function ReportPage({ slug, name, description, requiresDates }) {
   return (
     <>
       <div className="header">
-        <span className="header-title">GC4C Reports</span>
-        <span className="header-sub">Live data — direct from Shopify</span>
+        <div className="header-left">
+          <div className="header-logo">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+            </svg>
+          </div>
+          <span className="header-title">GC4C Reports</span>
+        </div>
+        <span className="header-live">
+          <span className="header-live-dot" />
+          Live
+        </span>
       </div>
 
       <div className="container">
