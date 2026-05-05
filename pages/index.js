@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { reports } from '../lib/reports/index.js'
 
@@ -17,7 +17,7 @@ const ICONS = {
   'product-export': (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-      <polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/>
+      <polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
     </svg>
   ),
   'bulk-update': (
@@ -34,7 +34,17 @@ const ARROW = (
   </svg>
 )
 
+function timeAgo(ts) {
+  const diff = Math.floor((Date.now() - new Date(ts)) / 1000)
+  if (diff < 60) return 'just now'
+  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`
+  return `${Math.floor(diff / 86400)}d ago`
+}
+
 export default function Dashboard() {
+  const [history, setHistory] = useState([])
+
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     const shop = params.get('shop')
@@ -42,6 +52,9 @@ export default function Dashboard() {
     if (shop && hmac && !process.env.NEXT_PUBLIC_TOKEN_SET) {
       window.location.href = '/api/auth?shop=' + shop
     }
+    try {
+      setHistory(JSON.parse(localStorage.getItem('gc4c_history') || '[]'))
+    } catch {}
   }, [])
 
   return (
@@ -87,6 +100,28 @@ export default function Dashboard() {
             </div>
           </Link>
         </div>
+
+        {history.length > 0 && (
+          <div style={{ marginTop: 48 }}>
+            <div className="section-label">Recent runs</div>
+            <div className="history-list">
+              {history.map((h, i) => (
+                <Link
+                  key={i}
+                  href={`/reports/${h.slug}${h.startDate ? `?start=${h.startDate}&end=${h.endDate}` : ''}`}
+                  className="history-item"
+                >
+                  <span className="history-name">{h.name}</span>
+                  {h.startDate && (
+                    <span className="history-dates">{h.startDate} → {h.endDate}</span>
+                  )}
+                  <span className="history-count">{h.rowCount.toLocaleString()} rows</span>
+                  <span className="history-ts">{timeAgo(h.ts)}</span>
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </>
   )

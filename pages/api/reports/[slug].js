@@ -1,18 +1,24 @@
+import { shopifyFetchPage } from '../../../lib/shopify.js'
 import { reports } from '../../../lib/reports/index.js'
 
 export default async function handler(req, res) {
-  const { slug, startDate, endDate } = req.query
+  const { slug, startDate, endDate, page_info } = req.query
   const report = reports[slug]
 
   if (!report) return res.status(404).json({ error: 'Report not found' })
-
   if (!process.env.SHOPIFY_ACCESS_TOKEN) {
-    return res.status(500).json({ error: 'SHOPIFY_ACCESS_TOKEN not configured. Complete the Shopify app installation first.' })
+    return res.status(500).json({ error: 'SHOPIFY_ACCESS_TOKEN not configured' })
   }
 
   try {
-    const data = await report.fetch({ startDate, endDate })
-    res.status(200).json({ data })
+    const params = page_info
+      ? { page_info }
+      : report.apiParams({ startDate, endDate })
+
+    const { items, nextPageInfo } = await shopifyFetchPage(report.endpoint, report.key, params)
+    const rows = report.transform(items)
+
+    res.status(200).json({ rows, nextPageInfo })
   } catch (err) {
     res.status(500).json({ error: err.message })
   }

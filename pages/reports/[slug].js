@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/router'
 import { reports } from '../../lib/reports/index.js'
 
 export async function getStaticPaths() {
@@ -24,16 +25,15 @@ export async function getStaticProps({ params }) {
 function toCSV(rows) {
   if (!rows.length) return ''
   const headers = Object.keys(rows[0])
-  const lines = [
+  return [
     headers.join(','),
     ...rows.map(row =>
       headers.map(h => {
         const val = String(row[h] ?? '')
-        return val.includes(',') ? `"${val}"` : val
+        return val.includes(',') || val.includes('"') ? `"${val.replace(/"/g, '""')}"` : val
       }).join(',')
     ),
-  ]
-  return lines.join('\n')
+  ].join('\n')
 }
 
 function downloadCSV(rows, filename) {
@@ -46,7 +46,16 @@ function downloadCSV(rows, filename) {
   URL.revokeObjectURL(url)
 }
 
+function saveHistory(entry) {
+  try {
+    const hist = JSON.parse(localStorage.getItem('gc4c_history') || '[]')
+    hist.unshift(entry)
+    localStorage.setItem('gc4c_history', JSON.stringify(hist.slice(0, 20)))
+  } catch {}
+}
+
 export default function ReportPage({ slug, name, description, requiresDates }) {
+  const router = useRouter()
   const today = new Date().toISOString().slice(0, 10)
   const thirtyDaysAgo = new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10)
 
@@ -54,26 +63,66 @@ export default function ReportPage({ slug, name, description, requiresDates }) {
   const [endDate, setEndDate] = useState(today)
   const [rows, setRows] = useState(null)
   const [loading, setLoading] = useState(false)
+  const [progress, setProgress] = useState(null)
   const [error, setError] = useState(null)
+
+  useEffect(() => {
+    if (router.query.start) setStartDate(router.query.start)
+    if (router.query.end) setEndDate(router.query.end)
+  }, [router.query])
 
   async function runReport() {
     setLoading(true)
     setError(null)
     setRows(null)
+    setProgress({ count: 0 })
 
-    const params = new URLSearchParams({ startDate, endDate })
-    const res = await fetch(`/api/reports/${slug}?${params}`)
-    const json = await res.json()
+    let allRows = []
+    let pageInfo = null
 
-    setLoading(false)
-    if (!res.ok) {
-      setError(json.error)
-    } else {
-      setRows(json.data)
+    try {
+      do {
+        const params = new URLSearchParams()
+        if (requiresDates) {
+          params.set('startDate', startDate)
+          params.set('endDate', endDate)
+        }
+        if (pageInfo) params.set('page_info', pageInfo)
+
+        const res = await fetch(`/api/reports/${slug}?${params}`)
+        const json = await res.json()
+
+        if (!res.ok) {
+          setError(json.error)
+          return
+        }
+
+        allRows = allRows.concat(json.rows)
+        pageInfo = json.nextPageInfo
+        setProgress({ count: allRows.length })
+      } while (pageInfo)
+
+      setRows(allRows)
+      saveHistory({
+        slug,
+        name,
+        startDate: requiresDates ? startDate : null,
+        endDate: requiresDates ? endDate : null,
+        rowCount: allRows.length,
+        ts: new Date().toISOString(),
+      })
+    } catch (err) {
+      setError('Network error: ' + err.message)
+    } finally {
+      setLoading(false)
+      setProgress(null)
     }
   }
 
   const columns = rows?.length ? Object.keys(rows[0]) : []
+  const csvFilename = requiresDates
+    ? `${slug}-${startDate}-to-${endDate}.csv`
+    : `${slug}-${new Date().toISOString().slice(0, 10)}.csv`
 
   return (
     <>
@@ -115,10 +164,7 @@ export default function ReportPage({ slug, name, description, requiresDates }) {
             {loading ? 'Loading…' : 'Generate Report'}
           </button>
           {rows?.length > 0 && (
-            <button
-              className="btn btn-secondary"
-              onClick={() => downloadCSV(rows, `${slug}-${startDate}-to-${endDate}.csv`)}
-            >
+            <button className="btn btn-secondary" onClick={() => downloadCSV(rows, csvFilename)}>
               Download CSV
             </button>
           )}
@@ -127,7 +173,14 @@ export default function ReportPage({ slug, name, description, requiresDates }) {
         {loading && (
           <div className="state-box">
             <div className="spinner" />
-            <div>Fetching live data from Shopify…</div>
+            <div style={{ fontWeight: 500 }}>
+              {progress?.count > 0
+                ? `Fetched ${progress.count.toLocaleString()} records — still going…`
+                : 'Connecting to Shopify…'}
+            </div>
+            {progress?.count > 0 && (
+              <div style={{ fontSize: 12, color: '#bbb', marginTop: 6 }}>Large date ranges may take a moment</div>
+            )}
           </div>
         )}
 
@@ -140,10 +193,7 @@ export default function ReportPage({ slug, name, description, requiresDates }) {
             <div className="results-bar">
               <span className="results-count">{rows.length.toLocaleString()} rows</span>
               {rows.length > 0 && (
-                <button
-                  className="btn btn-secondary"
-                  onClick={() => downloadCSV(rows, `${slug}-${startDate}-to-${endDate}.csv`)}
-                >
+                <button className="btn btn-secondary" onClick={() => downloadCSV(rows, csvFilename)}>
                   Download CSV
                 </button>
               )}
@@ -155,17 +205,13 @@ export default function ReportPage({ slug, name, description, requiresDates }) {
               <div className="table-wrap">
                 <table>
                   <thead>
-                    <tr>
-                      {columns.map(col => <th key={col}>{col}</th>)}
-                    </tr>
+                    <tr>{columns.map(col => <th key={col}>{col}</th>)}</tr>
                   </thead>
                   <tbody>
                     {rows.map((row, i) => (
                       <tr key={i}>
                         {columns.map(col => (
-                          <td key={col} className={col === 'SKU' ? 'sku-cell' : ''}>
-                            {row[col]}
-                          </td>
+                          <td key={col} className={col === 'SKU' ? 'sku-cell' : ''}>{row[col]}</td>
                         ))}
                       </tr>
                     ))}
