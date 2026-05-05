@@ -31,6 +31,11 @@ export default function Dashboard() {
               <span className="report-card-tag">{report.requiresDates ? 'Date range' : 'Live snapshot'}</span>
             </Link>
           ))}
+          <Link href="/bulk-update" className="report-card">
+            <div className="report-card-name">Bulk Product Update</div>
+            <div className="report-card-desc">Upload an edited Product Export CSV to update prices, SKUs, compare-at prices and more across your entire catalogue in one go.</div>
+            <span className="report-card-tag">Upload CSV</span>
+          </Link>
         </div>
       </div>
     </>
