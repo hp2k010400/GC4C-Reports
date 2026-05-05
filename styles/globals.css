@@ -590,12 +590,16 @@ tbody tr:hover td { background: #f0f9f4 !important; }
   border: 1px solid #e4e4e4;
   border-radius: 8px;
   padding: 14px 16px;
-  transition: border-color 0.15s;
+  transition: border-color 0.15s, background 0.15s;
   margin-bottom: 2px;
+  text-decoration: none;
+  color: inherit;
+  cursor: pointer;
 }
 
 .history-item-full:hover {
-  border-color: #ccc;
+  border-color: #005F2C;
+  background: #fafffe;
 }
 
 .history-item-body {

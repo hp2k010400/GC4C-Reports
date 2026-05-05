@@ -94,8 +94,11 @@ export default function History() {
           {filtered.map((h, i) => {
             const type = h.type || 'report'
             const isBulk = type === 'bulk-edit'
+            const href = isBulk
+              ? '/bulk-update'
+              : `/reports/${h.slug}${h.startDate ? `?start=${h.startDate}&end=${h.endDate}` : ''}`
             return (
-              <div key={i} className="history-item-full">
+              <Link key={i} href={href} className="history-item-full">
                 <span className={`history-type-badge ${isBulk ? 'badge-bulk' : 'badge-report'}`}>
                   {isBulk ? 'Bulk Edit' : 'Report'}
                 </span>
@@ -113,15 +116,8 @@ export default function History() {
                   </span>
                   <span className="history-ts" title={formatDate(h.ts)}>{timeAgo(h.ts)}</span>
                 </div>
-                {h.slug && (
-                  <Link
-                    href={`/reports/${h.slug}${h.startDate ? `?start=${h.startDate}&end=${h.endDate}` : ''}`}
-                    className="history-rerun"
-                  >
-                    Re-run →
-                  </Link>
-                )}
-              </div>
+                <span className="history-rerun">Open →</span>
+              </Link>
             )
           })}
         </div>
