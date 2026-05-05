@@ -1,7 +1,17 @@
+import { useEffect } from 'react'
 import Link from 'next/link'
 import { reports } from '../lib/reports/index.js'
 
 export default function Dashboard() {
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const shop = params.get('shop')
+    const hmac = params.get('hmac')
+    if (shop && hmac && !process.env.NEXT_PUBLIC_TOKEN_SET) {
+      window.location.href = '/api/auth?shop=' + shop
+    }
+  }, [])
+
   return (
     <>
       <div className="header">
