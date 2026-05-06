@@ -1,5 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { PRODUCT_FIELDS, CONDITIONS, applyFilters, needsValue } from '../lib/filterEngine.js'
+import { TYPE_GROUPS } from '../lib/typeGroups.js'
+import { VENDOR_GROUPS } from '../lib/vendorGroups.js'
 
 const DEFAULT_COLS = ['Title', 'SKU', 'Variant', 'Type', 'Brand', 'Status', 'Price', 'Compare At', 'Inventory']
 const ALL_COLS = [
