@@ -2,6 +2,8 @@ import Link from 'next/link'
 import { useRouter } from 'next/router'
 
 const NAV = [
+  { label: 'Products', href: '/products' },
+  { label: 'Orders', href: '/orders' },
   { label: 'Reports', href: '/' },
   { label: 'Bulk Edit', href: '/bulk-update' },
   { label: 'History', href: '/history' },
