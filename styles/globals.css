@@ -1058,6 +1058,54 @@ tbody tr:hover td { background: #f0f9f4 !important; }
 .ful-partial     { background: #fde8e8; color: #c0392b; }
 .ful-restocked   { background: #f0f0f0; color: #666; }
 
+.combined-notice {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  background: #f0f9f4;
+  border: 1px solid #b8dfc9;
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 13px;
+  color: #005F2C;
+  margin-bottom: 20px;
+}
+
+.combined-phases {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 16px;
+  justify-content: center;
+}
+
+.combined-phase {
+  padding: 4px 14px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  background: #f0f0f0;
+  color: #999;
+  border: 1.5px solid #e4e4e4;
+}
+
+.combined-phase.active {
+  background: #005F2C;
+  color: white;
+  border-color: #005F2C;
+}
+
+.combined-phase.done {
+  background: #d4edda;
+  color: #005F2C;
+  border-color: #b8dfc9;
+}
+
+.combined-phase-arrow {
+  color: #ccc;
+  font-size: 14px;
+}
+
 /* --- Responsive --- */
 @media (max-width: 768px) {
   .header { padding: 0 16px; }
