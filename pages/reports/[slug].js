@@ -20,6 +20,7 @@ export async function getStaticProps({ params }) {
       description: report.description,
       requiresDates: report.requiresDates,
       supportsTypeFilter: report.supportsTypeFilter || false,
+      supportsVendorFilter: report.supportsVendorFilter || false,
       typeOptions: report.supportsTypeFilter ? Object.keys(TYPE_GROUPS) : [],
       typeGroups: report.supportsTypeFilter ? TYPE_GROUPS : {},
     },
@@ -58,7 +59,7 @@ function saveHistory(entry) {
   } catch {}
 }
 
-export default function ReportPage({ slug, name, description, requiresDates, supportsTypeFilter, typeOptions = [], typeGroups = {} }) {
+export default function ReportPage({ slug, name, description, requiresDates, supportsTypeFilter, supportsVendorFilter, typeOptions = [], typeGroups = {} }) {
   const router = useRouter()
   const today = new Date().toISOString().slice(0, 10)
   const thirtyDaysAgo = new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10)
@@ -66,6 +67,7 @@ export default function ReportPage({ slug, name, description, requiresDates, sup
   const [startDate, setStartDate] = useState(thirtyDaysAgo)
   const [endDate, setEndDate] = useState(today)
   const [productType, setProductType] = useState('')
+  const [vendor, setVendor] = useState('')
   const [rows, setRows] = useState(null)
   const [loading, setLoading] = useState(false)
   const [progress, setProgress] = useState(null)
@@ -110,6 +112,7 @@ export default function ReportPage({ slug, name, description, requiresDates, sup
             params.set('endDate', endDate)
           }
           if (variant) params.set('productType', variant)
+          if (vendor) params.set('vendor', vendor)
           if (pageInfo) params.set('page_info', pageInfo)
 
           const res = await fetch(`/api/reports/${slug}?${params}`)
@@ -194,6 +197,18 @@ export default function ReportPage({ slug, name, description, requiresDates, sup
             </select>
           </div>
         )}
+        {supportsVendorFilter && (
+          <div className="field">
+            <label>Brand</label>
+            <input
+              type="text"
+              value={vendor}
+              onChange={e => setVendor(e.target.value)}
+              placeholder="e.g. Titleist"
+              className="vendor-input"
+            />
+          </div>
+        )}
         <button className="btn btn-primary" onClick={runReport} disabled={loading}>
           {loading ? 'Loading…' : 'Generate Report'}
         </button>
@@ -209,7 +224,7 @@ export default function ReportPage({ slug, name, description, requiresDates, sup
           <div className="spinner" />
           <div style={{ fontWeight: 500 }}>
             {progress?.count > 0
-              ? `Fetched ${progress.count.toLocaleString()} records — still going…`
+              ? `Fetched ${progress.count.toLocaleString()} products — still going…`
               : 'Connecting to Shopify…'}
           </div>
           {progress?.count > 0 && (

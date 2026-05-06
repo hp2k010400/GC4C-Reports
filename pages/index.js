@@ -26,6 +26,11 @@ const ICONS = {
       <path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/>
     </svg>
   ),
+  'new-stock': (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/>
+    </svg>
+  ),
 }
 
 const ARROW = (
@@ -57,32 +62,8 @@ export default function Dashboard() {
     } catch {}
   }, [])
 
-  const reportRuns = history.filter(h => !h.type || h.type === 'report')
-  const bulkEdits = history.filter(h => h.type === 'bulk-edit')
-  const totalRows = reportRuns.reduce((s, h) => s + (h.rowCount || 0), 0)
-  const totalUpdated = bulkEdits.reduce((s, h) => s + (h.updated || 0), 0)
-
   return (
     <div className="container">
-      <div className="stats-row">
-        <div className="stat-card">
-          <div className="stat-value">{reportRuns.length}</div>
-          <div className="stat-label">Report runs</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-value">{totalRows.toLocaleString()}</div>
-          <div className="stat-label">Rows fetched</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-value">{bulkEdits.length}</div>
-          <div className="stat-label">Bulk edits</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-value">{totalUpdated.toLocaleString()}</div>
-          <div className="stat-label">Products updated</div>
-        </div>
-      </div>
-
       <div className="quick-actions">
         <Link href="/reports/sales-by-sku" className="quick-action">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

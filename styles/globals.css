@@ -344,6 +344,23 @@ body {
   box-shadow: 0 0 0 3px rgba(0, 95, 44, 0.08);
 }
 
+.vendor-input {
+  padding: 8px 12px;
+  border: 1px solid #d4d4d4;
+  border-radius: 7px;
+  font-size: 14px;
+  color: #1a1a1a;
+  background: white;
+  transition: border-color 0.15s;
+  width: 160px;
+}
+
+.vendor-input:focus {
+  outline: none;
+  border-color: #005F2C;
+  box-shadow: 0 0 0 3px rgba(0, 95, 44, 0.08);
+}
+
 .field input[type="date"],
 .field input[type="file"] {
   padding: 8px 12px;
