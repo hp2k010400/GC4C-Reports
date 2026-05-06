@@ -112,7 +112,13 @@ export default function CombinedPage() {
         } while (pageInfo)
       }
     }
-    return rows
+    const seen = new Set()
+    const unique = []
+    for (const row of rows) {
+      const key = row['Variant ID']
+      if (!seen.has(key)) { seen.add(key); unique.push(row) }
+    }
+    return unique
   }
 
   async function fetchAllOrders() {

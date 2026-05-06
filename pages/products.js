@@ -100,7 +100,13 @@ export default function ProductsPage() {
           } while (pageInfo)
         }
       }
-      setAllRows(rows)
+      const seen = new Set()
+      const unique = []
+      for (const row of rows) {
+        const key = row['Variant ID']
+        if (!seen.has(key)) { seen.add(key); unique.push(row) }
+      }
+      setAllRows(unique)
     } catch (err) {
       setError(err.message)
     } finally {
