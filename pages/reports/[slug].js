@@ -103,10 +103,15 @@ export default function ReportPage({ slug, name, description, requiresDates, sup
           if (pageInfo) params.set('page_info', pageInfo)
 
           const res = await fetch(`/api/reports/${slug}?${params}`)
-          const json = await res.json()
+          let json
+          try {
+            json = await res.json()
+          } catch {
+            throw new Error('Request timed out — try a specific product type to reduce the data size')
+          }
 
           if (!res.ok) {
-            setError(json.error)
+            setError(json.error || 'Server error')
             return
           }
 
