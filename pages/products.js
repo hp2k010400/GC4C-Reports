@@ -72,14 +72,16 @@ export default function ProductsPage() {
     setSortField(null)
     setProgress({ count: 0 })
 
+    const queryType   = preType   ? (TYPE_GROUPS[preType]?.[0]   ?? preType)   : null
+    const queryVendor = preVendor ? (VENDOR_GROUPS[preVendor]?.[0] ?? preVendor) : null
     let rows = []
 
     try {
       let pageInfo = null
       do {
         const params = new URLSearchParams()
-        if (preType)    params.set('product_type', preType)
-        if (preVendor)  params.set('vendor', preVendor)
+        if (queryType)   params.set('product_type', queryType)
+        if (queryVendor) params.set('vendor', queryVendor)
         if (preStatus)  params.set('status', preStatus)
         if (pageInfo)   params.set('page_info', pageInfo)
 
