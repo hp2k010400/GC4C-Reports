@@ -1046,6 +1046,18 @@ tbody tr:hover td { background: #f0f9f4 !important; }
 .status-draft    { background: #fff3cd; color: #856404; }
 .status-archived { background: #f0f0f0; color: #666; }
 
+.fin-paid                { background: #d4edda; color: #005F2C; }
+.fin-pending             { background: #fff3cd; color: #856404; }
+.fin-refunded            { background: #fde8e8; color: #c0392b; }
+.fin-partially_refunded  { background: #fde8e8; color: #c0392b; }
+.fin-voided              { background: #f0f0f0; color: #666; }
+.fin-authorized          { background: #e8f0fe; color: #1a56c4; }
+
+.ful-fulfilled   { background: #d4edda; color: #005F2C; }
+.ful-unfulfilled { background: #fff3cd; color: #856404; }
+.ful-partial     { background: #fde8e8; color: #c0392b; }
+.ful-restocked   { background: #f0f0f0; color: #666; }
+
 /* --- Responsive --- */
 @media (max-width: 768px) {
   .header { padding: 0 16px; }
