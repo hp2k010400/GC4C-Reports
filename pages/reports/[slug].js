@@ -13,6 +13,7 @@ export async function getStaticPaths() {
 export async function getStaticProps({ params }) {
   const report = reports[params.slug]
   const { TYPE_GROUPS } = await import('../../lib/typeGroups.js')
+  const { VENDOR_GROUPS } = await import('../../lib/vendorGroups.js')
   return {
     props: {
       slug: params.slug,
@@ -23,6 +24,8 @@ export async function getStaticProps({ params }) {
       supportsVendorFilter: report.supportsVendorFilter || false,
       typeOptions: report.supportsTypeFilter ? Object.keys(TYPE_GROUPS) : [],
       typeGroups: report.supportsTypeFilter ? TYPE_GROUPS : {},
+      vendorOptions: report.supportsVendorFilter ? Object.keys(VENDOR_GROUPS) : [],
+      vendorGroups: report.supportsVendorFilter ? VENDOR_GROUPS : {},
     },
   }
 }
@@ -59,7 +62,7 @@ function saveHistory(entry) {
   } catch {}
 }
 
-export default function ReportPage({ slug, name, description, requiresDates, supportsTypeFilter, supportsVendorFilter, typeOptions = [], typeGroups = {} }) {
+export default function ReportPage({ slug, name, description, requiresDates, supportsTypeFilter, supportsVendorFilter, typeOptions = [], typeGroups = {}, vendorOptions = [], vendorGroups = {} }) {
   const router = useRouter()
   const today = new Date().toISOString().slice(0, 10)
   const thirtyDaysAgo = new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10)
@@ -95,43 +98,47 @@ export default function ReportPage({ slug, name, description, requiresDates, sup
     setRows(null)
     setProgress({ count: 0 })
 
-    // Expand selected type into all Shopify variants (e.g. Drivers → Driver/driver/DRIVER/Drivers)
-    const variants = productType && supportsTypeFilter
+    const typeVariants = productType && supportsTypeFilter
       ? (typeGroups[productType] || [productType])
+      : [null]
+    const vendorVariants = vendor && supportsVendorFilter
+      ? (vendorGroups[vendor] || [vendor])
       : [null]
 
     let allRows = []
 
     try {
-      for (const variant of variants) {
-        let pageInfo = null
-        do {
-          const params = new URLSearchParams()
-          if (requiresDates) {
-            params.set('startDate', startDate)
-            params.set('endDate', endDate)
-          }
-          if (variant) params.set('productType', variant)
-          if (vendor) params.set('vendor', vendor)
-          if (pageInfo) params.set('page_info', pageInfo)
+      for (const typeVariant of typeVariants) {
+        for (const vendorVariant of vendorVariants) {
+          let pageInfo = null
+          do {
+            const params = new URLSearchParams()
+            if (requiresDates) {
+              params.set('startDate', startDate)
+              params.set('endDate', endDate)
+            }
+            if (typeVariant) params.set('productType', typeVariant)
+            if (vendorVariant) params.set('vendor', vendorVariant)
+            if (pageInfo) params.set('page_info', pageInfo)
 
-          const res = await fetch(`/api/reports/${slug}?${params}`)
-          let json
-          try {
-            json = await res.json()
-          } catch {
-            throw new Error('Request timed out — try a specific product type to reduce the data size')
-          }
+            const res = await fetch(`/api/reports/${slug}?${params}`)
+            let json
+            try {
+              json = await res.json()
+            } catch {
+              throw new Error('Request timed out — try a specific product type to reduce the data size')
+            }
 
-          if (!res.ok) {
-            setError(json.error || 'Server error')
-            return
-          }
+            if (!res.ok) {
+              setError(json.error || 'Server error')
+              return
+            }
 
-          allRows = allRows.concat(json.rows)
-          pageInfo = json.nextPageInfo
-          setProgress({ count: allRows.length })
-        } while (pageInfo)
+            allRows = allRows.concat(json.rows)
+            pageInfo = json.nextPageInfo
+            setProgress({ count: allRows.length })
+          } while (pageInfo)
+        }
       }
 
       setRows(allRows)
@@ -200,13 +207,16 @@ export default function ReportPage({ slug, name, description, requiresDates, sup
         {supportsVendorFilter && (
           <div className="field">
             <label>Brand</label>
-            <input
-              type="text"
+            <select
               value={vendor}
               onChange={e => setVendor(e.target.value)}
-              placeholder="e.g. Titleist"
-              className="vendor-input"
-            />
+              className="type-select"
+            >
+              <option value="">All brands</option>
+              {vendorOptions.map(v => (
+                <option key={v} value={v}>{v}</option>
+              ))}
+            </select>
           </div>
         )}
         <button className="btn btn-primary" onClick={runReport} disabled={loading}>
@@ -229,7 +239,11 @@ export default function ReportPage({ slug, name, description, requiresDates, sup
           </div>
           {progress?.count > 0 && (
             <div style={{ fontSize: 12, color: '#bbb', marginTop: 6 }}>
-              {requiresDates ? 'Large date ranges may take a moment' : 'Fetching all products — this may take a moment'}
+              {requiresDates
+                ? 'Large date ranges may take a moment'
+                : (productType || vendor)
+                  ? 'Filtering products — this may take a moment'
+                  : 'Fetching all products — this may take a moment'}
             </div>
           )}
         </div>
