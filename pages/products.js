@@ -1,7 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
 import { PRODUCT_FIELDS, CONDITIONS, applyFilters, needsValue } from '../lib/filterEngine.js'
-import { TYPE_GROUPS } from '../lib/typeGroups.js'
-import { VENDOR_GROUPS } from '../lib/vendorGroups.js'
 
 const DEFAULT_COLS = ['Title', 'SKU', 'Variant', 'Type', 'Brand', 'Status', 'Price', 'Compare At', 'Inventory']
 const ALL_COLS = [
@@ -72,41 +70,29 @@ export default function ProductsPage() {
     setSortField(null)
     setProgress({ count: 0 })
 
-    const typeVariants   = preType   ? (TYPE_GROUPS[preType]     || [preType])   : [null]
-    const vendorVariants = preVendor ? (VENDOR_GROUPS[preVendor] || [preVendor]) : [null]
     let rows = []
 
     try {
-      for (const tv of typeVariants) {
-        for (const vv of vendorVariants) {
-          let pageInfo = null
-          do {
-            const params = new URLSearchParams()
-            if (tv)         params.set('product_type', tv)
-            if (vv)         params.set('vendor', vv)
-            if (preStatus)  params.set('status', preStatus)
-            if (pageInfo)   params.set('page_info', pageInfo)
+      let pageInfo = null
+      do {
+        const params = new URLSearchParams()
+        if (preType)    params.set('product_type', preType)
+        if (preVendor)  params.set('vendor', preVendor)
+        if (preStatus)  params.set('status', preStatus)
+        if (pageInfo)   params.set('page_info', pageInfo)
 
-            const res = await fetch(`/api/products-data?${params}`)
-            let json
-            try { json = await res.json() } catch {
-              throw new Error('Request timed out — try narrowing with Type or Brand first')
-            }
-            if (!res.ok) throw new Error(json.error)
-
-            rows = rows.concat(json.rows)
-            pageInfo = json.nextPageInfo
-            setProgress({ count: rows.length })
-          } while (pageInfo)
+        const res = await fetch(`/api/products-data?${params}`)
+        let json
+        try { json = await res.json() } catch {
+          throw new Error('Request timed out — try narrowing with Type or Brand first')
         }
-      }
-      const seen = new Set()
-      const unique = []
-      for (const row of rows) {
-        const key = row['Variant ID']
-        if (!seen.has(key)) { seen.add(key); unique.push(row) }
-      }
-      setAllRows(unique)
+        if (!res.ok) throw new Error(json.error)
+
+        rows = rows.concat(json.rows)
+        pageInfo = json.nextPageInfo
+        setProgress({ count: rows.length })
+      } while (pageInfo)
+      setAllRows(rows)
     } catch (err) {
       setError(err.message)
     } finally {

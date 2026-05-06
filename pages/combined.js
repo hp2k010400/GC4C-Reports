@@ -1,7 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
 import { COMBINED_FIELDS, CONDITIONS, applyFilters, needsValue } from '../lib/filterEngine.js'
-import { TYPE_GROUPS } from '../lib/typeGroups.js'
-import { VENDOR_GROUPS } from '../lib/vendorGroups.js'
 
 const DEFAULT_COLS = ['Title', 'SKU', 'Variant', 'Type', 'Brand', 'Status', 'Inventory', 'Units Sold', 'Revenue', 'Last Sold']
 const ALL_COLS = [
@@ -92,33 +90,21 @@ export default function CombinedPage() {
   }, [])
 
   async function fetchAllProducts() {
-    const typeVariants   = preType   ? (TYPE_GROUPS[preType]     || [preType])   : [null]
-    const vendorVariants = preVendor ? (VENDOR_GROUPS[preVendor] || [preVendor]) : [null]
     let rows = []
-    for (const tv of typeVariants) {
-      for (const vv of vendorVariants) {
-        let pageInfo = null
-        do {
-          const params = new URLSearchParams()
-          if (tv) params.set('product_type', tv)
-          if (vv) params.set('vendor', vv)
-          if (pageInfo) params.set('page_info', pageInfo)
-          const res = await fetch(`/api/products-data?${params}`)
-          const json = await res.json()
-          if (!res.ok) throw new Error(json.error)
-          rows = rows.concat(json.rows)
-          pageInfo = json.nextPageInfo
-          setPhaseCount(rows.length)
-        } while (pageInfo)
-      }
-    }
-    const seen = new Set()
-    const unique = []
-    for (const row of rows) {
-      const key = row['Variant ID']
-      if (!seen.has(key)) { seen.add(key); unique.push(row) }
-    }
-    return unique
+    let pageInfo = null
+    do {
+      const params = new URLSearchParams()
+      if (preType)   params.set('product_type', preType)
+      if (preVendor) params.set('vendor', preVendor)
+      if (pageInfo)  params.set('page_info', pageInfo)
+      const res = await fetch(`/api/products-data?${params}`)
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error)
+      rows = rows.concat(json.rows)
+      pageInfo = json.nextPageInfo
+      setPhaseCount(rows.length)
+    } while (pageInfo)
+    return rows
   }
 
   async function fetchAllOrders() {
