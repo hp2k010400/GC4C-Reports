@@ -70,11 +70,21 @@ export default function ReportPage({ slug, name, description, requiresDates, sup
   const [loading, setLoading] = useState(false)
   const [progress, setProgress] = useState(null)
   const [error, setError] = useState(null)
+  const [autorunPending, setAutorunPending] = useState(false)
 
   useEffect(() => {
+    if (!router.isReady) return
     if (router.query.start) setStartDate(router.query.start)
     if (router.query.end) setEndDate(router.query.end)
-  }, [router.query])
+    if (router.query.autorun === '1') setAutorunPending(true)
+  }, [router.isReady, router.query])
+
+  useEffect(() => {
+    if (autorunPending) {
+      setAutorunPending(false)
+      runReport()
+    }
+  }, [autorunPending]) // eslint-disable-line
 
 
   async function runReport() {

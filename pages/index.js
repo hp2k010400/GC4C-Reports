@@ -157,7 +157,7 @@ export default function Dashboard() {
                 <span className="history-ts">{timeAgo(h.ts)}</span>
                 {h.slug && (
                   <Link
-                    href={`/reports/${h.slug}${h.startDate ? `?start=${h.startDate}&end=${h.endDate}` : ''}`}
+                    href={`/reports/${h.slug}?autorun=1${h.startDate ? `&start=${h.startDate}&end=${h.endDate}` : ''}`}
                     className="history-rerun"
                     onClick={e => e.stopPropagation()}
                   >

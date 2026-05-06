@@ -96,7 +96,7 @@ export default function History() {
             const isBulk = type === 'bulk-edit'
             const href = isBulk
               ? '/bulk-update'
-              : `/reports/${h.slug}${h.startDate ? `?start=${h.startDate}&end=${h.endDate}` : ''}`
+              : `/reports/${h.slug}?autorun=1${h.startDate ? `&start=${h.startDate}&end=${h.endDate}` : ''}`
             return (
               <Link key={i} href={href} className="history-item-full">
                 <span className={`history-type-badge ${isBulk ? 'badge-bulk' : 'badge-report'}`}>
