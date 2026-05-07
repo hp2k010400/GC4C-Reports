@@ -4,6 +4,9 @@ import { TYPE_GROUPS } from '../lib/typeGroups.js'
 import { VENDOR_GROUPS } from '../lib/vendorGroups.js'
 
 const DEFAULT_COLS = ['Title', 'SKU', 'Variant', 'Type', 'Brand', 'Status', 'Price', 'Compare At', 'Inventory']
+
+let _cache = null
+
 const ALL_COLS = [
   'Title', 'SKU', 'Variant', 'Type', 'Brand', 'Status',
   'Price', 'Compare At', 'Inventory', 'Barcode', 'Tags',
@@ -36,22 +39,22 @@ function downloadCSV(rows, cols, filename) {
 }
 
 export default function ProductsPage() {
-  const [allRows, setAllRows] = useState(null)
+  const [allRows, setAllRows] = useState(_cache?.rows ?? null)
   const [loading, setLoading] = useState(false)
   const [progress, setProgress] = useState(null)
   const [error, setError] = useState(null)
 
-  const [preType, setPreType] = useState('')
-  const [preVendor, setPreVendor] = useState('')
-  const [preStatus, setPreStatus] = useState('')
+  const [preType, setPreType] = useState(_cache?.preType ?? '')
+  const [preVendor, setPreVendor] = useState(_cache?.preVendor ?? '')
+  const [preStatus, setPreStatus] = useState(_cache?.preStatus ?? '')
 
-  const [filters, setFilters] = useState([])
-  const [filterLogic, setFilterLogic] = useState('AND')
+  const [filters, setFilters] = useState(_cache?.filters ?? [])
+  const [filterLogic, setFilterLogic] = useState(_cache?.filterLogic ?? 'AND')
 
-  const [sortField, setSortField] = useState(null)
-  const [sortDir, setSortDir] = useState('asc')
+  const [sortField, setSortField] = useState(_cache?.sortField ?? null)
+  const [sortDir, setSortDir] = useState(_cache?.sortDir ?? 'asc')
 
-  const [visibleCols, setVisibleCols] = useState(DEFAULT_COLS)
+  const [visibleCols, setVisibleCols] = useState(_cache?.visibleCols ?? DEFAULT_COLS)
   const [showColPicker, setShowColPicker] = useState(false)
 
   const [savedViews, setSavedViews] = useState([])
@@ -63,6 +66,12 @@ export default function ProductsPage() {
       setSavedViews(JSON.parse(localStorage.getItem('gc4c_product_views') || '[]'))
     } catch {}
   }, [])
+
+  useEffect(() => {
+    if (allRows) {
+      _cache = { rows: allRows, preType, preVendor, preStatus, filters, filterLogic, sortField, sortDir, visibleCols }
+    }
+  }, [allRows, preType, preVendor, preStatus, filters, filterLogic, sortField, sortDir, visibleCols])
 
   async function loadProducts() {
     setLoading(true)

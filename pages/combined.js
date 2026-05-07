@@ -3,6 +3,8 @@ import { COMBINED_FIELDS, CONDITIONS, applyFilters, needsValue } from '../lib/fi
 import { TYPE_GROUPS } from '../lib/typeGroups.js'
 import { VENDOR_GROUPS } from '../lib/vendorGroups.js'
 
+let _cache = null
+
 const DEFAULT_COLS = ['Title', 'SKU', 'Variant', 'Type', 'Brand', 'Status', 'Inventory', 'Units Sold', 'Revenue', 'Last Sold']
 const ALL_COLS = [
   'Title', 'SKU', 'Variant', 'Type', 'Brand', 'Status',
@@ -67,21 +69,21 @@ function downloadCSV(rows, cols, filename) {
 }
 
 export default function CombinedPage() {
-  const [allRows, setAllRows] = useState(null)
+  const [allRows, setAllRows] = useState(_cache?.rows ?? null)
   const [phase, setPhase] = useState(null)
   const [phaseCount, setPhaseCount] = useState(0)
   const [error, setError] = useState(null)
 
-  const [startDate, setStartDate] = useState(daysAgo(30))
-  const [endDate, setEndDate] = useState(today())
-  const [preType, setPreType] = useState('')
-  const [preVendor, setPreVendor] = useState('')
+  const [startDate, setStartDate] = useState(_cache?.startDate ?? daysAgo(30))
+  const [endDate, setEndDate] = useState(_cache?.endDate ?? today())
+  const [preType, setPreType] = useState(_cache?.preType ?? '')
+  const [preVendor, setPreVendor] = useState(_cache?.preVendor ?? '')
 
-  const [filters, setFilters] = useState([])
-  const [filterLogic, setFilterLogic] = useState('AND')
-  const [sortField, setSortField] = useState('Units Sold')
-  const [sortDir, setSortDir] = useState('desc')
-  const [visibleCols, setVisibleCols] = useState(DEFAULT_COLS)
+  const [filters, setFilters] = useState(_cache?.filters ?? [])
+  const [filterLogic, setFilterLogic] = useState(_cache?.filterLogic ?? 'AND')
+  const [sortField, setSortField] = useState(_cache?.sortField ?? 'Units Sold')
+  const [sortDir, setSortDir] = useState(_cache?.sortDir ?? 'desc')
+  const [visibleCols, setVisibleCols] = useState(_cache?.visibleCols ?? DEFAULT_COLS)
   const [showColPicker, setShowColPicker] = useState(false)
   const [savedViews, setSavedViews] = useState([])
   const [viewName, setViewName] = useState('')
@@ -90,6 +92,12 @@ export default function CombinedPage() {
   useEffect(() => {
     try { setSavedViews(JSON.parse(localStorage.getItem('gc4c_combined_views') || '[]')) } catch {}
   }, [])
+
+  useEffect(() => {
+    if (allRows) {
+      _cache = { rows: allRows, startDate, endDate, preType, preVendor, filters, filterLogic, sortField, sortDir, visibleCols }
+    }
+  }, [allRows, startDate, endDate, preType, preVendor, filters, filterLogic, sortField, sortDir, visibleCols])
 
   async function fetchAllProducts() {
     const queryType   = preType   ? (TYPE_GROUPS[preType]?.[0]   ?? preType)   : null

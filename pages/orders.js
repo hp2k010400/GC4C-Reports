@@ -1,6 +1,8 @@
 import { useState, useEffect, useMemo } from 'react'
 import { ORDER_FIELDS, CONDITIONS, applyFilters, needsValue } from '../lib/filterEngine.js'
 
+let _cache = null
+
 const DEFAULT_COLS = ['Order', 'Date', 'Customer', 'SKU', 'Product', 'Qty', 'Unit Price', 'Line Total', 'Financial Status', 'Fulfillment Status']
 const ALL_COLS = [
   'Order', 'Date', 'Financial Status', 'Fulfillment Status',
@@ -38,23 +40,23 @@ function downloadCSV(rows, cols, filename) {
 }
 
 export default function OrdersPage() {
-  const [allRows, setAllRows] = useState(null)
+  const [allRows, setAllRows] = useState(_cache?.rows ?? null)
   const [loading, setLoading] = useState(false)
   const [progress, setProgress] = useState(null)
   const [error, setError] = useState(null)
 
-  const [startDate, setStartDate] = useState(daysAgo(30))
-  const [endDate, setEndDate] = useState(today())
-  const [preFinancial, setPreFinancial] = useState('')
-  const [preFulfillment, setPreFulfillment] = useState('')
+  const [startDate, setStartDate] = useState(_cache?.startDate ?? daysAgo(30))
+  const [endDate, setEndDate] = useState(_cache?.endDate ?? today())
+  const [preFinancial, setPreFinancial] = useState(_cache?.preFinancial ?? '')
+  const [preFulfillment, setPreFulfillment] = useState(_cache?.preFulfillment ?? '')
 
-  const [filters, setFilters] = useState([])
-  const [filterLogic, setFilterLogic] = useState('AND')
+  const [filters, setFilters] = useState(_cache?.filters ?? [])
+  const [filterLogic, setFilterLogic] = useState(_cache?.filterLogic ?? 'AND')
 
-  const [sortField, setSortField] = useState(null)
-  const [sortDir, setSortDir] = useState('asc')
+  const [sortField, setSortField] = useState(_cache?.sortField ?? null)
+  const [sortDir, setSortDir] = useState(_cache?.sortDir ?? 'asc')
 
-  const [visibleCols, setVisibleCols] = useState(DEFAULT_COLS)
+  const [visibleCols, setVisibleCols] = useState(_cache?.visibleCols ?? DEFAULT_COLS)
   const [showColPicker, setShowColPicker] = useState(false)
 
   const [savedViews, setSavedViews] = useState([])
@@ -66,6 +68,12 @@ export default function OrdersPage() {
       setSavedViews(JSON.parse(localStorage.getItem('gc4c_order_views') || '[]'))
     } catch {}
   }, [])
+
+  useEffect(() => {
+    if (allRows) {
+      _cache = { rows: allRows, startDate, endDate, preFinancial, preFulfillment, filters, filterLogic, sortField, sortDir, visibleCols }
+    }
+  }, [allRows, startDate, endDate, preFinancial, preFulfillment, filters, filterLogic, sortField, sortDir, visibleCols])
 
   async function loadOrders() {
     setLoading(true)
