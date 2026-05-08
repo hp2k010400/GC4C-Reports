@@ -9,7 +9,7 @@ const DEFAULT_COLS = ['Title', 'SKU', 'Variant', 'Type', 'Brand', 'Status', 'Inv
 const ALL_COLS = [
   'Title', 'SKU', 'Variant', 'Type', 'Brand', 'Status',
   'Price', 'Compare At', 'Inventory',
-  'Units Sold', 'Revenue', 'Orders', 'Last Sold', 'Tags',
+  'Units Sold', 'Revenue', 'Orders', 'Last Sold', 'Date Created', 'Tags',
 ]
 
 const today = () => new Date().toISOString().slice(0, 10)
@@ -71,7 +71,8 @@ function downloadCSV(rows, cols, filename) {
 export default function CombinedPage() {
   const [allRows, setAllRows] = useState(_cache?.rows ?? null)
   const [phase, setPhase] = useState(null)
-  const [phaseCount, setPhaseCount] = useState(0)
+  const [productCount, setProductCount] = useState(0)
+  const [orderCount, setOrderCount] = useState(0)
   const [error, setError] = useState(null)
 
   const [startDate, setStartDate] = useState(_cache?.startDate ?? daysAgo(30))
@@ -114,7 +115,7 @@ export default function CombinedPage() {
       if (!res.ok) throw new Error(json.error)
       rows = rows.concat(json.rows)
       pageInfo = json.nextPageInfo
-      setPhaseCount(rows.length)
+      setProductCount(rows.length)
     } while (pageInfo)
     return rows
   }
@@ -135,7 +136,7 @@ export default function CombinedPage() {
       if (!res.ok) throw new Error(json.error)
       rows = rows.concat(json.rows)
       pageInfo = json.nextPageInfo
-      setPhaseCount(rows.length)
+      setOrderCount(rows.length)
     } while (pageInfo)
     return rows
   }
@@ -146,15 +147,12 @@ export default function CombinedPage() {
     setFilters([])
     setSortField('Units Sold')
     setSortDir('desc')
+    setProductCount(0)
+    setOrderCount(0)
 
     try {
-      setPhase('products')
-      setPhaseCount(0)
-      const productRows = await fetchAllProducts()
-
-      setPhase('orders')
-      setPhaseCount(0)
-      const orderRows = await fetchAllOrders()
+      setPhase('loading')
+      const [productRows, orderRows] = await Promise.all([fetchAllProducts(), fetchAllOrders()])
 
       setPhase('joining')
       const combined = joinData(productRows, orderRows)
@@ -163,7 +161,6 @@ export default function CombinedPage() {
       setError(err.message)
     } finally {
       setPhase(null)
-      setPhaseCount(0)
     }
   }
 
@@ -242,10 +239,8 @@ export default function CombinedPage() {
   const dayCount = Math.round((new Date(endDate) - new Date(startDate)) / 86400000) + 1
   const csvFilename = `combined-${startDate}-to-${endDate}.csv`
 
-  const phaseLabel = phase === 'products'
-    ? `Fetching products — ${phaseCount.toLocaleString()} loaded…`
-    : phase === 'orders'
-    ? `Fetching orders — ${phaseCount.toLocaleString()} line items loaded…`
+  const phaseLabel = phase === 'loading'
+    ? `Products: ${productCount.toLocaleString()} variants · Orders: ${orderCount.toLocaleString()} line items`
     : phase === 'joining'
     ? 'Joining product and order data…'
     : ''
@@ -293,20 +288,12 @@ export default function CombinedPage() {
       {loading && (
         <div className="state-box">
           <div className="spinner" />
-          <div style={{ fontWeight: 500 }}>{phaseLabel}</div>
-          <div className="combined-phases">
-            <div className={`combined-phase ${phase === 'products' ? 'active' : phase === 'orders' || phase === 'joining' ? 'done' : ''}`}>
-              1. Products
-            </div>
-            <div className="combined-phase-arrow">→</div>
-            <div className={`combined-phase ${phase === 'orders' ? 'active' : phase === 'joining' ? 'done' : ''}`}>
-              2. Orders
-            </div>
-            <div className="combined-phase-arrow">→</div>
-            <div className={`combined-phase ${phase === 'joining' ? 'active' : ''}`}>
-              3. Join
-            </div>
+          <div style={{ fontWeight: 500 }}>
+            {phase === 'joining' ? 'Joining product and order data…' : 'Fetching products & orders simultaneously…'}
           </div>
+          {phase === 'loading' && (
+            <div style={{ fontSize: 12, color: '#bbb', marginTop: 6 }}>{phaseLabel}</div>
+          )}
         </div>
       )}
 
