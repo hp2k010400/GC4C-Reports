@@ -1,6 +1,6 @@
 import { shopifyFetchPage } from '../../lib/shopify.js'
 
-const PAGES_PER_CALL = 10
+const PAGES_PER_CALL = 5
 
 export default async function handler(req, res) {
   const { page_info, product_type, vendor, status } = req.query
