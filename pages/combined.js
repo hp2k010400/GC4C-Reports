@@ -125,6 +125,7 @@ export default function CombinedPage() {
     let pageInfo = null
     do {
       const params = new URLSearchParams()
+      params.set('mode', 'combined')
       if (pageInfo) {
         params.set('page_info', pageInfo)
       } else {
