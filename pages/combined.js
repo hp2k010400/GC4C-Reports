@@ -89,6 +89,7 @@ export default function CombinedPage() {
   const [savedViews, setSavedViews] = useState([])
   const [viewName, setViewName] = useState('')
   const [showSaveInput, setShowSaveInput] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
 
   useEffect(() => {
     try { setSavedViews(JSON.parse(localStorage.getItem('gc4c_combined_views') || '[]')) } catch {}
@@ -170,6 +171,7 @@ export default function CombinedPage() {
     setSortDir('desc')
     setProductCount(0)
     setOrderCount(0)
+    setSearchQuery('')
 
     try {
       setPhase('loading')
@@ -191,6 +193,10 @@ export default function CombinedPage() {
   const filteredRows = useMemo(() => {
     if (!allRows) return []
     let rows = applyFilters(allRows, filters, filterLogic)
+    if (searchQuery.trim()) {
+      const q = searchQuery.trim().toLowerCase()
+      rows = rows.filter(row => Object.values(row).some(v => String(v ?? '').toLowerCase().includes(q)))
+    }
     if (sortField) {
       rows = [...rows].sort((a, b) => {
         const av = a[sortField] ?? ''
@@ -420,6 +426,19 @@ export default function CombinedPage() {
               <div className="stat-card"><div className="stat-label">Never Sold</div><div className="stat-value">{stats.neverSold.toLocaleString()}</div></div>
             </div>
           )}
+
+          <div className="search-bar">
+            <input
+              className="search-input"
+              type="text"
+              placeholder="Search across all fields…"
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+            />
+            {searchQuery && (
+              <button className="search-clear" onClick={() => setSearchQuery('')}>×</button>
+            )}
+          </div>
 
           <div className="results-bar">
             <span className="results-count">

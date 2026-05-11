@@ -60,6 +60,7 @@ export default function ProductsPage() {
   const [savedViews, setSavedViews] = useState([])
   const [viewName, setViewName] = useState('')
   const [showSaveInput, setShowSaveInput] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
 
   useEffect(() => {
     try {
@@ -80,6 +81,7 @@ export default function ProductsPage() {
     setFilters([])
     setSortField(null)
     setProgress({ count: 0 })
+    setSearchQuery('')
 
     const queryType   = preType   ? (TYPE_GROUPS[preType]?.[0]   ?? preType)   : null
     const queryVendor = preVendor ? (VENDOR_GROUPS[preVendor]?.[0] ?? preVendor) : null
@@ -117,6 +119,10 @@ export default function ProductsPage() {
   const filteredRows = useMemo(() => {
     if (!allRows) return []
     let rows = applyFilters(allRows, filters, filterLogic)
+    if (searchQuery.trim()) {
+      const q = searchQuery.trim().toLowerCase()
+      rows = rows.filter(row => Object.values(row).some(v => String(v ?? '').toLowerCase().includes(q)))
+    }
     if (sortField) {
       rows = [...rows].sort((a, b) => {
         const av = a[sortField] ?? ''
@@ -327,6 +333,19 @@ export default function ProductsPage() {
               <div className="stat-card"><div className="stat-label">Low Stock</div><div className="stat-value">{stats.lowStock.toLocaleString()}</div></div>
             </div>
           )}
+
+          <div className="search-bar">
+            <input
+              className="search-input"
+              type="text"
+              placeholder="Search across all fields…"
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+            />
+            {searchQuery && (
+              <button className="search-clear" onClick={() => setSearchQuery('')}>×</button>
+            )}
+          </div>
 
           {/* Results bar */}
           <div className="results-bar">

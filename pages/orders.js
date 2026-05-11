@@ -62,6 +62,7 @@ export default function OrdersPage() {
   const [savedViews, setSavedViews] = useState([])
   const [viewName, setViewName] = useState('')
   const [showSaveInput, setShowSaveInput] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
 
   useEffect(() => {
     try {
@@ -82,6 +83,7 @@ export default function OrdersPage() {
     setFilters([])
     setSortField(null)
     setProgress({ count: 0 })
+    setSearchQuery('')
 
     let rows = []
     try {
@@ -121,6 +123,10 @@ export default function OrdersPage() {
   const filteredRows = useMemo(() => {
     if (!allRows) return []
     let rows = applyFilters(allRows, filters, filterLogic)
+    if (searchQuery.trim()) {
+      const q = searchQuery.trim().toLowerCase()
+      rows = rows.filter(row => Object.values(row).some(v => String(v ?? '').toLowerCase().includes(q)))
+    }
     if (sortField) {
       rows = [...rows].sort((a, b) => {
         const av = a[sortField] ?? ''
@@ -355,6 +361,19 @@ export default function OrdersPage() {
               <div className="stat-card"><div className="stat-label">Revenue</div><div className="stat-value">£{stats.revenue.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div></div>
             </div>
           )}
+
+          <div className="search-bar">
+            <input
+              className="search-input"
+              type="text"
+              placeholder="Search across all fields…"
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+            />
+            {searchQuery && (
+              <button className="search-clear" onClick={() => setSearchQuery('')}>×</button>
+            )}
+          </div>
 
           <div className="results-bar">
             <span className="results-count">
