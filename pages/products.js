@@ -190,6 +190,14 @@ export default function ProductsPage() {
 
   const csvFilename = `products-${new Date().toISOString().slice(0, 10)}.csv`
 
+  const stats = useMemo(() => {
+    if (!filteredRows.length) return null
+    const outOfStock = filteredRows.filter(r => (parseInt(r['Inventory']) || 0) <= 0).length
+    const lowStock   = filteredRows.filter(r => { const i = parseInt(r['Inventory']) || 0; return i > 0 && i < 5 }).length
+    const active     = filteredRows.filter(r => r['Status'] === 'active').length
+    return { outOfStock, lowStock, active }
+  }, [filteredRows])
+
   return (
     <div className="container">
       <div className="page-title">Products</div>
@@ -310,6 +318,15 @@ export default function ProductsPage() {
               )
             })}
           </div>
+
+          {stats && (
+            <div className="stats-bar">
+              <div className="stat-card"><div className="stat-label">Variants</div><div className="stat-value">{filteredRows.length.toLocaleString()}</div></div>
+              <div className="stat-card"><div className="stat-label">Active</div><div className="stat-value">{stats.active.toLocaleString()}</div></div>
+              <div className="stat-card"><div className="stat-label">Out of Stock</div><div className="stat-value">{stats.outOfStock.toLocaleString()}</div></div>
+              <div className="stat-card"><div className="stat-label">Low Stock</div><div className="stat-value">{stats.lowStock.toLocaleString()}</div></div>
+            </div>
+          )}
 
           {/* Results bar */}
           <div className="results-bar">

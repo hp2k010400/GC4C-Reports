@@ -193,6 +193,14 @@ export default function OrdersPage() {
   const dayCount = Math.round((new Date(endDate) - new Date(startDate)) / 86400000) + 1
   const csvFilename = `orders-${startDate}-to-${endDate}.csv`
 
+  const stats = useMemo(() => {
+    if (!filteredRows.length) return null
+    const uniqueOrders = new Set(filteredRows.map(r => r['Order'])).size
+    const units = filteredRows.reduce((s, r) => s + (parseInt(r['Qty']) || 0), 0)
+    const revenue = filteredRows.reduce((s, r) => s + (parseFloat(r['Line Total']) || 0), 0)
+    return { uniqueOrders, units, revenue }
+  }, [filteredRows])
+
   return (
     <div className="container">
       <div className="page-title">Orders</div>
@@ -338,6 +346,15 @@ export default function OrdersPage() {
               )
             })}
           </div>
+
+          {stats && (
+            <div className="stats-bar">
+              <div className="stat-card"><div className="stat-label">Orders</div><div className="stat-value">{stats.uniqueOrders.toLocaleString()}</div></div>
+              <div className="stat-card"><div className="stat-label">Line Items</div><div className="stat-value">{filteredRows.length.toLocaleString()}</div></div>
+              <div className="stat-card"><div className="stat-label">Units Sold</div><div className="stat-value">{stats.units.toLocaleString()}</div></div>
+              <div className="stat-card"><div className="stat-label">Revenue</div><div className="stat-value">£{stats.revenue.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div></div>
+            </div>
+          )}
 
           <div className="results-bar">
             <span className="results-count">

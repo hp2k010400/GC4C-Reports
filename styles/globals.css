@@ -786,6 +786,34 @@ tbody tr:hover td { background: #f0f9f4 !important; }
   color: white;
 }
 
+/* --- Stats bar --- */
+.stats-bar {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+.stat-card {
+  background: #f8faf9;
+  border: 1px solid #e0ece5;
+  border-radius: 8px;
+  padding: 10px 16px;
+  min-width: 110px;
+}
+.stat-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 4px;
+}
+.stat-value {
+  font-size: 18px;
+  font-weight: 700;
+  color: #1a1a1a;
+}
+
 /* --- Date range label --- */
 .date-range-label {
   font-size: 13px;

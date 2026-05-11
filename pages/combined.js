@@ -246,6 +246,15 @@ export default function CombinedPage() {
   const dayCount = Math.round((new Date(endDate) - new Date(startDate)) / 86400000) + 1
   const csvFilename = `combined-${startDate}-to-${endDate}.csv`
 
+  const stats = useMemo(() => {
+    if (!filteredRows.length) return null
+    const revenue    = filteredRows.reduce((s, r) => s + (parseFloat(r['Revenue']) || 0), 0)
+    const units      = filteredRows.reduce((s, r) => s + (parseInt(r['Units Sold']) || 0), 0)
+    const outOfStock = filteredRows.filter(r => (parseInt(r['Inventory']) || 0) <= 0).length
+    const neverSold  = filteredRows.filter(r => (parseInt(r['Units Sold']) || 0) === 0).length
+    return { revenue, units, outOfStock, neverSold }
+  }, [filteredRows])
+
   const phaseLabel = phase === 'loading'
     ? `Products: ${productCount.toLocaleString()} variants · Orders: ${orderCount.toLocaleString()} line items`
     : phase === 'joining'
@@ -386,6 +395,16 @@ export default function CombinedPage() {
               )
             })}
           </div>
+
+          {stats && (
+            <div className="stats-bar">
+              <div className="stat-card"><div className="stat-label">Variants</div><div className="stat-value">{filteredRows.length.toLocaleString()}</div></div>
+              <div className="stat-card"><div className="stat-label">Revenue</div><div className="stat-value">£{stats.revenue.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div></div>
+              <div className="stat-card"><div className="stat-label">Units Sold</div><div className="stat-value">{stats.units.toLocaleString()}</div></div>
+              <div className="stat-card"><div className="stat-label">Out of Stock</div><div className="stat-value">{stats.outOfStock.toLocaleString()}</div></div>
+              <div className="stat-card"><div className="stat-label">Never Sold</div><div className="stat-value">{stats.neverSold.toLocaleString()}</div></div>
+            </div>
+          )}
 
           <div className="results-bar">
             <span className="results-count">
