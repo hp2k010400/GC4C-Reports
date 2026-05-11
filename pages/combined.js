@@ -153,8 +153,7 @@ export default function CombinedPage() {
 
     try {
       setPhase('loading')
-      const productRows = await fetchAllProducts()
-      const orderRows = await fetchAllOrders()
+      const [productRows, orderRows] = await Promise.all([fetchAllProducts(), fetchAllOrders()])
 
       setPhase('joining')
       const combined = joinData(productRows, orderRows)
