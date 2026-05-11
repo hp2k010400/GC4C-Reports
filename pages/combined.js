@@ -101,20 +101,6 @@ export default function CombinedPage() {
     }
   }, [allRows, startDate, endDate, preType, preVendor, filters, filterLogic, sortField, sortDir, visibleCols])
 
-  async function timedFetch(url, timeoutMs = 35000) {
-    const controller = new AbortController()
-    const id = setTimeout(() => controller.abort(), timeoutMs)
-    try {
-      const res = await fetch(url, { signal: controller.signal })
-      clearTimeout(id)
-      return res
-    } catch (err) {
-      clearTimeout(id)
-      if (err.name === 'AbortError') throw new Error('Request timed out — try filtering by brand or type first')
-      throw err
-    }
-  }
-
   async function fetchAllProducts() {
     const queryType   = preType   ? (TYPE_GROUPS[preType]?.[0]   ?? preType)   : null
     const queryVendor = preVendor ? (VENDOR_GROUPS[preVendor]?.[0] ?? preVendor) : null
@@ -125,7 +111,7 @@ export default function CombinedPage() {
       if (queryType)   params.set('product_type', queryType)
       if (queryVendor) params.set('vendor', queryVendor)
       if (pageInfo)    params.set('page_info', pageInfo)
-      const res = await timedFetch(`/api/products-data?${params}`)
+      const res = await fetch(`/api/products-data?${params}`)
       let json
       try { json = await res.json() } catch {
         throw new Error('Products took too long — try filtering by brand or type first')
@@ -150,7 +136,7 @@ export default function CombinedPage() {
         params.set('startDate', startDate)
         params.set('endDate', endDate)
       }
-      const res = await timedFetch(`/api/orders-data?${params}`)
+      const res = await fetch(`/api/orders-data?${params}`)
       let json
       try { json = await res.json() } catch {
         throw new Error('Orders took too long — try a shorter date range')
