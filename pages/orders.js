@@ -100,7 +100,7 @@ export default function OrdersPage() {
         const res = await fetch(`/api/orders-data?${params}`)
         let json
         try { json = await res.json() } catch {
-          throw new Error('Request timed out — try a shorter date range')
+          throw new Error('This took too long — try a shorter date range or use the payment/fulfillment filters to narrow results first')
         }
         if (!res.ok) throw new Error(json.error)
 
@@ -198,6 +198,21 @@ export default function OrdersPage() {
       <div className="page-title">Orders</div>
       <div className="page-sub">
         Load orders for a date range then filter by any field — status, SKU, customer, discount code and more.
+      </div>
+
+      {/* Date presets */}
+      <div className="date-presets">
+        {[
+          { label: '7 days',    start: daysAgo(6) },
+          { label: '30 days',   start: daysAgo(29) },
+          { label: '90 days',   start: daysAgo(89) },
+          { label: 'This month', start: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0, 10) },
+          { label: 'Last month', start: new Date(new Date().getFullYear(), new Date().getMonth() - 1, 1).toISOString().slice(0, 10), end: new Date(new Date().getFullYear(), new Date().getMonth(), 0).toISOString().slice(0, 10) },
+        ].map(p => (
+          <button key={p.label} className="preset-btn" onClick={() => { setStartDate(p.start); setEndDate(p.end ?? today()) }}>
+            {p.label}
+          </button>
+        ))}
       </div>
 
       {/* Pre-filters + load */}

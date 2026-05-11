@@ -763,6 +763,29 @@ tbody tr:hover td { background: #f0f9f4 !important; }
   flex-shrink: 0;
 }
 
+/* --- Date presets --- */
+.date-presets {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+.preset-btn {
+  font-size: 12px;
+  font-weight: 500;
+  padding: 4px 10px;
+  border-radius: 20px;
+  border: 1.5px solid #005F2C;
+  background: white;
+  color: #005F2C;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.preset-btn:hover {
+  background: #005F2C;
+  color: white;
+}
+
 /* --- Date range label --- */
 .date-range-label {
   font-size: 13px;

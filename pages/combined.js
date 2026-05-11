@@ -111,7 +111,10 @@ export default function CombinedPage() {
       if (queryVendor) params.set('vendor', queryVendor)
       if (pageInfo)  params.set('page_info', pageInfo)
       const res = await fetch(`/api/products-data?${params}`)
-      const json = await res.json()
+      let json
+      try { json = await res.json() } catch {
+        throw new Error('Products took too long to load — try filtering by brand or type first')
+      }
       if (!res.ok) throw new Error(json.error)
       rows = rows.concat(json.rows)
       pageInfo = json.nextPageInfo
@@ -133,7 +136,10 @@ export default function CombinedPage() {
         params.set('endDate', endDate)
       }
       const res = await fetch(`/api/orders-data?${params}`)
-      const json = await res.json()
+      let json
+      try { json = await res.json() } catch {
+        throw new Error('Orders took too long to load — try a shorter date range')
+      }
       if (!res.ok) throw new Error(json.error)
       rows = rows.concat(json.rows)
       pageInfo = json.nextPageInfo
@@ -251,6 +257,20 @@ export default function CombinedPage() {
       <div className="page-title">Combined Report</div>
       <div className="page-sub">
         Current stock levels + sales data in one view — the only place you can ask "what's selling and what do I have left?" Filter by inventory, units sold, revenue, last sold date and more.
+      </div>
+
+      <div className="date-presets">
+        {[
+          { label: '7 days',     start: daysAgo(6) },
+          { label: '30 days',    start: daysAgo(29) },
+          { label: '90 days',    start: daysAgo(89) },
+          { label: 'This month', start: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0, 10) },
+          { label: 'Last month', start: new Date(new Date().getFullYear(), new Date().getMonth() - 1, 1).toISOString().slice(0, 10), end: new Date(new Date().getFullYear(), new Date().getMonth(), 0).toISOString().slice(0, 10) },
+        ].map(p => (
+          <button key={p.label} className="preset-btn" onClick={() => { setStartDate(p.start); setEndDate(p.end ?? today()) }}>
+            {p.label}
+          </button>
+        ))}
       </div>
 
       <div className="combined-notice">
