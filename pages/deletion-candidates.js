@@ -125,21 +125,20 @@ export default function DeletionCandidatesPage() {
     let pageInfo = null
     do {
       const params = new URLSearchParams()
-      params.set('mode', 'combined')
       if (pageInfo) {
         params.set('page_info', pageInfo)
       } else {
         params.set('startDate', startDate)
         params.set('endDate', endDate)
       }
-      const res = await fetch(`/api/orders-data?${params}`)
+      const res = await fetch(`/api/orders-skus?${params}`)
       let json
       try { json = await res.json() } catch {
         throw new Error('Orders took too long to load')
       }
       if (!res.ok) throw new Error(json.error)
-      for (const row of json.rows) {
-        if (row['SKU']) soldSkus.add(String(row['SKU']).trim())
+      for (const sku of json.skus || []) {
+        soldSkus.add(sku)
       }
       pageInfo = json.nextPageInfo
       setOrderCount(soldSkus.size)
