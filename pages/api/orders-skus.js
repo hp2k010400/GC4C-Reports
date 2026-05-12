@@ -1,5 +1,20 @@
 import { shopifyFetchPage } from '../../lib/shopify.js'
 
+async function fetchWithRetry(params, retries = 3) {
+  for (let i = 0; i < retries; i++) {
+    try {
+      return await shopifyFetchPage('orders.json', 'orders', params)
+    } catch (err) {
+      const transient = /502|503|504|rate|throttl/i.test(err.message)
+      if (transient && i < retries - 1) {
+        await new Promise(r => setTimeout(r, 1500 * (i + 1)))
+        continue
+      }
+      throw err
+    }
+  }
+}
+
 export default async function handler(req, res) {
   const { page_info, startDate, endDate } = req.query
 
@@ -14,7 +29,7 @@ export default async function handler(req, res) {
           limit: 250,
         }
 
-    const { items, nextPageInfo } = await shopifyFetchPage('orders.json', 'orders', params)
+    const { items, nextPageInfo } = await fetchWithRetry(params)
 
     const skus = []
     for (const order of items) {
