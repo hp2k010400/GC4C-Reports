@@ -94,12 +94,8 @@ export default function DeletionCandidatesPage() {
     let pageInfo = null
     do {
       const params = new URLSearchParams()
-      if (pageInfo) {
-        params.set('page_info', pageInfo)
-      } else {
-        params.set('status', 'active')
-      }
-      const res = await fetch(`/api/products-data?${params}`)
+      if (pageInfo) params.set('page_info', pageInfo)
+      const res = await fetch(`/api/products-zero-stock?${params}`)
       let json
       try { json = await res.json() } catch {
         throw new Error('Products took too long to load')
