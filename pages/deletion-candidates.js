@@ -109,6 +109,16 @@ export default function DeletionCandidatesPage() {
   }
 
   async function fetchSoldSkus() {
+    try {
+      const cacheRes = await fetch('/api/sold-skus-cache')
+      const cache = await cacheRes.json()
+      if (cache.hit && cache.skus) {
+        const skuSet = new Set(cache.skus)
+        setOrderCount(skuSet.size)
+        return skuSet
+      }
+    } catch {}
+
     const startDate = new Date(Date.now() - NINETY_DAYS_MS).toISOString().slice(0, 10)
     const endDate   = new Date().toISOString().slice(0, 10)
     const soldSkus  = new Set()
@@ -134,6 +144,13 @@ export default function DeletionCandidatesPage() {
       pageInfo = json.nextPageInfo
       setOrderCount(soldSkus.size)
     } while (pageInfo)
+
+    fetch('/api/sold-skus-cache', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ skus: [...soldSkus] }),
+    }).catch(() => {})
+
     return soldSkus
   }
 
@@ -147,6 +164,7 @@ export default function DeletionCandidatesPage() {
     try {
       setPhase('products')
       const { rows: productRows, fromCache } = await fetchAllProducts()
+      if (!fromCache) writeProductsCache(productRows).catch(() => {})
 
       setPhase('orders')
       const soldSkus = await fetchSoldSkus()
@@ -154,10 +172,6 @@ export default function DeletionCandidatesPage() {
       setPhase('filtering')
       const result = productRows.filter(row => isDeletionCandidate(row, soldSkus))
       setCandidates(result)
-
-      if (!fromCache) {
-        writeProductsCache(productRows).catch(() => {})
-      }
     } catch (err) {
       setError(err.message)
     } finally {
