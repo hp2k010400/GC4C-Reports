@@ -6,6 +6,7 @@ const NAV = [
   { label: 'Orders', href: '/orders' },
   { label: 'Combined', href: '/combined' },
   { label: 'Deletions', href: '/deletion-candidates' },
+  { label: 'Adjustments', href: '/adjustments' },
   { label: 'Reports', href: '/' },
   { label: 'Bulk Edit', href: '/bulk-update' },
   { label: 'History', href: '/history' },
