@@ -14,12 +14,15 @@ export default async function handler(req, res) {
     return res.status(200).json({ hit: false, reason: 'blobs-unavailable' })
   }
 
+  const scope = req.query.scope || 'all'
+  const prefix = scope === 'active' ? 'active-' : ''
+
   if (req.method === 'GET') {
     const { meta, chunk } = req.query
 
     if (meta) {
       try {
-        const m = await store.get('meta', { type: 'json' })
+        const m = await store.get(`${prefix}meta`, { type: 'json' })
         if (!m) return res.status(200).json({ hit: false })
         const age = Date.now() - m.timestamp
         if (age > CACHE_TTL_MS) return res.status(200).json({ hit: false })
@@ -31,7 +34,7 @@ export default async function handler(req, res) {
 
     if (chunk !== undefined) {
       try {
-        const data = await store.get(`chunk-${chunk}`, { type: 'json' })
+        const data = await store.get(`${prefix}chunk-${chunk}`, { type: 'json' })
         return res.status(200).json(data || { rows: [] })
       } catch {
         return res.status(200).json({ rows: [] })
@@ -42,17 +45,17 @@ export default async function handler(req, res) {
   }
 
   if (req.method === 'POST') {
-    const { type, chunk, rows, totalChunks, count } = req.body
+    const { type, chunk, rows, totalChunks, count, scope: bodyScope } = req.body
+    const postPrefix = bodyScope === 'active' ? 'active-' : ''
 
     try {
       if (type === 'meta') {
-        await store.set('meta', JSON.stringify({ totalChunks, count, timestamp: Date.now() }))
+        await store.set(`${postPrefix}meta`, JSON.stringify({ totalChunks, count, timestamp: Date.now() }))
       } else if (type === 'chunk') {
-        await store.set(`chunk-${chunk}`, JSON.stringify({ rows }))
+        await store.set(`${postPrefix}chunk-${chunk}`, JSON.stringify({ rows }))
       }
       return res.status(200).json({ ok: true })
     } catch (err) {
-      // Cache write failure is non-fatal — just log and continue
       return res.status(200).json({ ok: false, reason: err.message })
     }
   }

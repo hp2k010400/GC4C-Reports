@@ -54,13 +54,13 @@ async function writeProductsCache(rows) {
     await fetch('/api/products-cache', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ type: 'chunk', chunk: i, rows: chunk }),
+      body: JSON.stringify({ type: 'chunk', chunk: i, rows: chunk, scope: 'active' }),
     })
   }
   await fetch('/api/products-cache', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ type: 'meta', totalChunks, count: rows.length }),
+    body: JSON.stringify({ type: 'meta', totalChunks, count: rows.length, scope: 'active' }),
   })
 }
 
@@ -76,12 +76,12 @@ export default function DeletionCandidatesPage() {
 
   async function fetchAllProducts() {
     try {
-      const metaRes = await fetch('/api/products-cache?meta=1')
+      const metaRes = await fetch('/api/products-cache?meta=1&scope=active')
       const meta = await metaRes.json()
       if (meta.hit && meta.totalChunks > 0) {
         const chunks = await Promise.all(
           Array.from({ length: meta.totalChunks }, (_, i) =>
-            fetch(`/api/products-cache?chunk=${i}`).then(r => r.json()).then(d => d.rows || [])
+            fetch(`/api/products-cache?chunk=${i}&scope=active`).then(r => r.json()).then(d => d.rows || [])
           )
         )
         const rows = chunks.flat()
@@ -94,7 +94,11 @@ export default function DeletionCandidatesPage() {
     let pageInfo = null
     do {
       const params = new URLSearchParams()
-      if (pageInfo) params.set('page_info', pageInfo)
+      if (pageInfo) {
+        params.set('page_info', pageInfo)
+      } else {
+        params.set('status', 'active')
+      }
       const res = await fetch(`/api/products-data?${params}`)
       let json
       try { json = await res.json() } catch {
