@@ -1,6 +1,6 @@
 import { getStore } from '@netlify/blobs'
 
-const CACHE_TTL_MS = 12 * 60 * 60 * 1000 // 12 hours
+const CACHE_TTL_MS = 24 * 60 * 60 * 1000 // 24 hours
 const KEY = 'sold-skus'
 
 export const config = {

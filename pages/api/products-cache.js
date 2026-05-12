@@ -5,8 +5,8 @@ export const config = {
 }
 
 const CACHE_TTL_MS = {
-  active: 24 * 60 * 60 * 1000, // 24 hours — deletion candidates (slow to fetch, changes slowly)
-  all:     2 * 60 * 60 * 1000, // 2 hours  — combined report (needs fresher data)
+  active: 7 * 24 * 60 * 60 * 1000, // 7 days  — deletion candidates (weekly report, slow to fetch)
+  all:     2 * 60 * 60 * 1000,      // 2 hours — combined report (needs fresher data)
 }
 
 export default async function handler(req, res) {
