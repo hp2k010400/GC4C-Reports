@@ -5,6 +5,25 @@ import { VENDOR_GROUPS } from '../lib/vendorGroups.js'
 
 let _cache = null
 
+const CACHE_CHUNK_SIZE = 4000
+
+async function writeProductsCache(rows) {
+  const totalChunks = Math.ceil(rows.length / CACHE_CHUNK_SIZE)
+  for (let i = 0; i < totalChunks; i++) {
+    const chunk = rows.slice(i * CACHE_CHUNK_SIZE, (i + 1) * CACHE_CHUNK_SIZE)
+    await fetch('/api/products-cache', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'chunk', chunk: i, rows: chunk }),
+    })
+  }
+  await fetch('/api/products-cache', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ type: 'meta', totalChunks, count: rows.length }),
+  })
+}
+
 const DEFAULT_COLS = ['Title', 'SKU', 'Variant', 'Type', 'Brand', 'Status', 'Inventory', 'Units Sold', 'Revenue', 'Last Sold']
 const ALL_COLS = [
   'Title', 'SKU', 'Variant', 'Type', 'Brand', 'Status',
@@ -104,6 +123,27 @@ export default function CombinedPage() {
   async function fetchAllProducts() {
     const queryType   = preType   ? (TYPE_GROUPS[preType]?.[0]   ?? preType)   : null
     const queryVendor = preVendor ? (VENDOR_GROUPS[preVendor]?.[0] ?? preVendor) : null
+    const useCache = !queryType && !queryVendor
+
+    if (useCache) {
+      try {
+        const metaRes = await fetch('/api/products-cache?meta=1')
+        const meta = await metaRes.json()
+        if (meta.hit && meta.totalChunks > 0) {
+          const chunks = await Promise.all(
+            Array.from({ length: meta.totalChunks }, (_, i) =>
+              fetch(`/api/products-cache?chunk=${i}`).then(r => r.json()).then(d => d.rows || [])
+            )
+          )
+          const rows = chunks.flat()
+          setProductCount(rows.length)
+          return rows
+        }
+      } catch {
+        // Cache unavailable — fall through to live fetch
+      }
+    }
+
     let rows = []
     let pageInfo = null
     do {
@@ -167,6 +207,9 @@ export default function CombinedPage() {
       setPhase('joining')
       const combined = joinData(productRows, orderRows)
       setAllRows(combined)
+      if (!preType && !preVendor) {
+        writeProductsCache(productRows).catch(() => {})
+      }
     } catch (err) {
       setError(err.message)
     } finally {
