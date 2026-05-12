@@ -4,7 +4,10 @@ export const config = {
   api: { bodyParser: { sizeLimit: '4mb' } },
 }
 
-const CACHE_TTL_MS = 2 * 60 * 60 * 1000 // 2 hours
+const CACHE_TTL_MS = {
+  active: 24 * 60 * 60 * 1000, // 24 hours — deletion candidates (slow to fetch, changes slowly)
+  all:     2 * 60 * 60 * 1000, // 2 hours  — combined report (needs fresher data)
+}
 
 export default async function handler(req, res) {
   let store
@@ -24,8 +27,9 @@ export default async function handler(req, res) {
       try {
         const m = await store.get(`${prefix}meta`, { type: 'json' })
         if (!m) return res.status(200).json({ hit: false })
+        const ttl = CACHE_TTL_MS[scope] || CACHE_TTL_MS.all
         const age = Date.now() - m.timestamp
-        if (age > CACHE_TTL_MS) return res.status(200).json({ hit: false })
+        if (age > ttl) return res.status(200).json({ hit: false })
         return res.status(200).json({ hit: true, totalChunks: m.totalChunks, count: m.count, timestamp: m.timestamp })
       } catch {
         return res.status(200).json({ hit: false })
