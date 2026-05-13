@@ -274,11 +274,11 @@ export default function DeletionCandidatesPage() {
             <>
               <div className="stats-bar">
                 <div className="stat-card">
-                  <div className="stat-label">Total candidates</div>
+                  <div className="stat-label">Match criteria (no date filter)</div>
                   <div className="stat-value">{candidates.length.toLocaleString()}</div>
                 </div>
                 <div className="stat-card">
-                  <div className="stat-label">Showing</div>
+                  <div className="stat-label">After filters applied</div>
                   <div className="stat-value">{displayRows.length.toLocaleString()}</div>
                 </div>
               </div>
