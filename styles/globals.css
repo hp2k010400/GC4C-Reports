@@ -464,6 +464,10 @@ tbody td {
   padding: 9px 14px;
   border-bottom: 1px solid #f0f0f0;
   color: #333;
+  max-width: 260px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 tbody tr:last-child td { border-bottom: none; }
