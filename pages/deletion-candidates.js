@@ -80,6 +80,7 @@ export default function DeletionCandidatesPage() {
   const [filterType, setFilterType] = useState('')
   const [createdAfter, setCreatedAfter] = useState('')
   const [createdBefore, setCreatedBefore] = useState(ONE_YEAR_AGO)
+  const [activePreset, setActivePreset] = useState('older1year')
 
   async function fetchAllProducts() {
     try {
@@ -288,15 +289,21 @@ export default function DeletionCandidatesPage() {
 
               <div className="controls" style={{ marginBottom: 12 }}>
                 <div style={{ flexBasis: '100%', display: 'flex', gap: 6, marginBottom: 4 }}>
-                  <button className="preset-btn" onClick={() => { setCreatedAfter(THREE_MONTHS_AGO); setCreatedBefore('') }}>Last 3 months</button>
-                  <button className="preset-btn" onClick={() => { setCreatedAfter(''); setCreatedBefore(ONE_YEAR_AGO) }}>Older than 1 year</button>
+                  <button
+                    className={`preset-btn${activePreset === 'last3months' ? ' preset-btn-active' : ''}`}
+                    onClick={() => { setCreatedAfter(THREE_MONTHS_AGO); setCreatedBefore(''); setActivePreset('last3months') }}
+                  >Last 3 months</button>
+                  <button
+                    className={`preset-btn${activePreset === 'older1year' ? ' preset-btn-active' : ''}`}
+                    onClick={() => { setCreatedAfter(''); setCreatedBefore(ONE_YEAR_AGO); setActivePreset('older1year') }}
+                  >Older than 1 year</button>
                 </div>
                 <div className="field">
                   <label>Created from</label>
                   <input
                     type="date"
                     value={createdAfter}
-                    onChange={e => setCreatedAfter(e.target.value)}
+                    onChange={e => { setCreatedAfter(e.target.value); setActivePreset(null) }}
                     style={{ padding: '8px 12px', border: '1px solid #d4d4d4', borderRadius: 7, fontSize: 14 }}
                   />
                 </div>
@@ -305,7 +312,7 @@ export default function DeletionCandidatesPage() {
                   <input
                     type="date"
                     value={createdBefore}
-                    onChange={e => setCreatedBefore(e.target.value)}
+                    onChange={e => { setCreatedBefore(e.target.value); setActivePreset(null) }}
                     style={{ padding: '8px 12px', border: '1px solid #d4d4d4', borderRadius: 7, fontSize: 14 }}
                   />
                 </div>
@@ -324,7 +331,7 @@ export default function DeletionCandidatesPage() {
                   </select>
                 </div>
                 {(createdAfter || createdBefore !== ONE_YEAR_AGO || filterBrand || filterType) && (
-                  <button className="btn btn-secondary" onClick={() => { setCreatedAfter(''); setCreatedBefore(ONE_YEAR_AGO); setFilterBrand(''); setFilterType('') }}>
+                  <button className="btn btn-secondary" onClick={() => { setCreatedAfter(''); setCreatedBefore(ONE_YEAR_AGO); setFilterBrand(''); setFilterType(''); setActivePreset('older1year') }}>
                     Reset filters
                   </button>
                 )}
