@@ -65,6 +65,7 @@ async function writeProductsCache(rows) {
 }
 
 const ONE_YEAR_AGO = new Date(Date.now() - 365 * 86400000).toISOString().slice(0, 10)
+const THREE_MONTHS_AGO = new Date(Date.now() - 90 * 86400000).toISOString().slice(0, 10)
 
 export default function DeletionCandidatesPage() {
   const [phase, setPhase] = useState(null)
@@ -77,6 +78,7 @@ export default function DeletionCandidatesPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [filterBrand, setFilterBrand] = useState('')
   const [filterType, setFilterType] = useState('')
+  const [createdAfter, setCreatedAfter] = useState('')
   const [createdBefore, setCreatedBefore] = useState(ONE_YEAR_AGO)
 
   async function fetchAllProducts() {
@@ -196,6 +198,7 @@ export default function DeletionCandidatesPage() {
   const displayRows = useMemo(() => {
     if (!candidates) return []
     let rows = candidates
+    if (createdAfter)  rows = rows.filter(r => r['Date Created'] && r['Date Created'] >= createdAfter)
     if (createdBefore) rows = rows.filter(r => r['Date Created'] && r['Date Created'] < createdBefore)
     if (filterBrand)   rows = rows.filter(r => r['Brand'] === filterBrand)
     if (filterType)    rows = rows.filter(r => r['Type']  === filterType)
@@ -214,7 +217,7 @@ export default function DeletionCandidatesPage() {
       })
     }
     return rows
-  }, [candidates, searchQuery, sortField, sortDir, filterBrand, filterType, createdBefore])
+  }, [candidates, searchQuery, sortField, sortDir, filterBrand, filterType, createdAfter, createdBefore])
 
   function handleSort(col) {
     if (sortField === col) setSortDir(d => d === 'asc' ? 'desc' : 'asc')
@@ -284,6 +287,19 @@ export default function DeletionCandidatesPage() {
               </div>
 
               <div className="controls" style={{ marginBottom: 12 }}>
+                <div style={{ flexBasis: '100%', display: 'flex', gap: 6, marginBottom: 4 }}>
+                  <button className="preset-btn" onClick={() => { setCreatedAfter(THREE_MONTHS_AGO); setCreatedBefore('') }}>Last 3 months</button>
+                  <button className="preset-btn" onClick={() => { setCreatedAfter(''); setCreatedBefore(ONE_YEAR_AGO) }}>Older than 1 year</button>
+                </div>
+                <div className="field">
+                  <label>Created from</label>
+                  <input
+                    type="date"
+                    value={createdAfter}
+                    onChange={e => setCreatedAfter(e.target.value)}
+                    style={{ padding: '8px 12px', border: '1px solid #d4d4d4', borderRadius: 7, fontSize: 14 }}
+                  />
+                </div>
                 <div className="field">
                   <label>Created before</label>
                   <input
@@ -307,8 +323,8 @@ export default function DeletionCandidatesPage() {
                     {uniqueTypes.map(t => <option key={t} value={t}>{t}</option>)}
                   </select>
                 </div>
-                {(createdBefore !== ONE_YEAR_AGO || filterBrand || filterType) && (
-                  <button className="btn btn-secondary" onClick={() => { setCreatedBefore(ONE_YEAR_AGO); setFilterBrand(''); setFilterType('') }}>
+                {(createdAfter || createdBefore !== ONE_YEAR_AGO || filterBrand || filterType) && (
+                  <button className="btn btn-secondary" onClick={() => { setCreatedAfter(''); setCreatedBefore(ONE_YEAR_AGO); setFilterBrand(''); setFilterType('') }}>
                     Reset filters
                   </button>
                 )}
