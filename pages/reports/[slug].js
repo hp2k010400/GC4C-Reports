@@ -174,6 +174,16 @@ export default function ReportPage({ slug, name, description, requiresDates, sup
       <div className="controls">
         {requiresDates && (
           <>
+            <div style={{ flexBasis: '100%', display: 'flex', gap: 6, marginBottom: 4 }}>
+              {[7, 30, 90].map(d => (
+                <button key={d} className="preset-btn" onClick={() => {
+                  setEndDate(new Date().toISOString().slice(0, 10))
+                  setStartDate(new Date(Date.now() - d * 86400000).toISOString().slice(0, 10))
+                }}>
+                  Last {d} days
+                </button>
+              ))}
+            </div>
             <div className="field">
               <label>From</label>
               <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} max={endDate} />
