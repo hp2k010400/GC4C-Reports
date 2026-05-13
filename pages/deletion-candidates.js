@@ -64,6 +64,8 @@ async function writeProductsCache(rows) {
   })
 }
 
+const ONE_YEAR_AGO = new Date(Date.now() - 365 * 86400000).toISOString().slice(0, 10)
+
 export default function DeletionCandidatesPage() {
   const [phase, setPhase] = useState(null)
   const [productCount, setProductCount] = useState(0)
@@ -73,6 +75,9 @@ export default function DeletionCandidatesPage() {
   const [sortField, setSortField] = useState('Date Created')
   const [sortDir, setSortDir] = useState('asc')
   const [searchQuery, setSearchQuery] = useState('')
+  const [filterBrand, setFilterBrand] = useState('')
+  const [filterType, setFilterType] = useState('')
+  const [createdBefore, setCreatedBefore] = useState(ONE_YEAR_AGO)
 
   async function fetchAllProducts() {
     try {
@@ -178,9 +183,22 @@ export default function DeletionCandidatesPage() {
     }
   }
 
+  const uniqueBrands = useMemo(() => {
+    if (!candidates) return []
+    return [...new Set(candidates.map(r => r['Brand']).filter(Boolean))].sort()
+  }, [candidates])
+
+  const uniqueTypes = useMemo(() => {
+    if (!candidates) return []
+    return [...new Set(candidates.map(r => r['Type']).filter(Boolean))].sort()
+  }, [candidates])
+
   const displayRows = useMemo(() => {
     if (!candidates) return []
     let rows = candidates
+    if (createdBefore) rows = rows.filter(r => r['Date Created'] && r['Date Created'] < createdBefore)
+    if (filterBrand)   rows = rows.filter(r => r['Brand'] === filterBrand)
+    if (filterType)    rows = rows.filter(r => r['Type']  === filterType)
     if (searchQuery.trim()) {
       const q = searchQuery.trim().toLowerCase()
       rows = rows.filter(row => Object.values(row).some(v => String(v ?? '').toLowerCase().includes(q)))
@@ -196,7 +214,7 @@ export default function DeletionCandidatesPage() {
       })
     }
     return rows
-  }, [candidates, searchQuery, sortField, sortDir])
+  }, [candidates, searchQuery, sortField, sortDir, filterBrand, filterType, createdBefore])
 
   function handleSort(col) {
     if (sortField === col) setSortDir(d => d === 'asc' ? 'desc' : 'asc')
@@ -256,13 +274,44 @@ export default function DeletionCandidatesPage() {
             <>
               <div className="stats-bar">
                 <div className="stat-card">
-                  <div className="stat-label">Candidates</div>
+                  <div className="stat-label">Total candidates</div>
                   <div className="stat-value">{candidates.length.toLocaleString()}</div>
                 </div>
                 <div className="stat-card">
                   <div className="stat-label">Showing</div>
                   <div className="stat-value">{displayRows.length.toLocaleString()}</div>
                 </div>
+              </div>
+
+              <div className="controls" style={{ marginBottom: 12 }}>
+                <div className="field">
+                  <label>Created before</label>
+                  <input
+                    type="date"
+                    value={createdBefore}
+                    onChange={e => setCreatedBefore(e.target.value)}
+                    style={{ padding: '8px 12px', border: '1px solid #d4d4d4', borderRadius: 7, fontSize: 14 }}
+                  />
+                </div>
+                <div className="field">
+                  <label>Brand</label>
+                  <select className="type-select" value={filterBrand} onChange={e => setFilterBrand(e.target.value)}>
+                    <option value="">All brands</option>
+                    {uniqueBrands.map(b => <option key={b} value={b}>{b}</option>)}
+                  </select>
+                </div>
+                <div className="field">
+                  <label>Type</label>
+                  <select className="type-select" value={filterType} onChange={e => setFilterType(e.target.value)}>
+                    <option value="">All types</option>
+                    {uniqueTypes.map(t => <option key={t} value={t}>{t}</option>)}
+                  </select>
+                </div>
+                {(createdBefore !== ONE_YEAR_AGO || filterBrand || filterType) && (
+                  <button className="btn btn-secondary" onClick={() => { setCreatedBefore(ONE_YEAR_AGO); setFilterBrand(''); setFilterType('') }}>
+                    Reset filters
+                  </button>
+                )}
               </div>
 
               <div className="search-bar">
