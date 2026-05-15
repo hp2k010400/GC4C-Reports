@@ -299,21 +299,19 @@ export default function OrdersPage() {
 
       {error && <div className="state-box error">Error: {error}</div>}
 
-      {allRows && !loading && (
-        <>
-          {savedViews.length > 0 && (
-            <div className="saved-views-bar">
-              <span className="saved-views-label">Saved views:</span>
-              {savedViews.map(view => (
-                <div key={view.id} className="saved-view-chip">
-                  <button className="saved-view-name" onClick={() => loadView(view)}>{view.name}</button>
-                  <button className="saved-view-delete" onClick={() => deleteView(view.id)}>×</button>
-                </div>
-              ))}
+      {savedViews.length > 0 && (
+        <div className="saved-views-bar">
+          <span className="saved-views-label">Saved views:</span>
+          {savedViews.map(view => (
+            <div key={view.id} className="saved-view-chip">
+              <button className="saved-view-name" onClick={() => loadView(view)}>{view.name}</button>
+              <button className="saved-view-delete" onClick={() => deleteView(view.id)}>×</button>
             </div>
-          )}
+          ))}
+        </div>
+      )}
 
-          <div className="filter-builder">
+      <div className="filter-builder">
             <div className="filter-builder-header">
               <button className="add-filter-btn" onClick={addFilter}>+ Add filter</button>
               {filters.length > 1 && (
@@ -369,6 +367,8 @@ export default function OrdersPage() {
             })}
           </div>
 
+      {allRows && !loading && (
+        <>
           {stats && (
             <div className="stats-bar">
               <div className="stat-card"><div className="stat-label">Orders</div><div className="stat-value">{stats.uniqueOrders.toLocaleString()}</div></div>
