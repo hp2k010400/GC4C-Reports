@@ -9,7 +9,7 @@ let _cache = null
 
 const ALL_COLS = [
   'Title', 'SKU', 'Variant', 'Type', 'Brand', 'Status',
-  'Price', 'Compare At', 'Inventory', 'Barcode', 'Tags',
+  'Price', 'Compare At', 'Cost Price', 'Inventory', 'Barcode', 'Tags',
   'Date Created', 'Date Updated', 'Handle', 'Has Images',
 ]
 
