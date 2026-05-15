@@ -3,8 +3,8 @@ import { shopifyGraphQL } from '../../lib/shopify.js'
 const PAGES_PER_CALL = 4
 
 const QUERY = `
-  query ZeroStock($cursor: String) {
-    products(first: 250, after: $cursor, query: "status:active inventory_total:0") {
+  query ZeroStock($cursor: String, $filter: String!) {
+    products(first: 250, after: $cursor, query: $filter) {
       pageInfo {
         hasNextPage
         endCursor
@@ -38,12 +38,18 @@ const QUERY = `
 export default async function handler(req, res) {
   try {
     let cursor = req.query.page_info || null
+    const { vendor, productType } = req.query
+
+    let filter = 'status:active inventory_total:0'
+    if (vendor) filter += ` vendor:'${vendor}'`
+    if (productType) filter += ` product_type:'${productType}'`
+
     let allRows = []
     let nextCursor = null
     let pagesCount = 0
 
     do {
-      const data = await shopifyGraphQL(QUERY, cursor ? { cursor } : {})
+      const data = await shopifyGraphQL(QUERY, { filter, ...(cursor ? { cursor } : {}) })
       const page = data.products
 
       const rows = page.edges.flatMap(({ node: product }) =>

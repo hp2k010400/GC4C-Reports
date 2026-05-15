@@ -27,11 +27,11 @@ export default async function handler(req, res) {
   if (!sku) return res.status(400).json({ error: 'SKU required' })
 
   try {
-    const data = await shopifyGraphQL(VARIANT_BY_SKU, { q: `sku:${sku}` })
+    const data = await shopifyGraphQL(VARIANT_BY_SKU, { q: `sku:*${sku}*` })
     const variants = (data.productVariants?.edges || []).map(e => e.node)
     const exact = variants.find(v => v.sku === sku) || variants[0]
 
-    if (!exact) return res.status(404).json({ error: `SKU "${sku}" not found` })
+    if (!exact) return res.status(404).json({ error: `No SKU found matching "${sku}"` })
 
     const inventoryItemId = exact.inventoryItem.id.replace('gid://shopify/InventoryItem/', '')
 

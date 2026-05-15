@@ -1,4 +1,6 @@
 import { useState, useMemo } from 'react'
+import { TYPE_GROUPS } from '../lib/typeGroups.js'
+import { VENDOR_GROUPS } from '../lib/vendorGroups.js'
 
 const CACHE_CHUNK_SIZE = 4000
 const NINETY_DAYS_MS = 90 * 86400000
@@ -78,14 +80,16 @@ export default function DeletionCandidatesPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [filterBrand, setFilterBrand] = useState('')
   const [filterType, setFilterType] = useState('')
+  const [preRunVendor, setPreRunVendor] = useState('')
+  const [preRunType, setPreRunType] = useState('')
   const [createdAfter, setCreatedAfter] = useState('')
   const [createdBefore, setCreatedBefore] = useState(ONE_YEAR_AGO)
   const [activePreset, setActivePreset] = useState('older1year')
 
   async function fetchAllProducts() {
     try {
-      const metaRes = await fetch('/api/products-cache?meta=1&scope=active')
-      const meta = await metaRes.json()
+      const metaRes = preRunVendor || preRunType ? null : await fetch('/api/products-cache?meta=1&scope=active')
+      const meta = metaRes ? await metaRes.json() : {}
       if (meta.hit && meta.totalChunks > 0) {
         const chunks = await Promise.all(
           Array.from({ length: meta.totalChunks }, (_, i) =>
@@ -103,6 +107,14 @@ export default function DeletionCandidatesPage() {
     do {
       const params = new URLSearchParams()
       if (pageInfo) params.set('page_info', pageInfo)
+      if (preRunVendor) {
+        const vendorVariants = VENDOR_GROUPS[preRunVendor] || [preRunVendor]
+        params.set('vendor', vendorVariants[0])
+      }
+      if (preRunType) {
+        const typeVariants = TYPE_GROUPS[preRunType] || [preRunType]
+        params.set('productType', typeVariants[0])
+      }
       const res = await fetch(`/api/products-zero-stock?${params}`)
       let json
       try { json = await res.json() } catch {
@@ -245,6 +257,23 @@ export default function DeletionCandidatesPage() {
           <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
         </svg>
         Criteria: inventory = 0 · not sold in 90 days · SKU contains "-" · excludes New Product / Social Media / Nolo tags · excludes loan/refurb/template titles
+      </div>
+
+      <div className="controls" style={{ marginBottom: 12 }}>
+        <div className="field">
+          <label>Brand (pre-filter)</label>
+          <select className="type-select" value={preRunVendor} onChange={e => setPreRunVendor(e.target.value)}>
+            <option value="">All brands</option>
+            {Object.keys(VENDOR_GROUPS).map(v => <option key={v} value={v}>{v}</option>)}
+          </select>
+        </div>
+        <div className="field">
+          <label>Type (pre-filter)</label>
+          <select className="type-select" value={preRunType} onChange={e => setPreRunType(e.target.value)}>
+            <option value="">All types</option>
+            {Object.keys(TYPE_GROUPS).map(t => <option key={t} value={t}>{t}</option>)}
+          </select>
+        </div>
       </div>
 
       <div className="load-bar">

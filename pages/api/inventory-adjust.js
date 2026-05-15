@@ -1,8 +1,28 @@
 import { getStore } from '@netlify/blobs'
+import { shopifyGraphQL } from '../../lib/shopify.js'
 
-const STORE = process.env.SHOPIFY_STORE
-const TOKEN = process.env.SHOPIFY_ACCESS_TOKEN
-const API = '2025-04'
+// Maps our UI reason labels to Shopify's accepted reason codes
+const REASON_MAP = {
+  'Damaged':                  'damaged',
+  'Found — count correction': 'correction',
+  'Missing — count correction': 'correction',
+  'Theft':                    'theft_or_loss',
+  'Sample / Demo':            'promotion',
+  'Sent for Repair':          'quality_control',
+  'Returned to Stock':        'received',
+  'Other':                    'other',
+}
+
+const ADJUST_MUTATION = `
+  mutation AdjustInventory($input: InventoryAdjustQuantitiesInput!) {
+    inventoryAdjustQuantities(input: $input) {
+      userErrors { field message }
+      inventoryAdjustmentGroup {
+        changes { quantityAfterChange }
+      }
+    }
+  }
+`
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end()
@@ -18,30 +38,28 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Missing or invalid fields' })
   }
 
-  try {
-    const shopifyRes = await fetch(
-      `https://${STORE}/admin/api/${API}/inventory_levels/adjust.json`,
-      {
-        method: 'POST',
-        headers: {
-          'X-Shopify-Access-Token': TOKEN,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          location_id: parseInt(locationId),
-          inventory_item_id: parseInt(inventoryItemId),
-          available_adjustment: adj,
-        }),
-      }
-    )
+  const shopifyReason = REASON_MAP[reason] || 'correction'
 
-    if (!shopifyRes.ok) {
-      const text = await shopifyRes.text()
-      throw new Error(`Shopify: ${text}`)
+  try {
+    const data = await shopifyGraphQL(ADJUST_MUTATION, {
+      input: {
+        reason: shopifyReason,
+        name: `${reason}${notes ? ' — ' + notes : ''}`,
+        changes: [{
+          inventoryItemId: `gid://shopify/InventoryItem/${inventoryItemId}`,
+          locationId: `gid://shopify/Location/${locationId}`,
+          delta: adj,
+        }],
+      },
+    })
+
+    const userErrors = data.inventoryAdjustQuantities?.userErrors || []
+    if (userErrors.length) {
+      return res.status(400).json({ error: userErrors.map(e => e.message).join(', ') })
     }
 
-    const shopifyData = await shopifyRes.json()
-    const newQuantity = shopifyData.inventory_level?.available ?? null
+    const changes = data.inventoryAdjustQuantities?.inventoryAdjustmentGroup?.changes || []
+    const newQuantity = changes[0]?.quantityAfterChange ?? null
 
     try {
       const store = getStore('gc4c-adjustments')
