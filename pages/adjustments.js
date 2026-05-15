@@ -22,15 +22,14 @@ export default function AdjustmentsPage() {
   const [lookupError, setLookupError] = useState(null)
   const [product, setProduct]         = useState(null)
 
+  const [reasons, setReasons]         = useState(DEFAULT_reasons)
   const [locationId, setLocationId]   = useState('')
   const [adjustment, setAdjustment]   = useState('')
-  const [reason, setReason]           = useState(reasons[0])
+  const [reason, setReason]           = useState(DEFAULT_reasons[0])
   const [notes, setNotes]             = useState('')
   const [employee, setEmployee]       = useState('')
   const [submitting, setSubmitting]   = useState(false)
   const [submitResult, setSubmitResult] = useState(null)
-
-  const [reasons, setReasons]         = useState(DEFAULT_reasons)
   const [logMonth, setLogMonth]       = useState(new Date().toISOString().slice(0, 7))
   const [logEntries, setLogEntries]   = useState([])
   const [logLoading, setLogLoading]   = useState(true)
