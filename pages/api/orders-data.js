@@ -3,7 +3,7 @@ import { shopifyFetchPage } from '../../lib/shopify.js'
 const PAGES_PER_CALL = 5
 
 export default async function handler(req, res) {
-  const { page_info, startDate, endDate, financial_status, fulfillment_status, mode } = req.query
+  const { page_info, startDate, endDate, financial_status, fulfillment_status, location_id, mode } = req.query
   const combined = mode === 'combined'
 
   if (!process.env.SHOPIFY_ACCESS_TOKEN) {
@@ -28,6 +28,7 @@ export default async function handler(req, res) {
             created_at_max: new Date(endDate + 'T23:59:59').toISOString(),
             ...(financial_status   ? { financial_status }   : {}),
             ...(fulfillment_status ? { fulfillment_status } : {}),
+            ...(location_id        ? { location_id }        : {}),
             limit: 250,
           }
 

@@ -49,6 +49,8 @@ export default function OrdersPage() {
   const [endDate, setEndDate] = useState(_cache?.endDate ?? today())
   const [preFinancial, setPreFinancial] = useState(_cache?.preFinancial ?? '')
   const [preFulfillment, setPreFulfillment] = useState(_cache?.preFulfillment ?? '')
+  const [preLocation, setPreLocation] = useState(_cache?.preLocation ?? '')
+  const [locations, setLocations] = useState([])
 
   const [filters, setFilters] = useState(_cache?.filters ?? [])
   const [filterLogic, setFilterLogic] = useState(_cache?.filterLogic ?? 'AND')
@@ -71,10 +73,17 @@ export default function OrdersPage() {
   }, [])
 
   useEffect(() => {
+    fetch('/api/locations')
+      .then(r => r.json())
+      .then(d => setLocations(d.locations || []))
+      .catch(() => {})
+  }, [])
+
+  useEffect(() => {
     if (allRows) {
-      _cache = { rows: allRows, startDate, endDate, preFinancial, preFulfillment, filters, filterLogic, sortField, sortDir, visibleCols }
+      _cache = { rows: allRows, startDate, endDate, preFinancial, preFulfillment, preLocation, filters, filterLogic, sortField, sortDir, visibleCols }
     }
-  }, [allRows, startDate, endDate, preFinancial, preFulfillment, filters, filterLogic, sortField, sortDir, visibleCols])
+  }, [allRows, startDate, endDate, preFinancial, preFulfillment, preLocation, filters, filterLogic, sortField, sortDir, visibleCols])
 
   async function loadOrders() {
     setLoading(true)
@@ -97,6 +106,7 @@ export default function OrdersPage() {
           params.set('endDate', endDate)
           if (preFinancial)   params.set('financial_status', preFinancial)
           if (preFulfillment) params.set('fulfillment_status', preFulfillment)
+          if (preLocation)    params.set('location_id', preLocation)
         }
 
         const res = await fetch(`/api/orders-data?${params}`)
@@ -257,6 +267,12 @@ export default function OrdersPage() {
           <option value="unfulfilled">Unfulfilled</option>
           <option value="partial">Partial</option>
         </select>
+        {locations.length > 0 && (
+          <select value={preLocation} onChange={e => setPreLocation(e.target.value)} className="type-select">
+            <option value="">Any location</option>
+            {locations.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
+          </select>
+        )}
         <button className="btn btn-primary" onClick={loadOrders} disabled={loading}>
           {loading ? 'Loading…' : allRows ? 'Reload' : 'Load Orders'}
         </button>
