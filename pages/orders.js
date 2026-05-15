@@ -89,7 +89,6 @@ export default function OrdersPage() {
     setLoading(true)
     setError(null)
     setAllRows(null)
-    setFilters([])
     setSortField(null)
     setProgress({ count: 0 })
     setSearchQuery('')
