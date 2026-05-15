@@ -27,7 +27,7 @@ async function writeProductsCache(rows) {
 const DEFAULT_COLS = ['Title', 'SKU', 'Variant', 'Type', 'Brand', 'Status', 'Inventory', 'Units Sold', 'Revenue', 'Last Sold']
 const ALL_COLS = [
   'Title', 'SKU', 'Variant', 'Type', 'Brand', 'Status',
-  'Price', 'Compare At', 'Inventory',
+  'Price', 'Compare At', 'Cost Price', 'Inventory',
   'Units Sold', 'Revenue', 'Orders', 'Last Sold', 'Date Created', 'Tags',
 ]
 
