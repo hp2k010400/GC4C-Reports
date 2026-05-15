@@ -1,15 +1,6 @@
 import { useState, useEffect } from 'react'
 
-const REASONS = [
-  'Damaged',
-  'Found — count correction',
-  'Missing — count correction',
-  'Theft',
-  'Sample / Demo',
-  'Sent for Repair',
-  'Returned to Stock',
-  'Other',
-]
+const DEFAULT_reasons = ['Damaged', 'Found — count correction', 'Missing — count correction', 'Theft', 'Sample / Demo', 'Sent for Repair', 'Returned to Stock', 'Other']
 
 function monthLabel(yyyyMM) {
   const [y, m] = yyyyMM.split('-')
@@ -33,15 +24,23 @@ export default function AdjustmentsPage() {
 
   const [locationId, setLocationId]   = useState('')
   const [adjustment, setAdjustment]   = useState('')
-  const [reason, setReason]           = useState(REASONS[0])
+  const [reason, setReason]           = useState(reasons[0])
   const [notes, setNotes]             = useState('')
   const [employee, setEmployee]       = useState('')
   const [submitting, setSubmitting]   = useState(false)
   const [submitResult, setSubmitResult] = useState(null)
 
+  const [reasons, setReasons]         = useState(DEFAULT_reasons)
   const [logMonth, setLogMonth]       = useState(new Date().toISOString().slice(0, 7))
   const [logEntries, setLogEntries]   = useState([])
   const [logLoading, setLogLoading]   = useState(true)
+
+  useEffect(() => {
+    fetch('/api/reason-codes')
+      .then(r => r.json())
+      .then(d => { if (d.codes?.length) setReasons(d.codes.map(c => c.label)) })
+      .catch(() => {})
+  }, [])
 
   useEffect(() => {
     setLogLoading(true)
@@ -60,7 +59,7 @@ export default function AdjustmentsPage() {
     setSubmitResult(null)
     setAdjustment('')
     setNotes('')
-    setReason(REASONS[0])
+    setReason(reasons[0])
     try {
       const res = await fetch(`/api/sku-lookup?sku=${encodeURIComponent(skuInput.trim())}`)
       const data = await res.json()
@@ -250,7 +249,7 @@ export default function AdjustmentsPage() {
             <div>
               <label className="form-label">Reason</label>
               <select className="form-select" value={reason} onChange={e => setReason(e.target.value)}>
-                {REASONS.map(r => <option key={r} value={r}>{r}</option>)}
+                {reasons.map(r => <option key={r} value={r}>{r}</option>)}
               </select>
             </div>
 

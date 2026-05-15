@@ -19,7 +19,7 @@ export default async function handler(req, res) {
       const params = currentPageInfo
         ? { page_info: currentPageInfo }
         : {
-            fields: 'id,title,vendor,product_type,status,tags,handle,variants,created_at,updated_at',
+            fields: 'id,title,vendor,product_type,status,tags,handle,variants,created_at,updated_at,images',
             limit: 250,
             ...(product_type ? { product_type } : {}),
             ...(vendor       ? { vendor }        : {}),
@@ -46,6 +46,7 @@ export default async function handler(req, res) {
           'Date Created': product.created_at ? product.created_at.slice(0, 10) : '',
           'Date Updated': product.updated_at  ? product.updated_at.slice(0, 10)  : '',
           'Handle':       product.handle,
+          'Has Images':   (product.images?.length ?? 0) > 0 ? 'Yes' : 'No',
         }))
       )
 

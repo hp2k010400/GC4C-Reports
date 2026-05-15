@@ -1,16 +1,26 @@
 import { getStore } from '@netlify/blobs'
 import { shopifyGraphQL } from '../../lib/shopify.js'
 
-// Maps our UI reason labels to Shopify's accepted reason codes
-const REASON_MAP = {
-  'Damaged':                  'damaged',
-  'Found — count correction': 'correction',
-  'Missing — count correction': 'correction',
-  'Theft':                    'theft_or_loss',
-  'Sample / Demo':            'promotion',
-  'Sent for Repair':          'quality_control',
-  'Returned to Stock':        'received',
-  'Other':                    'other',
+const FALLBACK_REASON_MAP = {
+  'Damaged':                   'damaged',
+  'Found — count correction':  'correction',
+  'Missing — count correction':'correction',
+  'Theft':                     'theft_or_loss',
+  'Sample / Demo':             'promotion',
+  'Sent for Repair':           'quality_control',
+  'Returned to Stock':         'received',
+  'Other':                     'other',
+}
+
+async function getReasonMap() {
+  try {
+    const store = getStore('gc4c-settings')
+    const data = await store.get('reason-codes', { type: 'json' })
+    if (Array.isArray(data)) {
+      return Object.fromEntries(data.map(c => [c.label, c.shopifyCode]))
+    }
+  } catch {}
+  return FALLBACK_REASON_MAP
 }
 
 const ADJUST_MUTATION = `
@@ -38,7 +48,8 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Missing or invalid fields' })
   }
 
-  const shopifyReason = REASON_MAP[reason] || 'correction'
+  const reasonMap = await getReasonMap()
+  const shopifyReason = reasonMap[reason] || 'correction'
 
   try {
     const data = await shopifyGraphQL(ADJUST_MUTATION, {

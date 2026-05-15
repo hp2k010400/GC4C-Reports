@@ -10,7 +10,7 @@ let _cache = null
 const ALL_COLS = [
   'Title', 'SKU', 'Variant', 'Type', 'Brand', 'Status',
   'Price', 'Compare At', 'Inventory', 'Barcode', 'Tags',
-  'Date Created', 'Date Updated', 'Handle',
+  'Date Created', 'Date Updated', 'Handle', 'Has Images',
 ]
 
 function getFieldDef(key) {
@@ -253,6 +253,59 @@ export default function ProductsPage() {
 
       {error && <div className="state-box error">Error: {error}</div>}
 
+      {/* Filter builder — always visible so filters can be set before loading */}
+      <div className="filter-builder">
+        <div className="filter-builder-header">
+          <button className="add-filter-btn" onClick={addFilter}>+ Add filter</button>
+          {filters.length > 1 && (
+            <div className="filter-logic-toggle">
+              <button className={`logic-btn${filterLogic === 'AND' ? ' active' : ''}`} onClick={() => setFilterLogic('AND')}>ALL</button>
+              <button className={`logic-btn${filterLogic === 'OR' ? ' active' : ''}`} onClick={() => setFilterLogic('OR')}>ANY</button>
+            </div>
+          )}
+          {filters.length > 0 && (
+            <button className="btn btn-secondary" style={{ fontSize: 12, padding: '4px 10px' }} onClick={() => setFilters([])}>
+              Clear filters
+            </button>
+          )}
+        </div>
+        {filters.map(f => {
+          const fieldDef = getFieldDef(f.field)
+          const conditions = f.field ? (CONDITIONS[fieldDef?.type] || []) : []
+          return (
+            <div key={f.id} className="filter-row">
+              <select className="filter-select" value={f.field} onChange={e => updateFilter(f.id, 'field', e.target.value)}>
+                <option value="">Select field…</option>
+                {PRODUCT_FIELDS.map(fd => <option key={fd.key} value={fd.key}>{fd.label}</option>)}
+              </select>
+              {f.field && (
+                <select className="filter-select" value={f.condition} onChange={e => updateFilter(f.id, 'condition', e.target.value)}>
+                  <option value="">Condition…</option>
+                  {conditions.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+              )}
+              {f.field && f.condition && needsValue(f.condition) && (
+                fieldDef?.type === 'select' ? (
+                  <select className="filter-select" value={f.value} onChange={e => updateFilter(f.id, 'value', e.target.value)}>
+                    <option value="">Select…</option>
+                    {(fieldDef.options || []).map(o => <option key={o} value={o}>{o}</option>)}
+                  </select>
+                ) : (
+                  <input
+                    className="filter-value"
+                    type={fieldDef?.type === 'number' ? 'number' : fieldDef?.type === 'date' ? 'date' : 'text'}
+                    value={f.value}
+                    onChange={e => updateFilter(f.id, 'value', e.target.value)}
+                    placeholder="Value…"
+                  />
+                )
+              )}
+              <button className="filter-remove" onClick={() => removeFilter(f.id)}>×</button>
+            </div>
+          )
+        })}
+      </div>
+
       {allRows && !loading && (
         <>
           {/* Saved views */}
@@ -267,63 +320,6 @@ export default function ProductsPage() {
               ))}
             </div>
           )}
-
-          {/* Filter builder */}
-          <div className="filter-builder">
-            <div className="filter-builder-header">
-              <button className="add-filter-btn" onClick={addFilter}>+ Add filter</button>
-              {filters.length > 1 && (
-                <div className="filter-logic-toggle">
-                  <button className={`logic-btn${filterLogic === 'AND' ? ' active' : ''}`} onClick={() => setFilterLogic('AND')}>ALL</button>
-                  <button className={`logic-btn${filterLogic === 'OR' ? ' active' : ''}`} onClick={() => setFilterLogic('OR')}>ANY</button>
-                </div>
-              )}
-              {filters.length > 0 && (
-                <button className="btn btn-secondary" style={{ fontSize: 12, padding: '4px 10px' }} onClick={() => setFilters([])}>
-                  Clear filters
-                </button>
-              )}
-            </div>
-
-            {filters.map(f => {
-              const fieldDef = getFieldDef(f.field)
-              const conditions = f.field ? (CONDITIONS[fieldDef?.type] || []) : []
-              return (
-                <div key={f.id} className="filter-row">
-                  <select className="filter-select" value={f.field} onChange={e => updateFilter(f.id, 'field', e.target.value)}>
-                    <option value="">Select field…</option>
-                    {PRODUCT_FIELDS.map(fd => <option key={fd.key} value={fd.key}>{fd.label}</option>)}
-                  </select>
-
-                  {f.field && (
-                    <select className="filter-select" value={f.condition} onChange={e => updateFilter(f.id, 'condition', e.target.value)}>
-                      <option value="">Condition…</option>
-                      {conditions.map(c => <option key={c} value={c}>{c}</option>)}
-                    </select>
-                  )}
-
-                  {f.field && f.condition && needsValue(f.condition) && (
-                    fieldDef?.type === 'select' ? (
-                      <select className="filter-select" value={f.value} onChange={e => updateFilter(f.id, 'value', e.target.value)}>
-                        <option value="">Select…</option>
-                        {(fieldDef.options || []).map(o => <option key={o} value={o}>{o}</option>)}
-                      </select>
-                    ) : (
-                      <input
-                        className="filter-value"
-                        type={fieldDef?.type === 'number' ? 'number' : fieldDef?.type === 'date' ? 'date' : 'text'}
-                        value={f.value}
-                        onChange={e => updateFilter(f.id, 'value', e.target.value)}
-                        placeholder="Value…"
-                      />
-                    )
-                  )}
-
-                  <button className="filter-remove" onClick={() => removeFilter(f.id)}>×</button>
-                </div>
-              )
-            })}
-          </div>
 
           {stats && (
             <div className="stats-bar">
