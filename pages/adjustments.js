@@ -20,6 +20,7 @@ export default function AdjustmentsPage() {
   const [skuInput, setSkuInput]       = useState('')
   const [looking, setLooking]         = useState(false)
   const [lookupError, setLookupError] = useState(null)
+  const [matches, setMatches]         = useState(null)
   const [product, setProduct]         = useState(null)
 
   const [reasons, setReasons]         = useState(DEFAULT_reasons)
@@ -55,12 +56,34 @@ export default function AdjustmentsPage() {
     setLooking(true)
     setLookupError(null)
     setProduct(null)
+    setMatches(null)
     setSubmitResult(null)
     setAdjustment('')
     setNotes('')
     setReason(reasons[0])
     try {
       const res = await fetch(`/api/sku-lookup?sku=${encodeURIComponent(skuInput.trim())}`)
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Lookup failed')
+      if (data.matches) {
+        setMatches(data.matches)
+      } else {
+        setProduct(data)
+        const firstWithStock = data.inventory.find(l => l.available > 0)
+        setLocationId(String((firstWithStock || data.inventory[0])?.locationId || ''))
+      }
+    } catch (err) {
+      setLookupError(err.message)
+    } finally {
+      setLooking(false)
+    }
+  }
+
+  async function selectMatch(sku) {
+    setLooking(true)
+    setMatches(null)
+    try {
+      const res = await fetch(`/api/sku-lookup?sku=${encodeURIComponent(sku)}`)
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Lookup failed')
       setProduct(data)
@@ -159,6 +182,26 @@ export default function AdjustmentsPage() {
           </div>
         )}
       </div>
+
+      {/* Multiple matches picker */}
+      {matches && (
+        <div className="adj-card">
+          <div className="adj-card-title">Multiple products found — select one</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8 }}>
+            {matches.map(m => (
+              <button
+                key={m.inventoryItemId}
+                onClick={() => selectMatch(m.sku)}
+                style={{ textAlign: 'left', padding: '10px 14px', border: '1.5px solid #e0e0e0', borderRadius: 8, background: 'white', cursor: 'pointer', fontSize: 14 }}
+              >
+                <span style={{ fontFamily: 'monospace', fontSize: 12, color: '#005F2C', marginRight: 12 }}>{m.sku}</span>
+                <span style={{ fontWeight: 600 }}>{m.productTitle}</span>
+                {m.variantTitle && <span style={{ color: '#888' }}> — {m.variantTitle}</span>}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Product info + adjustment form */}
       {product && (
