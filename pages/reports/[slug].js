@@ -22,6 +22,7 @@ export async function getStaticProps({ params }) {
       requiresDates: report.requiresDates,
       supportsTypeFilter: report.supportsTypeFilter || false,
       supportsVendorFilter: report.supportsVendorFilter || false,
+      supportsLocationStock: report.supportsLocationStock || false,
       typeOptions: report.supportsTypeFilter ? Object.keys(TYPE_GROUPS) : [],
       typeGroups: report.supportsTypeFilter ? TYPE_GROUPS : {},
       vendorOptions: report.supportsVendorFilter ? Object.keys(VENDOR_GROUPS) : [],
@@ -62,7 +63,7 @@ function saveHistory(entry) {
   } catch {}
 }
 
-export default function ReportPage({ slug, name, description, requiresDates, supportsTypeFilter, supportsVendorFilter, typeOptions = [], typeGroups = {}, vendorOptions = [], vendorGroups = {} }) {
+export default function ReportPage({ slug, name, description, requiresDates, supportsTypeFilter, supportsVendorFilter, supportsLocationStock, typeOptions = [], typeGroups = {}, vendorOptions = [], vendorGroups = {} }) {
   const router = useRouter()
   const today = new Date().toISOString().slice(0, 10)
   const thirtyDaysAgo = new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10)
@@ -76,6 +77,10 @@ export default function ReportPage({ slug, name, description, requiresDates, sup
   const [progress, setProgress] = useState(null)
   const [error, setError] = useState(null)
   const [autorunPending, setAutorunPending] = useState(false)
+
+  const [locationRows, setLocationRows] = useState(null)
+  const [locationLoading, setLocationLoading] = useState(false)
+  const [locationError, setLocationError] = useState(null)
 
   useEffect(() => {
     if (!router.isReady) return
@@ -92,10 +97,46 @@ export default function ReportPage({ slug, name, description, requiresDates, sup
   }, [autorunPending]) // eslint-disable-line
 
 
+  async function loadLocationStock() {
+    setLocationLoading(true)
+    setLocationError(null)
+    try {
+      const ids = [...new Set((rows || []).map(r => r._inventoryItemId).filter(Boolean))]
+      const [locRes, levRes] = await Promise.all([
+        fetch('/api/locations').then(r => r.json()),
+        fetch('/api/inventory-levels', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ids }),
+        }).then(r => r.json()),
+      ])
+      const locs = (locRes.locations || []).sort((a, b) => a.name.localeCompare(b.name))
+      const levelMap = {}
+      for (const l of (levRes.levels || [])) {
+        if (!levelMap[l.inventory_item_id]) levelMap[l.inventory_item_id] = {}
+        levelMap[l.inventory_item_id][l.location_id] = l.available ?? 0
+      }
+      const merged = (rows || []).map(({ _inventoryItemId, Available, ...rest }) => {
+        const byLoc = locs.reduce((acc, loc) => {
+          acc[loc.name] = levelMap[_inventoryItemId]?.[loc.id] ?? 0
+          return acc
+        }, {})
+        return { ...rest, ...byLoc }
+      })
+      setLocationRows(merged)
+    } catch (err) {
+      setLocationError(err.message)
+    } finally {
+      setLocationLoading(false)
+    }
+  }
+
   async function runReport() {
     setLoading(true)
     setError(null)
     setRows(null)
+    setLocationRows(null)
+    setLocationError(null)
     setProgress({ count: 0 })
 
     const typeVariants = productType && supportsTypeFilter
@@ -159,7 +200,8 @@ export default function ReportPage({ slug, name, description, requiresDates, sup
     }
   }
 
-  const columns = rows?.length ? Object.keys(rows[0]) : []
+  const displayRows = locationRows || rows
+  const columns = displayRows?.length ? Object.keys(displayRows[0]).filter(k => !k.startsWith('_')) : []
   const csvFilename = requiresDates
     ? `${slug}-${startDate}-to-${endDate}.csv`
     : `${slug}-${new Date().toISOString().slice(0, 10)}.csv`
@@ -266,13 +308,25 @@ export default function ReportPage({ slug, name, description, requiresDates, sup
       {rows && !loading && (
         <>
           <div className="results-bar">
-            <span className="results-count">{rows.length.toLocaleString()} rows</span>
-            {rows.length > 0 && (
-              <button className="btn btn-secondary" onClick={() => downloadCSV(rows, csvFilename)}>
-                Download CSV
-              </button>
-            )}
+            <span className="results-count">{(displayRows || rows).length.toLocaleString()} rows</span>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              {supportsLocationStock && !locationRows && (
+                <button className="btn btn-secondary" onClick={loadLocationStock} disabled={locationLoading}>
+                  {locationLoading ? 'Loading stock by location…' : 'Load stock by location'}
+                </button>
+              )}
+              {locationRows && (
+                <span style={{ fontSize: 12, color: '#005F2C', fontWeight: 600 }}>Per-location stock loaded</span>
+              )}
+              {rows.length > 0 && (
+                <button className="btn btn-secondary" onClick={() => downloadCSV(locationRows || rows, csvFilename)}>
+                  Download CSV
+                </button>
+              )}
+            </div>
           </div>
+
+          {locationError && <div className="state-box error">Location stock error: {locationError}</div>}
 
           {rows.length === 0 ? (
             <div className="state-box">No data found for this period.</div>
@@ -283,7 +337,7 @@ export default function ReportPage({ slug, name, description, requiresDates, sup
                   <tr>{columns.map(col => <th key={col}>{col}</th>)}</tr>
                 </thead>
                 <tbody>
-                  {rows.map((row, i) => (
+                  {displayRows.map((row, i) => (
                     <tr key={i}>
                       {columns.map(col => (
                         <td key={col} className={col === 'SKU' ? 'sku-cell' : ''}>{row[col]}</td>
