@@ -57,6 +57,7 @@ export default async function handler(req, res) {
               'SKU':                item.sku || '',
               'Product':            item.title,
               'Variant':            item.variant_title || '',
+              'Variant ID':         item.variant_id || '',
               'Qty':                item.quantity,
               'Unit Price':         parseFloat(item.price).toFixed(2),
               'Line Total':         (parseFloat(item.price) * item.quantity).toFixed(2),

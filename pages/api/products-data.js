@@ -41,7 +41,7 @@ export default async function handler(req, res) {
       const params = currentPageInfo
         ? { page_info: currentPageInfo }
         : {
-            fields: 'id,title,vendor,product_type,status,tags,handle,variants,created_at,updated_at,images',
+            fields: 'id,title,vendor,product_type,status,tags,handle,variants,created_at,updated_at,images,published_at',
             limit: 250,
             ...(product_type ? { product_type } : {}),
             ...(vendor       ? { vendor }        : {}),
@@ -69,6 +69,7 @@ export default async function handler(req, res) {
         'Type':         product.product_type || '',
         'Brand':        product.vendor || '',
         'Status':       product.status,
+        'Online Store': product.published_at ? 'Yes' : 'No',
         'Tags':         product.tags || '',
         'Price':        v.price,
         'Compare At':   v.compare_at_price || '',

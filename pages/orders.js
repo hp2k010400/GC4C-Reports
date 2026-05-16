@@ -6,7 +6,7 @@ let _cache = null
 const DEFAULT_COLS = ['Order', 'Date', 'Customer', 'SKU', 'Product', 'Qty', 'Unit Price', 'Line Total', 'Financial Status', 'Fulfillment Status']
 const ALL_COLS = [
   'Order', 'Date', 'Financial Status', 'Fulfillment Status',
-  'Customer', 'Email', 'SKU', 'Product', 'Variant',
+  'Customer', 'Email', 'SKU', 'Product', 'Variant', 'Variant ID',
   'Qty', 'Unit Price', 'Line Total', 'Order Total',
   'Discount', 'Discount Code', 'Tags', 'Channel',
 ]
