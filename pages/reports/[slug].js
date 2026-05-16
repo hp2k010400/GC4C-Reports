@@ -81,6 +81,14 @@ export default function ReportPage({ slug, name, description, requiresDates, sup
   const [locationRows, setLocationRows] = useState(null)
   const [locationLoading, setLocationLoading] = useState(false)
   const [locationError, setLocationError] = useState(null)
+  const [locations, setLocations] = useState([])
+  const [selectedLocation, setSelectedLocation] = useState('')
+
+  useEffect(() => {
+    if (supportsLocationStock) {
+      fetch('/api/locations').then(r => r.json()).then(d => setLocations(d.locations || [])).catch(() => {})
+    }
+  }, [supportsLocationStock])
 
   useEffect(() => {
     if (!router.isReady) return
@@ -97,26 +105,25 @@ export default function ReportPage({ slug, name, description, requiresDates, sup
   }, [autorunPending]) // eslint-disable-line
 
 
-  async function loadLocationStock() {
+  async function loadLocationStock(rowsData, locFilter) {
     setLocationLoading(true)
     setLocationError(null)
     try {
-      const ids = [...new Set((rows || []).map(r => r._inventoryItemId).filter(Boolean))]
-      const [locRes, levRes] = await Promise.all([
-        fetch('/api/locations').then(r => r.json()),
-        fetch('/api/inventory-levels', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ ids }),
-        }).then(r => r.json()),
-      ])
-      const locs = (locRes.locations || []).sort((a, b) => a.name.localeCompare(b.name))
+      const ids = [...new Set(rowsData.map(r => r._inventoryItemId).filter(Boolean))]
+      const levRes = await fetch('/api/inventory-levels', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids }),
+      }).then(r => r.json())
+      let locs = locations.length ? locations : (await fetch('/api/locations').then(r => r.json()).then(d => d.locations || []))
+      locs = locs.sort((a, b) => a.name.localeCompare(b.name))
+      if (locFilter) locs = locs.filter(l => String(l.id) === locFilter)
       const levelMap = {}
       for (const l of (levRes.levels || [])) {
         if (!levelMap[l.inventory_item_id]) levelMap[l.inventory_item_id] = {}
         levelMap[l.inventory_item_id][l.location_id] = l.available ?? 0
       }
-      const merged = (rows || []).map(({ _inventoryItemId, Available, ...rest }) => {
+      const merged = rowsData.map(({ _inventoryItemId, Available, ...rest }) => {
         const byLoc = locs.reduce((acc, loc) => {
           acc[loc.name] = levelMap[_inventoryItemId]?.[loc.id] ?? 0
           return acc
@@ -183,6 +190,7 @@ export default function ReportPage({ slug, name, description, requiresDates, sup
       }
 
       setRows(allRows)
+      if (supportsLocationStock && allRows.length) loadLocationStock(allRows, selectedLocation)
       saveHistory({
         type: 'report',
         slug,
@@ -271,6 +279,21 @@ export default function ReportPage({ slug, name, description, requiresDates, sup
             </select>
           </div>
         )}
+        {supportsLocationStock && locations.length > 0 && (
+          <div className="field">
+            <label>Location</label>
+            <select
+              value={selectedLocation}
+              onChange={e => setSelectedLocation(e.target.value)}
+              className="type-select"
+            >
+              <option value="">All locations</option>
+              {locations.map(l => (
+                <option key={l.id} value={l.id}>{l.name}</option>
+              ))}
+            </select>
+          </div>
+        )}
         <button className="btn btn-primary" onClick={runReport} disabled={loading}>
           {loading ? 'Loading…' : 'Generate Report'}
         </button>
@@ -310,13 +333,8 @@ export default function ReportPage({ slug, name, description, requiresDates, sup
           <div className="results-bar">
             <span className="results-count">{(displayRows || rows).length.toLocaleString()} rows</span>
             <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-              {supportsLocationStock && !locationRows && (
-                <button className="btn btn-secondary" onClick={loadLocationStock} disabled={locationLoading}>
-                  {locationLoading ? 'Loading stock by location…' : 'Load stock by location'}
-                </button>
-              )}
-              {locationRows && (
-                <span style={{ fontSize: 12, color: '#005F2C', fontWeight: 600 }}>Per-location stock loaded</span>
+              {locationLoading && (
+                <span style={{ fontSize: 12, color: '#888' }}>Loading location stock…</span>
               )}
               {rows.length > 0 && (
                 <button className="btn btn-secondary" onClick={() => downloadCSV(locationRows || rows, csvFilename)}>
