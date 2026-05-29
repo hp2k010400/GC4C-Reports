@@ -24,7 +24,7 @@ async function attachCosts(products) {
 }
 
 export default async function handler(req, res) {
-  const { slug, startDate, endDate, page_info, productType, vendor } = req.query
+  const { slug, startDate, endDate, page_info, productType, vendor, locationId } = req.query
   const report = reports[slug]
 
   if (!report) return res.status(404).json({ error: 'Report not found' })
@@ -35,7 +35,7 @@ export default async function handler(req, res) {
   try {
     const params = page_info
       ? { page_info }
-      : report.apiParams({ startDate, endDate, productType, vendor })
+      : report.apiParams({ startDate, endDate, productType, vendor, locationId })
 
     let { items, nextPageInfo } = await shopifyFetchPage(report.endpoint, report.key, params)
 

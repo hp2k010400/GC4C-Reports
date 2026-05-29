@@ -23,6 +23,7 @@ export async function getStaticProps({ params }) {
       supportsTypeFilter: report.supportsTypeFilter || false,
       supportsVendorFilter: report.supportsVendorFilter || false,
       supportsLocationStock: report.supportsLocationStock || false,
+      supportsLocationFilter: report.supportsLocationFilter || false,
       typeOptions: report.supportsTypeFilter ? Object.keys(TYPE_GROUPS) : [],
       typeGroups: report.supportsTypeFilter ? TYPE_GROUPS : {},
       vendorOptions: report.supportsVendorFilter ? Object.keys(VENDOR_GROUPS) : [],
@@ -63,7 +64,7 @@ function saveHistory(entry) {
   } catch {}
 }
 
-export default function ReportPage({ slug, name, description, requiresDates, supportsTypeFilter, supportsVendorFilter, supportsLocationStock, typeOptions = [], typeGroups = {}, vendorOptions = [], vendorGroups = {} }) {
+export default function ReportPage({ slug, name, description, requiresDates, supportsTypeFilter, supportsVendorFilter, supportsLocationStock, supportsLocationFilter, typeOptions = [], typeGroups = {}, vendorOptions = [], vendorGroups = {} }) {
   const router = useRouter()
   const today = new Date().toISOString().slice(0, 10)
   const thirtyDaysAgo = new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10)
@@ -85,10 +86,10 @@ export default function ReportPage({ slug, name, description, requiresDates, sup
   const [selectedLocation, setSelectedLocation] = useState('')
 
   useEffect(() => {
-    if (supportsLocationStock) {
+    if (supportsLocationStock || supportsLocationFilter) {
       fetch('/api/locations').then(r => r.json()).then(d => setLocations(d.locations || [])).catch(() => {})
     }
-  }, [supportsLocationStock])
+  }, [supportsLocationStock, supportsLocationFilter])
 
   useEffect(() => {
     if (!router.isReady) return
@@ -167,6 +168,7 @@ export default function ReportPage({ slug, name, description, requiresDates, sup
             }
             if (typeVariant) params.set('productType', typeVariant)
             if (vendorVariant) params.set('vendor', vendorVariant)
+            if (selectedLocation && supportsLocationFilter) params.set('locationId', selectedLocation)
             if (pageInfo) params.set('page_info', pageInfo)
 
             const res = await fetch(`/api/reports/${slug}?${params}`)
@@ -279,7 +281,7 @@ export default function ReportPage({ slug, name, description, requiresDates, sup
             </select>
           </div>
         )}
-        {supportsLocationStock && locations.length > 0 && (
+        {(supportsLocationStock || supportsLocationFilter) && locations.length > 0 && (
           <div className="field">
             <label>Location</label>
             <select
