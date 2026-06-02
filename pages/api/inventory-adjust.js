@@ -37,14 +37,9 @@ const ADJUST_MUTATION = `
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end()
 
-  const {
-    inventoryItemId, locationId, adjustment,
-    sku, productTitle, variantTitle, locationName,
-    reason, notes, employee,
-  } = req.body
+  const { items, reason, notes, employee } = req.body
 
-  const adj = parseInt(adjustment)
-  if (!inventoryItemId || !locationId || isNaN(adj) || adj === 0 || !employee?.trim()) {
+  if (!Array.isArray(items) || !items.length || !employee?.trim()) {
     return res.status(400).json({ error: 'Missing or invalid fields' })
   }
 
@@ -52,16 +47,14 @@ export default async function handler(req, res) {
   const shopifyReason = reasonMap[reason] || 'correction'
 
   try {
+    const changes = items.map(item => ({
+      inventoryItemId: `gid://shopify/InventoryItem/${item.inventoryItemId}`,
+      locationId: `gid://shopify/Location/${item.locationId}`,
+      delta: parseInt(item.adjustment),
+    }))
+
     const data = await shopifyGraphQL(ADJUST_MUTATION, {
-      input: {
-        reason: shopifyReason,
-        name: 'available',
-        changes: [{
-          inventoryItemId: `gid://shopify/InventoryItem/${inventoryItemId}`,
-          locationId: `gid://shopify/Location/${locationId}`,
-          delta: adj,
-        }],
-      },
+      input: { reason: shopifyReason, name: 'available', changes },
     })
 
     const userErrors = data.inventoryAdjustQuantities?.userErrors || []
@@ -69,26 +62,28 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: userErrors.map(e => e.message).join(', ') })
     }
 
-    const changes = data.inventoryAdjustQuantities?.inventoryAdjustmentGroup?.changes || []
-    const newQuantity = changes[0]?.quantityAfterChange ?? null
+    const resultChanges = data.inventoryAdjustQuantities?.inventoryAdjustmentGroup?.changes || []
 
     try {
       const store = getStore('gc4c-adjustments')
       const monthKey = new Date().toISOString().slice(0, 7)
       const existing = await store.get(monthKey, { type: 'json' }).catch(() => null)
       const log = Array.isArray(existing) ? existing : []
-      log.push({
-        id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-        timestamp: new Date().toISOString(),
-        sku, productTitle, variantTitle,
-        inventoryItemId, locationId: parseInt(locationId), locationName,
-        adjustment: adj, newQuantity,
-        reason, notes: notes || '', employee: employee.trim(),
+      items.forEach((item, i) => {
+        log.push({
+          id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+          timestamp: new Date().toISOString(),
+          sku: item.sku, productTitle: item.productTitle, variantTitle: item.variantTitle,
+          inventoryItemId: item.inventoryItemId, locationId: parseInt(item.locationId), locationName: item.locationName,
+          adjustment: parseInt(item.adjustment),
+          newQuantity: resultChanges[i]?.quantityAfterChange ?? null,
+          reason, notes: notes || '', employee: employee.trim(),
+        })
       })
       await store.set(monthKey, JSON.stringify(log))
     } catch {}
 
-    res.status(200).json({ ok: true, newQuantity })
+    res.status(200).json({ ok: true, count: items.length })
   } catch (err) {
     res.status(500).json({ error: err.message })
   }
