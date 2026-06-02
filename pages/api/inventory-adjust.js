@@ -55,7 +55,7 @@ export default async function handler(req, res) {
     const data = await shopifyGraphQL(ADJUST_MUTATION, {
       input: {
         reason: shopifyReason,
-        name: `${reason}${notes ? ' — ' + notes : ''}`,
+        name: 'available',
         changes: [{
           inventoryItemId: `gid://shopify/InventoryItem/${inventoryItemId}`,
           locationId: `gid://shopify/Location/${locationId}`,
