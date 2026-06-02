@@ -391,6 +391,7 @@ export default function AdjustmentsPage() {
                 <th>New Qty</th>
                 <th>Reason</th>
                 <th>Notes</th>
+                <th></th>
               </tr>
             </thead>
             <tbody>
@@ -409,6 +410,18 @@ export default function AdjustmentsPage() {
                   <td style={{ textAlign: 'center' }}>{e.newQuantity ?? '—'}</td>
                   <td style={{ fontSize: 12 }}>{e.reason}</td>
                   <td style={{ fontSize: 12, color: '#888' }}>{e.notes}</td>
+                  <td>
+                    <button className="btn btn-secondary" style={{ fontSize: 11, padding: '2px 8px', whiteSpace: 'nowrap' }}
+                      onClick={() => downloadCSV([{
+                        'Date': new Date(e.timestamp).toLocaleString('en-GB', { dateStyle: 'short', timeStyle: 'short' }),
+                        'Employee': e.employee, 'SKU': e.sku,
+                        'Product': e.productTitle + (e.variantTitle ? ` — ${e.variantTitle}` : ''),
+                        'Location': e.locationName, 'Adjustment': e.adjustment,
+                        'New Qty': e.newQuantity ?? '', 'Reason': e.reason, 'Notes': e.notes,
+                      }], `adjustment-${e.sku}-${e.timestamp.slice(0,10)}.csv`)}>
+                      CSV
+                    </button>
+                  </td>
                 </tr>
               ))}
             </tbody>
