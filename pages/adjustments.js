@@ -364,7 +364,7 @@ export default function AdjustmentsPage() {
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           {logEntries.length > 0 && (
             <button className="btn btn-secondary" style={{ fontSize: 12, padding: '4px 10px' }} onClick={exportLog}>
-              Download CSV
+              Download {monthLabel(logMonth)}
             </button>
           )}
           <select className="form-select" style={{ width: 'auto' }} value={logMonth} onChange={e => setLogMonth(e.target.value)}>
