@@ -218,6 +218,11 @@ export default function AdjustmentsPage() {
     downloadCSV(rows, `adjustment-log-${logMonth}.csv`)
   }
 
+  const [logSearch, setLogSearch] = useState('')
+  const filteredLog = logSearch.trim()
+    ? logEntries.filter(e => e.sku?.toLowerCase().includes(logSearch.trim().toLowerCase()))
+    : logEntries
+
   const validCount = lines.filter(l => l.product && l.qty && parseInt(l.qty) !== 0 && !isNaN(parseInt(l.qty))).length
   const canSubmit = validCount > 0 && locationId && employee.trim() && !submitting
 
@@ -366,7 +371,7 @@ export default function AdjustmentsPage() {
       </div>
 
       {/* Adjustment log */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
         <div style={{ fontWeight: 700, fontSize: 17, color: '#111' }}>Adjustment Log</div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           {logEntries.length > 0 && (
@@ -380,11 +385,28 @@ export default function AdjustmentsPage() {
         </div>
       </div>
 
+      <div style={{ marginBottom: 14 }}>
+        <input
+          className="form-input"
+          type="text"
+          placeholder="Search by SKU…"
+          value={logSearch}
+          onChange={e => setLogSearch(e.target.value)}
+          style={{ maxWidth: 280 }}
+        />
+        {logSearch && filteredLog.length === 0 && (
+          <span style={{ marginLeft: 12, fontSize: 13, color: '#888' }}>No adjustments found for "{logSearch}"</span>
+        )}
+        {logSearch && filteredLog.length > 0 && (
+          <span style={{ marginLeft: 12, fontSize: 13, color: '#888' }}>{filteredLog.length} result{filteredLog.length !== 1 ? 's' : ''}</span>
+        )}
+      </div>
+
       {logLoading ? (
         <div className="state-box"><div className="spinner" /></div>
-      ) : logEntries.length === 0 ? (
+      ) : filteredLog.length === 0 && !logSearch ? (
         <div className="state-box">No adjustments recorded for {monthLabel(logMonth)}.</div>
-      ) : (
+      ) : filteredLog.length === 0 ? null : (
         <div className="table-wrap">
           <table>
             <thead>
@@ -402,7 +424,7 @@ export default function AdjustmentsPage() {
               </tr>
             </thead>
             <tbody>
-              {logEntries.map(e => (
+              {filteredLog.map(e => (
                 <tr key={e.id}>
                   <td style={{ whiteSpace: 'nowrap', fontSize: 12 }}>
                     {new Date(e.timestamp).toLocaleString('en-GB', { dateStyle: 'short', timeStyle: 'short' })}
