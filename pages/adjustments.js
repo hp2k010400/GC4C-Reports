@@ -80,19 +80,21 @@ export default function AdjustmentsPage() {
     setLines(ls => ls.map(l => l.id === id ? { ...l, ...patch } : l))
   }
 
+  async function lookupSku(sku) {
+    const res = await fetch(`/api/sku-lookup?sku=${encodeURIComponent(sku.trim())}`)
+    const data = await res.json()
+    if (!res.ok) throw new Error(data.error || 'Lookup failed')
+    return data
+  }
+
   async function lookupLine(id) {
     const line = lines.find(l => l.id === id)
     if (!line?.sku.trim()) return
     updateLine(id, { looking: true, error: null, product: null, matches: null })
     try {
-      const res = await fetch(`/api/sku-lookup?sku=${encodeURIComponent(line.sku.trim())}`)
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Lookup failed')
-      if (data.matches) {
-        updateLine(id, { matches: data.matches, looking: false })
-      } else {
-        updateLine(id, { product: data, looking: false })
-      }
+      const data = await lookupSku(line.sku)
+      if (data.matches) updateLine(id, { matches: data.matches, looking: false })
+      else updateLine(id, { product: data, looking: false })
     } catch (err) {
       updateLine(id, { error: err.message, looking: false })
     }
@@ -101,9 +103,7 @@ export default function AdjustmentsPage() {
   async function selectMatch(lineId, sku) {
     updateLine(lineId, { looking: true, matches: null })
     try {
-      const res = await fetch(`/api/sku-lookup?sku=${encodeURIComponent(sku)}`)
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Lookup failed')
+      const data = await lookupSku(sku)
       updateLine(lineId, { product: data, sku: data.sku, looking: false })
     } catch (err) {
       updateLine(lineId, { error: err.message, looking: false })
@@ -116,26 +116,30 @@ export default function AdjustmentsPage() {
     e.target.value = ''
     const text = await file.text()
     const rows = text.trim().split('\n').map(r => r.split(',').map(c => c.trim().replace(/^"|"$/g, '')))
-    // Find SKU and Quantity columns (handle header row)
-    let startRow = 0
-    let skuCol = 0, qtyCol = 1
-    if (rows[0][0].toLowerCase() === 'sku' || rows[0][0].toLowerCase() === 'product sku') {
+    let startRow = 0, skuCol = 0, qtyCol = 1
+    if (rows[0][0].toLowerCase().includes('sku')) {
       startRow = 1
       skuCol = rows[0].findIndex(h => h.toLowerCase().includes('sku'))
       qtyCol = rows[0].findIndex(h => h.toLowerCase().includes('qty') || h.toLowerCase().includes('quantity'))
       if (skuCol < 0) skuCol = 0
       if (qtyCol < 0) qtyCol = 1
     }
-    const newLines = rows.slice(startRow)
-      .filter(r => r[skuCol]?.trim())
-      .map(r => ({ ...newLine(), sku: r[skuCol].trim(), qty: r[qtyCol]?.trim() || '' }))
-    if (!newLines.length) return
-    setLines(newLines)
+    const parsed = rows.slice(startRow).filter(r => r[skuCol]?.trim())
+      .map(r => ({ ...newLine(), sku: r[skuCol].trim(), qty: r[qtyCol]?.trim() || '', looking: true }))
+    if (!parsed.length) return
+    setLines(parsed)
     setSubmitResult(null)
-    // Auto-lookup all
-    for (const line of newLines) {
-      await lookupLine(line.id)
-    }
+    // Lookup all in parallel — avoids stale state issue of sequential lookups
+    const results = await Promise.all(parsed.map(async line => {
+      try {
+        const data = await lookupSku(line.sku)
+        if (data.matches) return { ...line, looking: false, matches: data.matches }
+        return { ...line, looking: false, product: data }
+      } catch (err) {
+        return { ...line, looking: false, error: err.message }
+      }
+    }))
+    setLines(results)
   }
 
   async function handleSubmit() {
@@ -154,6 +158,7 @@ export default function AdjustmentsPage() {
         productTitle: line.product.productTitle,
         variantTitle: line.product.variantTitle || '',
         locationName: selectedLoc?.name || locationId,
+        cost: line.product.cost ?? '',
       }))
 
       const res = await fetch('/api/inventory-adjust', {
@@ -188,6 +193,7 @@ export default function AdjustmentsPage() {
       Product: l.product.productTitle + (l.product.variantTitle ? ` — ${l.product.variantTitle}` : ''),
       Location: submitResult.locationName,
       Adjustment: parseInt(l.qty),
+      'Cost Price': l.product.cost ?? '',
       Reason: reason,
       Notes: notes,
       Employee: employee,
@@ -205,6 +211,7 @@ export default function AdjustmentsPage() {
       'Location': e.locationName,
       'Adjustment': e.adjustment,
       'New Qty': e.newQuantity ?? '',
+      'Cost Price': e.cost ?? '',
       'Reason': e.reason,
       'Notes': e.notes,
     }))
@@ -417,7 +424,7 @@ export default function AdjustmentsPage() {
                         'Employee': e.employee, 'SKU': e.sku,
                         'Product': e.productTitle + (e.variantTitle ? ` — ${e.variantTitle}` : ''),
                         'Location': e.locationName, 'Adjustment': e.adjustment,
-                        'New Qty': e.newQuantity ?? '', 'Reason': e.reason, 'Notes': e.notes,
+                        'New Qty': e.newQuantity ?? '', 'Cost Price': e.cost ?? '', 'Reason': e.reason, 'Notes': e.notes,
                       }], `adjustment-${e.sku}-${e.timestamp.slice(0,10)}.csv`)}>
                       CSV
                     </button>

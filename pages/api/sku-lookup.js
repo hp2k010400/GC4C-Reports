@@ -24,16 +24,18 @@ const VARIANT_BY_SKU = `
 
 async function fetchInventory(variant) {
   const inventoryItemId = variant.inventoryItem.id.replace('gid://shopify/InventoryItem/', '')
-  const [levelsData, locData] = await Promise.all([
+  const [levelsData, locData, itemData] = await Promise.all([
     shopifyGetOne('inventory_levels.json', { inventory_item_ids: inventoryItemId, limit: 250 }),
     shopifyGetOne('locations.json', { limit: 250 }),
+    shopifyGetOne(`inventory_items/${inventoryItemId}.json`).catch(() => ({})),
   ])
   const locMap = {}
   for (const l of locData.locations || []) locMap[l.id] = l.name
   const inventory = (levelsData.inventory_levels || [])
     .map(l => ({ locationId: l.location_id, locationName: locMap[l.location_id] || String(l.location_id), available: l.available ?? 0 }))
     .sort((a, b) => a.locationName.localeCompare(b.locationName))
-  return { sku: variant.sku, productTitle: variant.product.title, variantTitle: variant.title !== 'Default Title' ? variant.title : '', inventoryItemId, inventory }
+  const cost = itemData.inventory_item?.cost ?? ''
+  return { sku: variant.sku, productTitle: variant.product.title, variantTitle: variant.title !== 'Default Title' ? variant.title : '', inventoryItemId, inventory, cost }
 }
 
 export default async function handler(req, res) {

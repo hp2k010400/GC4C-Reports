@@ -77,6 +77,7 @@ export default async function handler(req, res) {
           inventoryItemId: item.inventoryItemId, locationId: parseInt(item.locationId), locationName: item.locationName,
           adjustment: parseInt(item.adjustment),
           newQuantity: resultChanges[i]?.quantityAfterChange ?? null,
+          cost: item.cost ?? '',
           reason, notes: notes || '', employee: employee.trim(),
         })
       })
