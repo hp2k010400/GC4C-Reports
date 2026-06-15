@@ -4,6 +4,7 @@ import { useRouter } from 'next/router'
 const NAV = [
   { label: 'Products', href: '/products' },
   { label: 'Orders', href: '/orders' },
+  { label: 'Returns', href: '/returns' },
   { label: 'Combined', href: '/combined' },
   { label: 'Deletions', href: '/deletion-candidates' },
   { label: 'Adjustments', href: '/adjustments' },

@@ -1152,6 +1152,65 @@ tbody tr:hover td { background: #f0f9f4 !important; }
 .ful-partial     { background: #fde8e8; color: #c0392b; }
 .ful-restocked   { background: #f0f0f0; color: #666; }
 
+/* --- Risk badges --- */
+.risk-high   { background: #fde8e8; color: #dc2626; }
+.risk-medium { background: #fef3cd; color: #d97706; }
+.risk-low    { background: #d4edda; color: #16a34a; }
+
+/* --- Returns expanded rows --- */
+td.expanded-detail {
+  padding: 0 !important;
+  background: #f9fafb !important;
+}
+
+tbody tr:hover td.expanded-detail {
+  background: #f9fafb !important;
+}
+
+.return-block {
+  padding: 12px 24px 12px 40px;
+  border-bottom: 1px solid #eee;
+}
+
+.return-block:last-child {
+  border-bottom: none;
+}
+
+.return-block-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  font-size: 13px;
+  color: #555;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+
+.inner-table {
+  width: auto;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.inner-table thead th {
+  background: #f0f2f5 !important;
+  padding: 5px 10px !important;
+  font-size: 10px !important;
+  position: static;
+}
+
+.inner-table tbody td {
+  padding: 5px 10px !important;
+  border-bottom: 1px solid #f0f0f0 !important;
+  max-width: none !important;
+  white-space: normal !important;
+  background: transparent !important;
+}
+
+.inner-table tbody tr:last-child td {
+  border-bottom: none !important;
+}
+
 .combined-notice {
   display: flex;
   align-items: center;
