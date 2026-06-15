@@ -1152,10 +1152,22 @@ tbody tr:hover td { background: #f0f9f4 !important; }
 .ful-partial     { background: #fde8e8; color: #c0392b; }
 .ful-restocked   { background: #f0f0f0; color: #666; }
 
-/* --- Risk badges --- */
-.risk-high   { background: #fde8e8; color: #dc2626; }
-.risk-medium { background: #fef3cd; color: #d97706; }
-.risk-low    { background: #d4edda; color: #16a34a; }
+/* --- Pattern badges (Returns report) --- */
+.pattern-both       { background: #fde8e8; color: #dc2626; }
+.pattern-high-value { background: #fef3cd; color: #d97706; }
+.pattern-frequent   { background: #ede9fe; color: #7c3aed; }
+.pattern-low        { background: #d4edda; color: #16a34a; }
+
+/* Returns legend */
+.returns-legend {
+  font-size: 12px;
+  color: #666;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
 
 /* --- Returns expanded rows --- */
 td.expanded-detail {

@@ -13,18 +13,34 @@ function fmtGbp(n) {
   return `£${(n || 0).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 }
 
-function riskLevel(c) {
-  if (c.returnRate >= 30 || c.totalRefunded >= 200) return 'high'
-  if (c.returnRate >= 15 || c.totalRefunded >= 100) return 'medium'
+// High Value: refunded >= £500 in period | Frequent: lifetime return rate >= 25%
+function pattern(c) {
+  const highValue = c.totalRefunded >= 500
+  const frequent = c.returnRate >= 25
+  if (highValue && frequent) return 'both'
+  if (highValue) return 'high-value'
+  if (frequent) return 'frequent'
   return 'low'
 }
 
+const PATTERN_LABEL = {
+  both: 'Both',
+  'high-value': 'High Value',
+  frequent: 'Frequent',
+  low: 'Low',
+}
+
 function buildCSV(customers) {
-  const headers = ['Name', 'Email', 'Lifetime Orders', 'Orders With Returns', 'Return Rate %', 'Refund Events', 'Total Refunded (£)', 'First Return', 'Last Return', 'Risk']
+  const headers = [
+    'Name', 'Email', 'Lifetime Orders', 'Orders With Returns',
+    'Lifetime Return Rate %', 'Avg Days to Return', 'Refund Events',
+    'Total Refunded (£)', 'Net Spend (£)', 'First Return', 'Last Return', 'Pattern',
+  ]
   const rows = customers.map(c => [
     c.name, c.email, c.lifetimeOrders, c.ordersWithReturns,
-    c.returnRate, c.totalRefundCount, c.totalRefunded.toFixed(2),
-    c.firstReturn || '', c.lastReturn || '', riskLevel(c),
+    c.returnRate, c.avgDaysToReturn, c.totalRefundCount,
+    c.totalRefunded.toFixed(2), c.netSpend.toFixed(2),
+    c.firstReturn || '', c.lastReturn || '', PATTERN_LABEL[pattern(c)],
   ])
   return [headers, ...rows]
     .map(r => r.map(v => {
@@ -48,8 +64,10 @@ const SORTERS = {
   lifetimeOrders:   (a, b, d) => d === 'asc' ? a.lifetimeOrders - b.lifetimeOrders : b.lifetimeOrders - a.lifetimeOrders,
   ordersWithReturns:(a, b, d) => d === 'asc' ? a.ordersWithReturns - b.ordersWithReturns : b.ordersWithReturns - a.ordersWithReturns,
   returnRate:       (a, b, d) => d === 'asc' ? a.returnRate - b.returnRate : b.returnRate - a.returnRate,
+  avgDaysToReturn:  (a, b, d) => d === 'asc' ? a.avgDaysToReturn - b.avgDaysToReturn : b.avgDaysToReturn - a.avgDaysToReturn,
   totalRefundCount: (a, b, d) => d === 'asc' ? a.totalRefundCount - b.totalRefundCount : b.totalRefundCount - a.totalRefundCount,
   totalRefunded:    (a, b, d) => d === 'asc' ? a.totalRefunded - b.totalRefunded : b.totalRefunded - a.totalRefunded,
+  netSpend:         (a, b, d) => d === 'asc' ? a.netSpend - b.netSpend : b.netSpend - a.netSpend,
   lastReturn:       (a, b, d) => d === 'asc'
     ? (a.lastReturn || '').localeCompare(b.lastReturn || '')
     : (b.lastReturn || '').localeCompare(a.lastReturn || ''),
@@ -64,7 +82,7 @@ export default function ReturnsPage() {
   const [sortField, setSortField] = useState('totalRefunded')
   const [sortDir, setSortDir] = useState('desc')
   const [search, setSearch] = useState('')
-  const [riskFilter, setRiskFilter] = useState('')
+  const [patternFilter, setPatternFilter] = useState('')
   const [expanded, setExpanded] = useState(new Set())
 
   async function loadData() {
@@ -100,7 +118,7 @@ export default function ReturnsPage() {
   const displayedCustomers = useMemo(() => {
     if (!data?.customers) return []
     let rows = data.customers
-    if (riskFilter) rows = rows.filter(c => riskLevel(c) === riskFilter)
+    if (patternFilter) rows = rows.filter(c => pattern(c) === patternFilter)
     if (search.trim()) {
       const q = search.trim().toLowerCase()
       rows = rows.filter(c => c.name.toLowerCase().includes(q) || c.email.toLowerCase().includes(q))
@@ -108,14 +126,17 @@ export default function ReturnsPage() {
     const fn = SORTERS[sortField]
     if (fn) rows = [...rows].sort((a, b) => fn(a, b, sortDir))
     return rows
-  }, [data, riskFilter, search, sortField, sortDir])
+  }, [data, patternFilter, search, sortField, sortDir])
 
   const stats = useMemo(() => {
     if (!data?.customers?.length) return null
     const total = data.customers.reduce((s, c) => s + c.totalRefunded, 0)
     const refunds = data.customers.reduce((s, c) => s + c.totalRefundCount, 0)
-    const high = data.customers.filter(c => riskLevel(c) === 'high').length
-    return { customers: data.customers.length, refunds, total, high }
+    const critical = data.customers.filter(c => pattern(c) === 'both').length
+    const avgDays = Math.round(
+      data.customers.reduce((s, c) => s + c.avgDaysToReturn, 0) / data.customers.length
+    )
+    return { customers: data.customers.length, refunds, total, critical, avgDays }
   }, [data])
 
   function si(field) {
@@ -206,13 +227,24 @@ export default function ReturnsPage() {
                 <div className="stat-value">{fmtGbp(stats.total)}</div>
               </div>
               <div className="stat-card">
-                <div className="stat-label">High Risk</div>
-                <div className="stat-value" style={{ color: stats.high > 0 ? '#dc2626' : undefined }}>
-                  {stats.high.toLocaleString()}
+                <div className="stat-label">Critical (Both)</div>
+                <div className="stat-value" style={{ color: stats.critical > 0 ? '#dc2626' : undefined }}>
+                  {stats.critical.toLocaleString()}
                 </div>
+              </div>
+              <div className="stat-card">
+                <div className="stat-label">Avg Days to Return</div>
+                <div className="stat-value">{stats.avgDays}</div>
               </div>
             </div>
           )}
+
+          <div className="returns-legend">
+            <span className="status-badge pattern-both">Both</span> High value (&ge;£500) + frequent (&ge;25% rate) &nbsp;&nbsp;
+            <span className="status-badge pattern-high-value">High Value</span> &ge;£500 refunded &nbsp;&nbsp;
+            <span className="status-badge pattern-frequent">Frequent</span> &ge;25% lifetime return rate &nbsp;&nbsp;
+            <span className="status-badge pattern-low">Low</span> Neither
+          </div>
 
           <div className="results-bar">
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -222,18 +254,19 @@ export default function ReturnsPage() {
                 placeholder="Search by name or email…"
                 value={search}
                 onChange={e => setSearch(e.target.value)}
-                style={{ width: 240 }}
+                style={{ width: 220 }}
               />
               <select
                 className="type-select"
-                value={riskFilter}
-                onChange={e => setRiskFilter(e.target.value)}
-                style={{ minWidth: 140 }}
+                value={patternFilter}
+                onChange={e => setPatternFilter(e.target.value)}
+                style={{ minWidth: 160 }}
               >
-                <option value="">All risk levels</option>
-                <option value="high">High risk</option>
-                <option value="medium">Medium risk</option>
-                <option value="low">Low risk</option>
+                <option value="">All patterns</option>
+                <option value="both">Both (critical)</option>
+                <option value="high-value">High Value only</option>
+                <option value="frequent">Frequent only</option>
+                <option value="low">Low</option>
               </select>
               <span className="results-count">
                 {displayedCustomers.length} customer{displayedCustomers.length !== 1 ? 's' : ''}
@@ -260,18 +293,22 @@ export default function ReturnsPage() {
                     {th('name', 'Customer')}
                     {th('lifetimeOrders', 'Orders', { textAlign: 'right' })}
                     {th('ordersWithReturns', 'W/ Returns', { textAlign: 'right' })}
-                    {th('returnRate', 'Rate', { textAlign: 'right' })}
+                    {th('returnRate', 'Lifetime Rate', { textAlign: 'right' })}
+                    {th('avgDaysToReturn', 'Avg Return', { textAlign: 'right' })}
                     {th('totalRefundCount', 'Refunds', { textAlign: 'right' })}
                     {th('totalRefunded', 'Total Refunded', { textAlign: 'right' })}
+                    {th('netSpend', 'Net Spend', { textAlign: 'right' })}
                     {th('lastReturn', 'Last Return')}
-                    <th>Risk</th>
+                    <th>Pattern</th>
                   </tr>
                 </thead>
                 <tbody>
                   {displayedCustomers.map(c => {
-                    const risk = riskLevel(c)
+                    const p = pattern(c)
                     const isOpen = expanded.has(c.email)
-                    const rateColor = risk === 'high' ? '#dc2626' : risk === 'medium' ? '#d97706' : '#16a34a'
+                    const rateColor = c.returnRate >= 25 ? '#dc2626' : c.returnRate >= 15 ? '#d97706' : '#16a34a'
+                    const daysColor = c.avgDaysToReturn <= 7 ? '#dc2626' : c.avgDaysToReturn <= 21 ? '#d97706' : '#555'
+                    const netColor = c.netSpend < 0 ? '#dc2626' : '#16a34a'
                     return (
                       <React.Fragment key={c.email}>
                         <tr onClick={() => toggleExpand(c.email)} style={{ cursor: 'pointer' }}>
@@ -287,18 +324,26 @@ export default function ReturnsPage() {
                           <td style={{ textAlign: 'right' }}>
                             <span style={{ color: rateColor, fontWeight: 600 }}>{c.returnRate}%</span>
                           </td>
+                          <td style={{ textAlign: 'right' }}>
+                            <span style={{ color: daysColor, fontWeight: 600 }}>
+                              {c.avgDaysToReturn}d
+                            </span>
+                          </td>
                           <td style={{ textAlign: 'right' }}>{c.totalRefundCount}</td>
                           <td style={{ textAlign: 'right', fontWeight: 600 }}>{fmtGbp(c.totalRefunded)}</td>
+                          <td style={{ textAlign: 'right', fontWeight: 600, color: netColor }}>
+                            {fmtGbp(c.netSpend)}
+                          </td>
                           <td style={{ whiteSpace: 'nowrap' }}>{fmtDate(c.lastReturn)}</td>
                           <td>
-                            <span className={`status-badge risk-${risk}`}>
-                              {risk === 'high' ? 'High' : risk === 'medium' ? 'Medium' : 'Low'}
+                            <span className={`status-badge pattern-${p}`}>
+                              {PATTERN_LABEL[p]}
                             </span>
                           </td>
                         </tr>
                         {isOpen && (
                           <tr>
-                            <td colSpan={9} className="expanded-detail">
+                            <td colSpan={11} className="expanded-detail">
                               {[...c.returns]
                                 .sort((a, b) => b.refundDate.localeCompare(a.refundDate))
                                 .map((ret, i) => (

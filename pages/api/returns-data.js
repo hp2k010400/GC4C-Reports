@@ -50,9 +50,12 @@ export default async function handler(req, res) {
           name: name || email,
           customerId: order.customer?.id || null,
           lifetimeOrders: order.customer?.orders_count || 0,
+          totalSpent: parseFloat(order.customer?.total_spent || 0),
           ordersWithReturns: 0,
           totalRefundCount: 0,
           totalRefunded: 0,
+          daysToReturnSum: 0,
+          daysToReturnCount: 0,
           firstReturn: null,
           lastReturn: null,
           returns: [],
@@ -65,6 +68,8 @@ export default async function handler(req, res) {
       if ((order.customer?.orders_count || 0) > c.lifetimeOrders) {
         c.lifetimeOrders = order.customer.orders_count
       }
+      const spent = parseFloat(order.customer?.total_spent || 0)
+      if (spent > c.totalSpent) c.totalSpent = spent
       if (name && !c.name) c.name = name
 
       for (const refund of order.refunds) {
@@ -72,6 +77,13 @@ export default async function handler(req, res) {
         const refundAmount = (refund.refund_line_items || []).reduce(
           (s, rli) => s + parseFloat(rli.subtotal || 0), 0
         )
+
+        const orderDt = order.created_at ? new Date(order.created_at) : null
+        const refundDt = refund.created_at ? new Date(refund.created_at) : null
+        if (orderDt && refundDt) {
+          c.daysToReturnSum += Math.max(0, Math.round((refundDt - orderDt) / 86400000))
+          c.daysToReturnCount++
+        }
 
         if (!c.firstReturn || refundDate < c.firstReturn) c.firstReturn = refundDate
         if (!c.lastReturn || refundDate > c.lastReturn) c.lastReturn = refundDate
@@ -98,13 +110,31 @@ export default async function handler(req, res) {
     }
 
     const customers = Array.from(customerMap.values())
-      .map(c => ({
-        ...c,
-        totalRefunded: parseFloat(c.totalRefunded.toFixed(2)),
-        returnRate: c.lifetimeOrders > 0
+      .map(c => {
+        const totalRefunded = parseFloat(c.totalRefunded.toFixed(2))
+        const returnRate = c.lifetimeOrders > 0
           ? parseFloat((c.ordersWithReturns / c.lifetimeOrders * 100).toFixed(1))
-          : 0,
-      }))
+          : 0
+        const avgDaysToReturn = c.daysToReturnCount > 0
+          ? Math.round(c.daysToReturnSum / c.daysToReturnCount)
+          : 0
+        const netSpend = parseFloat((c.totalSpent - totalRefunded).toFixed(2))
+        return {
+          email: c.email,
+          name: c.name,
+          customerId: c.customerId,
+          lifetimeOrders: c.lifetimeOrders,
+          ordersWithReturns: c.ordersWithReturns,
+          totalRefundCount: c.totalRefundCount,
+          totalRefunded,
+          returnRate,
+          avgDaysToReturn,
+          netSpend,
+          firstReturn: c.firstReturn,
+          lastReturn: c.lastReturn,
+          returns: c.returns,
+        }
+      })
       .sort((a, b) => b.totalRefunded - a.totalRefunded)
 
     res.json({ customers, ordersScanned: allOrders.length })
