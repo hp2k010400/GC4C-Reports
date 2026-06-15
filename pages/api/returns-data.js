@@ -63,11 +63,25 @@ export default async function handler(req, res) {
 
     const allOrders = [...refunded, ...partialRefunded]
 
-    // Collect unique customer IDs for the batch lookup
-    const customerIdSet = new Set(
-      allOrders.filter(o => o.customer?.id).map(o => String(o.customer.id))
-    )
-    const customerDetails = await fetchCustomerDetails(customerIdSet)
+    // Build a quick refund total per customer ID to prioritise who gets the detail lookup
+    const refundByCustomer = new Map()
+    for (const order of allOrders) {
+      const id = order.customer?.id ? String(order.customer.id) : null
+      if (!id) continue
+      const refundTotal = (order.refunds || []).reduce(
+        (s, r) => s + (r.refund_line_items || []).reduce((rs, rli) => rs + parseFloat(rli.subtotal || 0), 0), 0
+      )
+      refundByCustomer.set(id, (refundByCustomer.get(id) || 0) + refundTotal)
+    }
+
+    // Only look up customer details for top 500 by refund value — keeps the request fast
+    const DETAIL_LIMIT = 500
+    const topIds = [...refundByCustomer.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, DETAIL_LIMIT)
+      .map(([id]) => id)
+
+    const customerDetails = await fetchCustomerDetails(new Set(topIds))
 
     const customerMap = new Map()
 
