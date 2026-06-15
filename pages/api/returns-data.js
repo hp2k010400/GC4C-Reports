@@ -11,7 +11,6 @@ async function fetchByStatus(financialStatus, startDate, endDate) {
           financial_status: financialStatus,
           created_at_min: new Date(startDate).toISOString(),
           created_at_max: new Date(endDate + 'T23:59:59').toISOString(),
-          fields: 'id,name,created_at,email,customer,refunds,financial_status,total_price',
         }
     const { items, nextPageInfo } = await shopifyFetchPage('orders.json', 'orders', params)
     orders.push(...items)
