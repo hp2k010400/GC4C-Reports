@@ -249,7 +249,7 @@ export default function ReturnsPage() {
   const dayCount = Math.round((new Date(endDate) - new Date(startDate)) / 86400000) + 1
 
   return (
-    <div className="container">
+    <div className="container-xl">
       <div className="page-title">Returns</div>
       <div className="page-sub">
         Customers ranked by refund activity. Identify serial returners, total value refunded, and exactly what they returned.
@@ -435,22 +435,22 @@ export default function ReturnsPage() {
             <div className="state-box">No customers match the current filters.</div>
           ) : (
             <div className="table-wrap">
-              <table>
+              <table className="table-compact">
                 <thead>
                   <tr>
                     <th style={{ width: 28 }}></th>
                     {th('name',             'Customer',       'Name & email')}
-                    {th('lifetimeOrders',   'Orders',         'Lifetime total',         { textAlign: 'right' })}
-                    {th('ordersWithReturns','W/ Returns',     'In selected period',     { textAlign: 'right' })}
-                    {th('returnRate',       'Lifetime Rate',  'Returns ÷ all orders',   { textAlign: 'right' })}
-                    {th('avgDaysToReturn',  'Avg Return',     'Days order → refund',    { textAlign: 'right' })}
-                    {th('totalRefundCount', 'Refunds',        'Individual events',      { textAlign: 'right' })}
-                    {th('totalRefunded',    'Total Refunded', '£ refunded in period',   { textAlign: 'right' })}
-                    {th('netSpend',         'Net Spend',      'Lifetime spent − refunded', { textAlign: 'right' })}
-                    {th('lastReturn',       'Last Return',    'Most recent refund')}
+                    {th('lifetimeOrders',   'Orders',         'Lifetime',        { textAlign: 'right' })}
+                    {th('ordersWithReturns','W/ Returns',     'This period',     { textAlign: 'right' })}
+                    {th('returnRate',       'Rate',           '÷ lifetime',      { textAlign: 'right' })}
+                    {th('avgDaysToReturn',  'Avg Days',       'Order→refund',    { textAlign: 'right' })}
+                    {th('totalRefundCount', 'Refunds',        'Events',          { textAlign: 'right' })}
+                    {th('totalRefunded',    'Refunded',       'In period',       { textAlign: 'right' })}
+                    {th('netSpend',         'Net Spend',      'Spent − refunded',{ textAlign: 'right' })}
+                    {th('lastReturn',       'Last Return',    'Most recent')}
                     <th>
                       Pattern
-                      <div className="col-sub">Rate &amp; value flags</div>
+                      <div className="col-sub">Flags</div>
                     </th>
                   </tr>
                 </thead>
@@ -546,3 +546,4 @@ export default function ReturnsPage() {
     </div>
   )
 }
+
