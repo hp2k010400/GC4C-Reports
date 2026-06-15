@@ -1,4 +1,4 @@
-import { shopifyFetchPage } from '../../lib/shopify.js'
+import { shopifyFetchPage, shopifyGetOne } from '../../lib/shopify.js'
 
 async function fetchByStatus(financialStatus, startDate, endDate) {
   const orders = []
@@ -19,6 +19,36 @@ async function fetchByStatus(financialStatus, startDate, endDate) {
   return orders
 }
 
+// orders_count and total_spent are NOT in the embedded customer object on orders —
+// must fetch from the Customers endpoint separately.
+async function fetchCustomerDetails(customerIdSet) {
+  const details = new Map()
+  const ids = [...customerIdSet]
+  const BATCH = 100
+  // Run 5 requests in parallel per round to keep it fast
+  for (let i = 0; i < ids.length; i += BATCH * 5) {
+    const round = []
+    for (let j = i; j < Math.min(i + BATCH * 5, ids.length); j += BATCH) {
+      round.push(ids.slice(j, j + BATCH))
+    }
+    const results = await Promise.all(
+      round.map(batch =>
+        shopifyGetOne('customers.json', {
+          ids: batch.join(','),
+          fields: 'id,orders_count,total_spent',
+          limit: 250,
+        })
+      )
+    )
+    for (const result of results) {
+      for (const c of result.customers || []) {
+        details.set(String(c.id), c)
+      }
+    }
+  }
+  return details
+}
+
 export default async function handler(req, res) {
   const { startDate, endDate } = req.query
   if (!startDate || !endDate) {
@@ -32,6 +62,13 @@ export default async function handler(req, res) {
     ])
 
     const allOrders = [...refunded, ...partialRefunded]
+
+    // Collect unique customer IDs for the batch lookup
+    const customerIdSet = new Set(
+      allOrders.filter(o => o.customer?.id).map(o => String(o.customer.id))
+    )
+    const customerDetails = await fetchCustomerDetails(customerIdSet)
+
     const customerMap = new Map()
 
     for (const order of allOrders) {
@@ -44,13 +81,16 @@ export default async function handler(req, res) {
         ? `${order.customer.first_name || ''} ${order.customer.last_name || ''}`.trim()
         : ''
 
+      const customerId = order.customer?.id ? String(order.customer.id) : null
+      const full = customerId ? customerDetails.get(customerId) : null
+
       if (!customerMap.has(email)) {
         customerMap.set(email, {
           email,
           name: name || email,
-          customerId: order.customer?.id || null,
-          lifetimeOrders: order.customer?.orders_count || 0,
-          totalSpent: parseFloat(order.customer?.total_spent || 0),
+          customerId,
+          lifetimeOrders: full?.orders_count || 0,
+          totalSpent: parseFloat(full?.total_spent || 0),
           ordersWithReturns: 0,
           totalRefundCount: 0,
           totalRefunded: 0,
@@ -64,13 +104,13 @@ export default async function handler(req, res) {
 
       const c = customerMap.get(email)
       c.ordersWithReturns++
-
-      if ((order.customer?.orders_count || 0) > c.lifetimeOrders) {
-        c.lifetimeOrders = order.customer.orders_count
-      }
-      const spent = parseFloat(order.customer?.total_spent || 0)
-      if (spent > c.totalSpent) c.totalSpent = spent
       if (name && !c.name) c.name = name
+
+      if (full) {
+        if ((full.orders_count || 0) > c.lifetimeOrders) c.lifetimeOrders = full.orders_count
+        const spent = parseFloat(full.total_spent || 0)
+        if (spent > c.totalSpent) c.totalSpent = spent
+      }
 
       for (const refund of order.refunds) {
         const refundDate = refund.created_at?.slice(0, 10) ?? ''
