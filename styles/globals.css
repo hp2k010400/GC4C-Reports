@@ -1158,6 +1158,17 @@ tbody tr:hover td { background: #f0f9f4 !important; }
 .pattern-frequent   { background: #ede9fe; color: #7c3aed; }
 .pattern-low        { background: #d4edda; color: #16a34a; }
 
+/* Column sub-labels */
+.col-sub {
+  font-size: 9px;
+  font-weight: 400;
+  color: #aaa;
+  text-transform: none;
+  letter-spacing: 0;
+  margin-top: 2px;
+  white-space: nowrap;
+}
+
 /* Returns legend */
 .returns-legend {
   font-size: 12px;
