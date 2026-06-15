@@ -34,7 +34,7 @@ const PATTERN_LABEL = {
 const FIELDS = [
   { key: 'name',             label: 'Customer Name',       type: 'text' },
   { key: 'email',            label: 'Email',               type: 'text' },
-  { key: 'ordersWithReturns',label: 'Orders W/ Returns',   type: 'number' },
+  { key: 'ordersWithReturns',label: 'Return Orders',        type: 'number' },
   { key: 'avgDaysToReturn',  label: 'Avg Days to Return',  type: 'number' },
   { key: 'totalRefundCount', label: 'Refund Events',       type: 'number' },
   { key: 'totalRefunded',    label: 'Total Refunded (£)',  type: 'number' },
@@ -434,7 +434,7 @@ export default function ReturnsPage() {
                   <tr>
                     <th style={{ width: 28 }}></th>
                     {th('name',             'Customer',     'Name & email')}
-                    {th('ordersWithReturns','W/ Returns',   'Orders returned', { textAlign: 'right' })}
+                    {th('ordersWithReturns','Return Orders', 'In period',       { textAlign: 'right' })}
                     {th('avgDaysToReturn',  'Avg Days',     'Order→refund',    { textAlign: 'right' })}
                     {th('totalRefundCount', 'Refunds',      'Events',          { textAlign: 'right' })}
                     {th('totalRefunded',    'Total Refunded','In period',      { textAlign: 'right' })}
