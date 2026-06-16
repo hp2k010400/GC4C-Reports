@@ -13,11 +13,8 @@ const TRANSFERS_QUERY = `
           lineItems(first: 250) {
             edges {
               node {
+                sku
                 inventoryItem {
-                  id
-                  sku
-                }
-                variant {
                   id
                 }
               }
@@ -43,7 +40,7 @@ export default async function handler(_req, res) {
       for (const { node } of transfers) {
         if (!ACTIVE_STATUSES.includes(node.status)) continue
         for (const { node: item } of (node.lineItems?.edges || [])) {
-          if (item.inventoryItem?.sku) skuSet.add(item.inventoryItem.sku)
+          if (item.sku) skuSet.add(item.sku)
         }
       }
 
