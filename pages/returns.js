@@ -19,10 +19,10 @@ const CHANNEL_LABEL = {
 }
 function channelLabel(s) { return CHANNEL_LABEL[s] || s }
 
-// High Value: refunded >= £500 | Frequent: period return rate >= 25%
+// High Value: refunded >= £500 | Frequent: 3+ return orders in period
 function pattern(c) {
   const highValue = c.totalRefunded >= 500
-  const frequent = c.periodReturnRate >= 25
+  const frequent = c.ordersWithReturns >= 3
   if (highValue && frequent) return 'both'
   if (highValue) return 'high-value'
   if (frequent) return 'frequent'
@@ -38,18 +38,16 @@ const PATTERN_LABEL = {
 
 // --- Filter engine ---
 const FIELDS = [
-  { key: 'name',               label: 'Customer Name',        type: 'text' },
-  { key: 'email',              label: 'Email',                type: 'text' },
-  { key: 'totalOrdersInPeriod',label: 'Orders in Period',     type: 'number' },
-  { key: 'ordersWithReturns',  label: 'Return Orders',        type: 'number' },
-  { key: 'periodReturnRate',   label: 'Return Rate %',        type: 'number' },
-  { key: 'avgDaysToReturn',    label: 'Avg Days to Return',   type: 'number' },
-  { key: 'totalRefundCount',   label: 'Refund Events',        type: 'number' },
-  { key: 'totalRefunded',      label: 'Refunded (£)',         type: 'number' },
-  { key: 'grossSpendInPeriod', label: 'Gross Spend (£)',      type: 'number' },
-  { key: 'netSpendInPeriod',   label: 'Net Spend (£)',        type: 'number' },
-  { key: 'lastReturn',         label: 'Last Return Date',     type: 'date' },
-  { key: '_pattern',           label: 'Pattern',              type: 'select',
+  { key: 'name',             label: 'Customer Name',      type: 'text' },
+  { key: 'email',            label: 'Email',              type: 'text' },
+  { key: 'ordersWithReturns',label: 'Return Orders',      type: 'number' },
+  { key: 'avgDaysToReturn',  label: 'Avg Days to Return', type: 'number' },
+  { key: 'totalRefundCount', label: 'Refund Events',      type: 'number' },
+  { key: 'totalRefunded',    label: 'Refunded (£)',       type: 'number' },
+  { key: 'grossSpend',       label: 'Gross Spend (£)',    type: 'number' },
+  { key: 'netSpend',         label: 'Net Spend (£)',      type: 'number' },
+  { key: 'lastReturn',       label: 'Last Return Date',   type: 'date' },
+  { key: '_pattern',         label: 'Pattern',            type: 'select',
     options: ['both', 'high-value', 'frequent', 'low'],
     optionLabels: { both: 'Both (critical)', 'high-value': 'High Value', frequent: 'Frequent', low: 'Low' },
   },
@@ -110,18 +108,14 @@ function applyFilters(rows, filters, logic) {
 // --- CSV ---
 function buildCSV(customers) {
   const headers = [
-    'Name', 'Email', 'Channel', 'Orders in Period', 'Return Orders',
-    'Return Rate %', 'Avg Days to Return', 'Refund Events',
-    'Refunded (£)', 'Gross Spend (£)', 'Net Spend (£)',
+    'Name', 'Email', 'Channel', 'Return Orders', 'Avg Days to Return',
+    'Refund Events', 'Refunded (£)', 'Gross Spend (£)', 'Net Spend (£)',
     'First Return', 'Last Return', 'Pattern',
   ]
   const rows = customers.map(c => [
     c.name, c.email, (c.channels || []).map(channelLabel).join(', '),
-    c.totalOrdersInPeriod, c.ordersWithReturns,
-    c.periodReturnRate, c.avgDaysToReturn, c.totalRefundCount,
-    c.totalRefunded.toFixed(2),
-    c.grossSpendInPeriod.toFixed(2),
-    c.netSpendInPeriod.toFixed(2),
+    c.ordersWithReturns, c.avgDaysToReturn, c.totalRefundCount,
+    c.totalRefunded.toFixed(2), c.grossSpend.toFixed(2), c.netSpend.toFixed(2),
     c.firstReturn || '', c.lastReturn || '', PATTERN_LABEL[pattern(c)],
   ])
   return [headers, ...rows]
@@ -143,17 +137,15 @@ function downloadCSV(customers, filename) {
 
 // --- Sorting ---
 const SORTERS = {
-  name:               (a, b, d) => d === 'asc' ? a.name.localeCompare(b.name) : b.name.localeCompare(a.name),
-  channels:           (a, b, d) => d === 'asc' ? (a.channels[0]||'').localeCompare(b.channels[0]||'') : (b.channels[0]||'').localeCompare(a.channels[0]||''),
-  totalOrdersInPeriod:(a, b, d) => d === 'asc' ? a.totalOrdersInPeriod - b.totalOrdersInPeriod : b.totalOrdersInPeriod - a.totalOrdersInPeriod,
-  ordersWithReturns:  (a, b, d) => d === 'asc' ? a.ordersWithReturns - b.ordersWithReturns : b.ordersWithReturns - a.ordersWithReturns,
-  periodReturnRate:   (a, b, d) => d === 'asc' ? a.periodReturnRate - b.periodReturnRate : b.periodReturnRate - a.periodReturnRate,
-  avgDaysToReturn:    (a, b, d) => d === 'asc' ? a.avgDaysToReturn - b.avgDaysToReturn : b.avgDaysToReturn - a.avgDaysToReturn,
-  totalRefundCount:   (a, b, d) => d === 'asc' ? a.totalRefundCount - b.totalRefundCount : b.totalRefundCount - a.totalRefundCount,
-  totalRefunded:      (a, b, d) => d === 'asc' ? a.totalRefunded - b.totalRefunded : b.totalRefunded - a.totalRefunded,
-  grossSpendInPeriod: (a, b, d) => d === 'asc' ? a.grossSpendInPeriod - b.grossSpendInPeriod : b.grossSpendInPeriod - a.grossSpendInPeriod,
-  netSpendInPeriod:   (a, b, d) => d === 'asc' ? a.netSpendInPeriod - b.netSpendInPeriod : b.netSpendInPeriod - a.netSpendInPeriod,
-  lastReturn:         (a, b, d) => d === 'asc'
+  name:             (a, b, d) => d === 'asc' ? a.name.localeCompare(b.name) : b.name.localeCompare(a.name),
+  channels:         (a, b, d) => d === 'asc' ? (a.channels[0]||'').localeCompare(b.channels[0]||'') : (b.channels[0]||'').localeCompare(a.channels[0]||''),
+  ordersWithReturns:(a, b, d) => d === 'asc' ? a.ordersWithReturns - b.ordersWithReturns : b.ordersWithReturns - a.ordersWithReturns,
+  avgDaysToReturn:  (a, b, d) => d === 'asc' ? a.avgDaysToReturn - b.avgDaysToReturn : b.avgDaysToReturn - a.avgDaysToReturn,
+  totalRefundCount: (a, b, d) => d === 'asc' ? a.totalRefundCount - b.totalRefundCount : b.totalRefundCount - a.totalRefundCount,
+  totalRefunded:    (a, b, d) => d === 'asc' ? a.totalRefunded - b.totalRefunded : b.totalRefunded - a.totalRefunded,
+  grossSpend:       (a, b, d) => d === 'asc' ? a.grossSpend - b.grossSpend : b.grossSpend - a.grossSpend,
+  netSpend:         (a, b, d) => d === 'asc' ? a.netSpend - b.netSpend : b.netSpend - a.netSpend,
+  lastReturn:       (a, b, d) => d === 'asc'
     ? (a.lastReturn || '').localeCompare(b.lastReturn || '')
     : (b.lastReturn || '').localeCompare(a.lastReturn || ''),
 }
@@ -233,23 +225,18 @@ export default function ReturnsPage() {
           map.set(c.email, { ...c, channels: new Set(c.channels || []) })
         } else {
           const ex = map.get(c.email)
-          const prevRefundCount = ex.totalRefundCount
-          ex.totalOrdersInPeriod += c.totalOrdersInPeriod
+          const prevCount = ex.totalRefundCount
           ex.ordersWithReturns += c.ordersWithReturns
           ex.totalRefundCount += c.totalRefundCount
           ex.totalRefunded = parseFloat((ex.totalRefunded + c.totalRefunded).toFixed(2))
-          ex.grossSpendInPeriod = parseFloat((ex.grossSpendInPeriod + c.grossSpendInPeriod).toFixed(2))
+          ex.grossSpend = parseFloat((ex.grossSpend + c.grossSpend).toFixed(2))
+          ex.netSpend = parseFloat((ex.grossSpend - ex.totalRefunded).toFixed(2))
           ex.returns = [...ex.returns, ...c.returns]
           ;(c.channels || []).forEach(ch => ex.channels.add(ch))
           if (c.firstReturn && (!ex.firstReturn || c.firstReturn < ex.firstReturn)) ex.firstReturn = c.firstReturn
           if (c.lastReturn && (!ex.lastReturn || c.lastReturn > ex.lastReturn)) ex.lastReturn = c.lastReturn
           ex.avgDaysToReturn = ex.totalRefundCount > 0
-            ? Math.round((ex.avgDaysToReturn * prevRefundCount + c.avgDaysToReturn * c.totalRefundCount) / ex.totalRefundCount)
-            : 0
-          // Recalculate period-derived fields
-          ex.netSpendInPeriod = parseFloat((ex.grossSpendInPeriod - ex.totalRefunded).toFixed(2))
-          ex.periodReturnRate = ex.totalOrdersInPeriod > 0
-            ? parseFloat((ex.ordersWithReturns / ex.totalOrdersInPeriod * 100).toFixed(1))
+            ? Math.round((ex.avgDaysToReturn * prevCount + c.avgDaysToReturn * c.totalRefundCount) / ex.totalRefundCount)
             : 0
         }
       }
@@ -448,9 +435,9 @@ export default function ReturnsPage() {
           )}
 
           <div className="returns-legend">
-            <span className="status-badge pattern-both">Both</span> &ge;£500 refunded + &ge;25% return rate&nbsp;&nbsp;
+            <span className="status-badge pattern-both">Both</span> &ge;£500 refunded + 3+ return orders&nbsp;&nbsp;
             <span className="status-badge pattern-high-value">High Value</span> &ge;£500 refunded&nbsp;&nbsp;
-            <span className="status-badge pattern-frequent">Frequent</span> &ge;25% return rate in period&nbsp;&nbsp;
+            <span className="status-badge pattern-frequent">Frequent</span> 3+ return orders in period&nbsp;&nbsp;
             <span className="status-badge pattern-low">Low</span> Neither
           </div>
 
@@ -555,17 +542,15 @@ export default function ReturnsPage() {
                 <thead>
                   <tr>
                     <th style={{ width: 28 }}></th>
-                    {th('name',               'Customer',       'Name & email')}
-                    {th('channels',           'Channel',        'Sale source')}
-                    {th('totalOrdersInPeriod','Orders',         'In period',       { textAlign: 'right' })}
-                    {th('ordersWithReturns',  'Returns',        'Orders returned', { textAlign: 'right' })}
-                    {th('periodReturnRate',   'Return Rate',    'In period',       { textAlign: 'right' })}
-                    {th('avgDaysToReturn',    'Avg Days',       'Order→refund',    { textAlign: 'right' })}
-                    {th('totalRefundCount',   'Refunds',        'Events',          { textAlign: 'right' })}
-                    {th('totalRefunded',      'Refunded',       'In period',       { textAlign: 'right' })}
-                    {th('grossSpendInPeriod', 'Gross Spend',    'In period',       { textAlign: 'right' })}
-                    {th('netSpendInPeriod',   'Net Spend',      'Gross − refunded',{ textAlign: 'right' })}
-                    {th('lastReturn',         'Last Return',    'Most recent')}
+                    {th('name',             'Customer',    'Name & email')}
+                    {th('channels',         'Channel',     'Sale source')}
+                    {th('ordersWithReturns','Returns',     'Orders w/ refund', { textAlign: 'right' })}
+                    {th('avgDaysToReturn',  'Avg Days',    'Order→refund',     { textAlign: 'right' })}
+                    {th('totalRefundCount', 'Refunds',     'Events',           { textAlign: 'right' })}
+                    {th('totalRefunded',    'Refunded',    'In period',        { textAlign: 'right' })}
+                    {th('grossSpend',       'Gross Spend', 'On returned orders',{ textAlign: 'right' })}
+                    {th('netSpend',         'Net Spend',   'Gross − refunded', { textAlign: 'right' })}
+                    {th('lastReturn',       'Last Return', 'Most recent')}
                     <th>Pattern<div className="col-sub">Flags</div></th>
                   </tr>
                 </thead>
@@ -591,21 +576,15 @@ export default function ReturnsPage() {
                               </span>
                             ))}
                           </td>
-                          <td style={{ textAlign: 'right' }}>{c.totalOrdersInPeriod}</td>
                           <td style={{ textAlign: 'right' }}>{c.ordersWithReturns}</td>
-                          <td style={{ textAlign: 'right' }}>
-                            <span style={{ color: c.periodReturnRate >= 25 ? '#dc2626' : c.periodReturnRate >= 15 ? '#d97706' : '#16a34a', fontWeight: 600 }}>
-                              {c.periodReturnRate}%
-                            </span>
-                          </td>
                           <td style={{ textAlign: 'right' }}>
                             <span style={{ color: daysColor, fontWeight: 600 }}>{c.avgDaysToReturn}d</span>
                           </td>
                           <td style={{ textAlign: 'right' }}>{c.totalRefundCount}</td>
                           <td style={{ textAlign: 'right', fontWeight: 600 }}>{fmtGbp(c.totalRefunded)}</td>
-                          <td style={{ textAlign: 'right' }}>{fmtGbp(c.grossSpendInPeriod)}</td>
-                          <td style={{ textAlign: 'right', fontWeight: 600, color: c.netSpendInPeriod < 0 ? '#dc2626' : '#16a34a' }}>
-                            {fmtGbp(c.netSpendInPeriod)}
+                          <td style={{ textAlign: 'right' }}>{fmtGbp(c.grossSpend)}</td>
+                          <td style={{ textAlign: 'right', fontWeight: 600, color: c.netSpend < 0 ? '#dc2626' : '#16a34a' }}>
+                            {fmtGbp(c.netSpend)}
                           </td>
                           <td style={{ whiteSpace: 'nowrap' }}>{fmtDate(c.lastReturn)}</td>
                           <td>
@@ -614,7 +593,7 @@ export default function ReturnsPage() {
                         </tr>
                         {isOpen && (
                           <tr>
-                            <td colSpan={13} className="expanded-detail">
+                            <td colSpan={11} className="expanded-detail">
                               {[...c.returns]
                                 .sort((a, b) => b.refundDate.localeCompare(a.refundDate))
                                 .map((ret, i) => (

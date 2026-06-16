@@ -20,27 +20,6 @@ async function fetchByStatus(financialStatus, startDate, endDate, locationId) {
   return orders
 }
 
-// Minimal fields fetch for all orders — just enough to count orders and sum spend per customer
-async function fetchAllOrders(startDate, endDate, locationId) {
-  const orders = []
-  let pageInfo = null
-  do {
-    const params = pageInfo
-      ? { page_info: pageInfo }
-      : {
-          status: 'any',
-          created_at_min: new Date(startDate).toISOString(),
-          created_at_max: new Date(endDate + 'T23:59:59').toISOString(),
-          fields: 'id,email,customer,total_price',
-          ...(locationId ? { location_id: locationId } : {}),
-        }
-    const { items, nextPageInfo } = await shopifyFetchPage('orders.json', 'orders', params)
-    orders.push(...items)
-    pageInfo = nextPageInfo
-  } while (pageInfo)
-  return orders
-}
-
 export default async function handler(req, res) {
   const { startDate, endDate, location_id } = req.query
   if (!startDate || !endDate) {
@@ -48,25 +27,11 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Run all three fetches in parallel
-    const [refunded, partialRefunded, allOrders] = await Promise.all([
+    const [refunded, partialRefunded] = await Promise.all([
       fetchByStatus('refunded', startDate, endDate, location_id),
       fetchByStatus('partially_refunded', startDate, endDate, location_id),
-      fetchAllOrders(startDate, endDate, location_id),
     ])
 
-    // Per-customer period stats from ALL orders
-    const periodStats = new Map()
-    for (const order of allOrders) {
-      const email = (order.customer?.email || order.email || '').toLowerCase().trim()
-      if (!email) continue
-      if (!periodStats.has(email)) periodStats.set(email, { totalOrders: 0, grossSpend: 0 })
-      const s = periodStats.get(email)
-      s.totalOrders++
-      s.grossSpend += parseFloat(order.total_price || 0)
-    }
-
-    // Build customer map from refunded orders
     const customerMap = new Map()
 
     for (const order of [...refunded, ...partialRefunded]) {
@@ -87,6 +52,7 @@ export default async function handler(req, res) {
           ordersWithReturns: 0,
           totalRefundCount: 0,
           totalRefunded: 0,
+          grossSpend: 0,
           daysToReturnSum: 0,
           daysToReturnCount: 0,
           channels: new Set(),
@@ -98,6 +64,7 @@ export default async function handler(req, res) {
 
       const c = customerMap.get(email)
       c.ordersWithReturns++
+      c.grossSpend += parseFloat(order.total_price || 0)
       if (name && !c.name) c.name = name
       if (order.source_name) c.channels.add(order.source_name)
 
@@ -142,24 +109,17 @@ export default async function handler(req, res) {
     const customers = Array.from(customerMap.values())
       .map(c => {
         const totalRefunded = parseFloat(c.totalRefunded.toFixed(2))
-        const period = periodStats.get(c.email)
-        const totalOrdersInPeriod = period?.totalOrders || 0
-        const grossSpendInPeriod = parseFloat((period?.grossSpend || 0).toFixed(2))
-        const netSpendInPeriod = parseFloat((grossSpendInPeriod - totalRefunded).toFixed(2))
-        const periodReturnRate = totalOrdersInPeriod > 0
-          ? parseFloat((c.ordersWithReturns / totalOrdersInPeriod * 100).toFixed(1))
-          : 0
+        const grossSpend = parseFloat(c.grossSpend.toFixed(2))
+        const netSpend = parseFloat((grossSpend - totalRefunded).toFixed(2))
         return {
           email: c.email,
           name: c.name,
           customerId: c.customerId,
-          totalOrdersInPeriod,
           ordersWithReturns: c.ordersWithReturns,
           totalRefundCount: c.totalRefundCount,
           totalRefunded,
-          grossSpendInPeriod,
-          netSpendInPeriod,
-          periodReturnRate,
+          grossSpend,
+          netSpend,
           avgDaysToReturn: c.daysToReturnCount > 0
             ? Math.round(c.daysToReturnSum / c.daysToReturnCount)
             : 0,
@@ -171,7 +131,7 @@ export default async function handler(req, res) {
       })
       .sort((a, b) => b.totalRefunded - a.totalRefunded)
 
-    res.json({ customers, ordersScanned: allOrders.length })
+    res.json({ customers, ordersScanned: refunded.length + partialRefunded.length })
   } catch (err) {
     res.status(500).json({ error: err.message })
   }
