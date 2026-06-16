@@ -108,15 +108,13 @@ function applyFilters(rows, filters, logic) {
 // --- CSV ---
 function buildCSV(customers) {
   const headers = [
-    'Name', 'Email', 'Channel', 'Return Orders', 'Avg Days to Return',
-    'Refund Events', 'Refunded (£)', 'Gross Spend (£)', 'Net Spend (£)',
-    'First Return', 'Last Return', 'Pattern',
+    'Name', 'Email', 'Channel', 'Return Orders',
+    'Refunded (£)', 'Net Spend (£)', 'Last Return', 'Pattern',
   ]
   const rows = customers.map(c => [
     c.name, c.email, (c.channels || []).map(channelLabel).join(', '),
-    c.ordersWithReturns, c.avgDaysToReturn, c.totalRefundCount,
-    c.totalRefunded.toFixed(2), c.grossSpend.toFixed(2), c.netSpend.toFixed(2),
-    c.firstReturn || '', c.lastReturn || '', PATTERN_LABEL[pattern(c)],
+    c.ordersWithReturns, c.totalRefunded.toFixed(2), c.netSpend.toFixed(2),
+    c.lastReturn || '', PATTERN_LABEL[pattern(c)],
   ])
   return [headers, ...rows]
     .map(r => r.map(v => {
@@ -556,15 +554,12 @@ export default function ReturnsPage() {
                 <thead>
                   <tr>
                     <th style={{ width: 28 }}></th>
-                    {th('name',             'Customer',    'Name & email')}
-                    {th('channels',         'Channel',     'Sale source')}
-                    {th('ordersWithReturns','Returns',     'Orders w/ refund', { textAlign: 'right' })}
-                    {th('avgDaysToReturn',  'Avg Days',    'Order→refund',     { textAlign: 'right' })}
-                    {th('totalRefundCount', 'Refunds',     'Events',           { textAlign: 'right' })}
-                    {th('totalRefunded',    'Refunded',    'In period',        { textAlign: 'right' })}
-                    {th('grossSpend',       'Gross Spend', 'On returned orders',{ textAlign: 'right' })}
-                    {th('netSpend',         'Net Spend',   'Gross − refunded', { textAlign: 'right' })}
-                    {th('lastReturn',       'Last Return', 'Most recent')}
+                    {th('name',             'Customer',   'Name & email')}
+                    {th('channels',         'Channel',    'Sale source')}
+                    {th('ordersWithReturns','Returns',    'Orders w/ refund', { textAlign: 'right' })}
+                    {th('totalRefunded',    'Refunded',   'In period',        { textAlign: 'right' })}
+                    {th('netSpend',         'Net Spend',  'Gross − refunded', { textAlign: 'right' })}
+                    {th('lastReturn',       'Last Return','Most recent')}
                     <th>Pattern<div className="col-sub">Flags</div></th>
                   </tr>
                 </thead>
@@ -591,12 +586,7 @@ export default function ReturnsPage() {
                             ))}
                           </td>
                           <td style={{ textAlign: 'right' }}>{c.ordersWithReturns}</td>
-                          <td style={{ textAlign: 'right' }}>
-                            <span style={{ color: daysColor, fontWeight: 600 }}>{c.avgDaysToReturn}d</span>
-                          </td>
-                          <td style={{ textAlign: 'right' }}>{c.totalRefundCount}</td>
                           <td style={{ textAlign: 'right', fontWeight: 600 }}>{fmtGbp(c.totalRefunded)}</td>
-                          <td style={{ textAlign: 'right' }}>{fmtGbp(c.grossSpend)}</td>
                           <td style={{ textAlign: 'right', fontWeight: 600, color: c.netSpend < 0 ? '#dc2626' : '#16a34a' }}>
                             {fmtGbp(c.netSpend)}
                           </td>
@@ -607,8 +597,9 @@ export default function ReturnsPage() {
                         </tr>
                         {isOpen && (
                           <tr>
-                            <td colSpan={11} className="expanded-detail">
+                            <td colSpan={8} className="expanded-detail">
                               {[...c.returns]
+                                .filter(ret => !typeFilter || typeFilter === 'both' || ret.type === typeFilter)
                                 .sort((a, b) => b.refundDate.localeCompare(a.refundDate))
                                 .map((ret, i) => (
                                   <div key={i} className="return-block">
