@@ -1,6 +1,6 @@
-import { shopifyFetchPage } from '../../lib/shopify.js'
+import { shopifyFetchPage, shopifyGetOne } from '../../lib/shopify.js'
 
-async function fetchByStatus(financialStatus, startDate, endDate) {
+async function fetchByStatus(financialStatus, startDate, endDate, locationId) {
   const orders = []
   let pageInfo = null
   do {
@@ -11,6 +11,7 @@ async function fetchByStatus(financialStatus, startDate, endDate) {
           financial_status: financialStatus,
           created_at_min: new Date(startDate).toISOString(),
           created_at_max: new Date(endDate + 'T23:59:59').toISOString(),
+          ...(locationId ? { location_id: locationId } : {}),
         }
     const { items, nextPageInfo } = await shopifyFetchPage('orders.json', 'orders', params)
     orders.push(...items)
@@ -19,16 +20,44 @@ async function fetchByStatus(financialStatus, startDate, endDate) {
   return orders
 }
 
+// Fetch orders_count for a specific set of customer IDs (max 300 — keeps it within timeout)
+async function fetchOrdersCounts(customerIds) {
+  const details = new Map()
+  const ids = [...customerIds]
+  // Run batches of 100 in parallel (3 parallel rounds max for 300 customers)
+  for (let i = 0; i < ids.length; i += 300) {
+    const round = []
+    for (let j = i; j < Math.min(i + 300, ids.length); j += 100) {
+      round.push(ids.slice(j, j + 100))
+    }
+    const results = await Promise.all(
+      round.map(batch =>
+        shopifyGetOne('customers.json', {
+          ids: batch.join(','),
+          fields: 'id,orders_count',
+          limit: 250,
+        })
+      )
+    )
+    for (const result of results) {
+      for (const c of result.customers || []) {
+        details.set(String(c.id), c.orders_count)
+      }
+    }
+  }
+  return details
+}
+
 export default async function handler(req, res) {
-  const { startDate, endDate } = req.query
+  const { startDate, endDate, location_id } = req.query
   if (!startDate || !endDate) {
     return res.status(400).json({ error: 'startDate and endDate are required' })
   }
 
   try {
     const [refunded, partialRefunded] = await Promise.all([
-      fetchByStatus('refunded', startDate, endDate),
-      fetchByStatus('partially_refunded', startDate, endDate),
+      fetchByStatus('refunded', startDate, endDate, location_id),
+      fetchByStatus('partially_refunded', startDate, endDate, location_id),
     ])
 
     const allOrders = [...refunded, ...partialRefunded]
@@ -48,7 +77,7 @@ export default async function handler(req, res) {
         customerMap.set(email, {
           email,
           name: name || email,
-          customerId: order.customer?.id || null,
+          customerId: order.customer?.id ? String(order.customer.id) : null,
           ordersWithReturns: 0,
           totalRefundCount: 0,
           totalRefunded: 0,
@@ -101,21 +130,39 @@ export default async function handler(req, res) {
       }
     }
 
+    // Fetch lifetime orders_count for the top 300 customers by refund value only
+    const top300Ids = [...customerMap.values()]
+      .filter(c => c.customerId)
+      .sort((a, b) => b.totalRefunded - a.totalRefunded)
+      .slice(0, 300)
+      .map(c => c.customerId)
+
+    const ordersCounts = await fetchOrdersCounts(new Set(top300Ids))
+
     const customers = Array.from(customerMap.values())
-      .map(c => ({
-        email: c.email,
-        name: c.name,
-        customerId: c.customerId,
-        ordersWithReturns: c.ordersWithReturns,
-        totalRefundCount: c.totalRefundCount,
-        totalRefunded: parseFloat(c.totalRefunded.toFixed(2)),
-        avgDaysToReturn: c.daysToReturnCount > 0
-          ? Math.round(c.daysToReturnSum / c.daysToReturnCount)
-          : 0,
-        firstReturn: c.firstReturn,
-        lastReturn: c.lastReturn,
-        returns: c.returns,
-      }))
+      .map(c => {
+        const totalRefunded = parseFloat(c.totalRefunded.toFixed(2))
+        const lifetimeOrders = c.customerId ? (ordersCounts.get(c.customerId) ?? null) : null
+        const returnRate = lifetimeOrders > 0
+          ? parseFloat((c.ordersWithReturns / lifetimeOrders * 100).toFixed(1))
+          : null
+        return {
+          email: c.email,
+          name: c.name,
+          customerId: c.customerId,
+          ordersWithReturns: c.ordersWithReturns,
+          totalRefundCount: c.totalRefundCount,
+          totalRefunded,
+          lifetimeOrders,
+          returnRate,
+          avgDaysToReturn: c.daysToReturnCount > 0
+            ? Math.round(c.daysToReturnSum / c.daysToReturnCount)
+            : 0,
+          firstReturn: c.firstReturn,
+          lastReturn: c.lastReturn,
+          returns: c.returns,
+        }
+      })
       .sort((a, b) => b.totalRefunded - a.totalRefunded)
 
     res.json({ customers, ordersScanned: allOrders.length })

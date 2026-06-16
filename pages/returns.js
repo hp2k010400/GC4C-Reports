@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useEffect } from 'react'
 
 const today = () => new Date().toISOString().slice(0, 10)
 const daysAgo = n => new Date(Date.now() - n * 86400000).toISOString().slice(0, 10)
@@ -34,7 +34,8 @@ const PATTERN_LABEL = {
 const FIELDS = [
   { key: 'name',             label: 'Customer Name',       type: 'text' },
   { key: 'email',            label: 'Email',               type: 'text' },
-  { key: 'ordersWithReturns',label: 'Return Orders',        type: 'number' },
+  { key: 'ordersWithReturns',label: 'Return Orders',       type: 'number' },
+  { key: 'returnRate',       label: 'Lifetime Rate %',     type: 'number' },
   { key: 'avgDaysToReturn',  label: 'Avg Days to Return',  type: 'number' },
   { key: 'totalRefundCount', label: 'Refund Events',       type: 'number' },
   { key: 'totalRefunded',    label: 'Total Refunded (£)',  type: 'number' },
@@ -100,11 +101,13 @@ function applyFilters(rows, filters, logic) {
 // --- CSV ---
 function buildCSV(customers) {
   const headers = [
-    'Name', 'Email', 'Orders W/ Returns', 'Avg Days to Return',
-    'Refund Events', 'Total Refunded (£)', 'First Return', 'Last Return', 'Pattern',
+    'Name', 'Email', 'Return Orders', 'Lifetime Rate %',
+    'Avg Days to Return', 'Refund Events', 'Total Refunded (£)',
+    'First Return', 'Last Return', 'Pattern',
   ]
   const rows = customers.map(c => [
     c.name, c.email, c.ordersWithReturns,
+    c.returnRate !== null ? c.returnRate : '',
     c.avgDaysToReturn, c.totalRefundCount,
     c.totalRefunded.toFixed(2),
     c.firstReturn || '', c.lastReturn || '', PATTERN_LABEL[pattern(c)],
@@ -130,6 +133,7 @@ function downloadCSV(customers, filename) {
 const SORTERS = {
   name:             (a, b, d) => d === 'asc' ? a.name.localeCompare(b.name) : b.name.localeCompare(a.name),
   ordersWithReturns:(a, b, d) => d === 'asc' ? a.ordersWithReturns - b.ordersWithReturns : b.ordersWithReturns - a.ordersWithReturns,
+  returnRate:       (a, b, d) => d === 'asc' ? (a.returnRate ?? -1) - (b.returnRate ?? -1) : (b.returnRate ?? -1) - (a.returnRate ?? -1),
   avgDaysToReturn:  (a, b, d) => d === 'asc' ? a.avgDaysToReturn - b.avgDaysToReturn : b.avgDaysToReturn - a.avgDaysToReturn,
   totalRefundCount: (a, b, d) => d === 'asc' ? a.totalRefundCount - b.totalRefundCount : b.totalRefundCount - a.totalRefundCount,
   totalRefunded:    (a, b, d) => d === 'asc' ? a.totalRefunded - b.totalRefunded : b.totalRefunded - a.totalRefunded,
@@ -150,6 +154,15 @@ export default function ReturnsPage() {
   const [filters, setFilters] = useState([])
   const [filterLogic, setFilterLogic] = useState('AND')
   const [expanded, setExpanded] = useState(new Set())
+  const [locations, setLocations] = useState([])
+  const [locationId, setLocationId] = useState('')
+
+  useEffect(() => {
+    fetch('/api/locations')
+      .then(r => r.json())
+      .then(d => setLocations(d.locations || []))
+      .catch(() => {})
+  }, [])
 
   async function loadData() {
     setLoading(true)
@@ -157,7 +170,9 @@ export default function ReturnsPage() {
     setData(null)
     setExpanded(new Set())
     try {
-      const res = await fetch(`/api/returns-data?startDate=${startDate}&endDate=${endDate}`)
+      const params = new URLSearchParams({ startDate, endDate })
+      if (locationId) params.set('location_id', locationId)
+      const res = await fetch(`/api/returns-data?${params}`)
       const json = await res.json()
       if (!res.ok) throw new Error(json.error)
       setData(json)
@@ -277,6 +292,12 @@ export default function ReturnsPage() {
         </div>
         {startDate && endDate && (
           <div className="date-range-label">{dayCount} days</div>
+        )}
+        {locations.length > 0 && (
+          <select className="type-select" value={locationId} onChange={e => setLocationId(e.target.value)}>
+            <option value="">All locations</option>
+            {locations.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
+          </select>
         )}
         <button className="btn btn-primary" onClick={loadData} disabled={loading}>
           {loading ? 'Loading…' : data ? 'Reload' : 'Load Returns'}
@@ -433,12 +454,13 @@ export default function ReturnsPage() {
                 <thead>
                   <tr>
                     <th style={{ width: 28 }}></th>
-                    {th('name',             'Customer',     'Name & email')}
-                    {th('ordersWithReturns','Return Orders', 'In period',       { textAlign: 'right' })}
-                    {th('avgDaysToReturn',  'Avg Days',     'Order→refund',    { textAlign: 'right' })}
-                    {th('totalRefundCount', 'Refunds',      'Events',          { textAlign: 'right' })}
-                    {th('totalRefunded',    'Total Refunded','In period',      { textAlign: 'right' })}
-                    {th('lastReturn',       'Last Return',  'Most recent')}
+                    {th('name',             'Customer',      'Name & email')}
+                    {th('ordersWithReturns','Return Orders', 'In period',        { textAlign: 'right' })}
+                    {th('returnRate',       'Lifetime Rate', 'Returns ÷ orders', { textAlign: 'right' })}
+                    {th('avgDaysToReturn',  'Avg Days',      'Order→refund',     { textAlign: 'right' })}
+                    {th('totalRefundCount', 'Refunds',       'Events',           { textAlign: 'right' })}
+                    {th('totalRefunded',    'Total Refunded','In period',        { textAlign: 'right' })}
+                    {th('lastReturn',       'Last Return',   'Most recent')}
                     <th>Pattern<div className="col-sub">Flags</div></th>
                   </tr>
                 </thead>
@@ -459,6 +481,12 @@ export default function ReturnsPage() {
                           </td>
                           <td style={{ textAlign: 'right' }}>{c.ordersWithReturns}</td>
                           <td style={{ textAlign: 'right' }}>
+                            {c.returnRate !== null
+                              ? <span style={{ color: c.returnRate >= 25 ? '#dc2626' : c.returnRate >= 15 ? '#d97706' : '#16a34a', fontWeight: 600 }}>{c.returnRate}%</span>
+                              : <span style={{ color: '#ccc' }}>—</span>
+                            }
+                          </td>
+                          <td style={{ textAlign: 'right' }}>
                             <span style={{ color: daysColor, fontWeight: 600 }}>{c.avgDaysToReturn}d</span>
                           </td>
                           <td style={{ textAlign: 'right' }}>{c.totalRefundCount}</td>
@@ -470,7 +498,7 @@ export default function ReturnsPage() {
                         </tr>
                         {isOpen && (
                           <tr>
-                            <td colSpan={8} className="expanded-detail">
+                            <td colSpan={9} className="expanded-detail">
                               {[...c.returns]
                                 .sort((a, b) => b.refundDate.localeCompare(a.refundDate))
                                 .map((ret, i) => (
