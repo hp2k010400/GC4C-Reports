@@ -325,6 +325,14 @@ export default function ReturnsPage() {
             {locations.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
           </select>
         )}
+        {availableChannels.length > 1 && (
+          <select className="type-select" value={channelFilter} onChange={e => setChannelFilter(e.target.value)} style={{ minWidth: 130 }}>
+            <option value="">All channels</option>
+            {availableChannels.map(ch => (
+              <option key={ch} value={ch}>{channelLabel(ch)}</option>
+            ))}
+          </select>
+        )}
         <button className="btn btn-primary" onClick={loadData} disabled={loading}>
           {loading ? 'Loading…' : data ? 'Reload' : 'Load Returns'}
         </button>
@@ -393,14 +401,6 @@ export default function ReturnsPage() {
                 <button className="btn btn-secondary" style={{ fontSize: 12, padding: '4px 10px' }} onClick={() => setFilters([])}>
                   Clear filters
                 </button>
-              )}
-              {availableChannels.length > 1 && (
-                <select className="type-select" value={channelFilter} onChange={e => setChannelFilter(e.target.value)} style={{ minWidth: 130 }}>
-                  <option value="">All channels</option>
-                  {availableChannels.map(ch => (
-                    <option key={ch} value={ch}>{channelLabel(ch)}</option>
-                  ))}
-                </select>
               )}
               <input
                 className="search-input"
