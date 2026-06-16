@@ -182,23 +182,81 @@ export default function ReturnsPage() {
       .catch(() => {})
   }, [])
 
+  const [progress, setProgress] = useState(null)
+
   async function loadData() {
     setLoading(true)
     setError(null)
     setData(null)
     setExpanded(new Set())
+    setProgress(null)
     try {
-      const params = new URLSearchParams({ startDate, endDate })
-      if (locationId) params.set('location_id', locationId)
-      const res = await fetch(`/api/returns-data?${params}`)
-      const json = await res.json()
-      if (!res.ok) throw new Error(json.error)
-      setData(json)
+      // Split into 90-day chunks to avoid serverless timeout on large ranges
+      const CHUNK = 89
+      const start = new Date(startDate)
+      const end = new Date(endDate)
+      const chunks = []
+      let cur = new Date(start)
+      while (cur <= end) {
+        const chunkEnd = new Date(Math.min(cur.getTime() + CHUNK * 86400000, end.getTime()))
+        chunks.push({ s: cur.toISOString().slice(0, 10), e: chunkEnd.toISOString().slice(0, 10) })
+        cur = new Date(chunkEnd.getTime() + 86400000)
+      }
+
+      const results = []
+      for (let i = 0; i < chunks.length; i++) {
+        setProgress({ chunk: i + 1, total: chunks.length })
+        const params = new URLSearchParams({ startDate: chunks[i].s, endDate: chunks[i].e })
+        if (locationId) params.set('location_id', locationId)
+        const res = await fetch(`/api/returns-data?${params}`)
+        let json
+        try { json = await res.json() } catch { throw new Error('Request timed out — try a shorter date range') }
+        if (!res.ok) throw new Error(json.error)
+        results.push(json)
+      }
+
+      setData(mergeChunks(results))
     } catch (err) {
       setError(err.message)
     } finally {
       setLoading(false)
+      setProgress(null)
     }
+  }
+
+  function mergeChunks(results) {
+    const map = new Map()
+    let ordersScanned = 0
+    for (const result of results) {
+      ordersScanned += result.ordersScanned
+      for (const c of result.customers) {
+        if (!map.has(c.email)) {
+          map.set(c.email, { ...c, channels: new Set(c.channels || []) })
+        } else {
+          const ex = map.get(c.email)
+          const prevCount = ex.totalRefundCount
+          ex.ordersWithReturns += c.ordersWithReturns
+          ex.totalRefundCount += c.totalRefundCount
+          ex.totalRefunded = parseFloat((ex.totalRefunded + c.totalRefunded).toFixed(2))
+          ex.returns = [...ex.returns, ...c.returns]
+          ;(c.channels || []).forEach(ch => ex.channels.add(ch))
+          if (c.firstReturn && (!ex.firstReturn || c.firstReturn < ex.firstReturn)) ex.firstReturn = c.firstReturn
+          if (c.lastReturn && (!ex.lastReturn || c.lastReturn > ex.lastReturn)) ex.lastReturn = c.lastReturn
+          // weighted average days
+          ex.avgDaysToReturn = ex.totalRefundCount > 0
+            ? Math.round((ex.avgDaysToReturn * prevCount + c.avgDaysToReturn * c.totalRefundCount) / ex.totalRefundCount)
+            : 0
+          if (c.lifetimeOrders !== null) ex.lifetimeOrders = c.lifetimeOrders
+          if (c.totalSpent !== null) ex.totalSpent = c.totalSpent
+          if (c.returnRate !== null) ex.returnRate = c.returnRate
+          if (c.tags) ex.tags = c.tags
+        }
+      }
+    }
+    const customers = [...map.values()]
+      .map(c => ({ ...c, channels: [...c.channels].sort() }))
+      .sort((a, b) => b.totalRefunded - a.totalRefunded)
+    return { customers, ordersScanned }
   }
 
   function handleSort(field) {
@@ -344,8 +402,16 @@ export default function ReturnsPage() {
       {loading && (
         <div className="state-box">
           <div className="spinner" />
-          <div style={{ fontWeight: 500 }}>Fetching refunded orders from Shopify…</div>
-          <div style={{ fontSize: 12, color: '#bbb', marginTop: 6 }}>Larger date ranges may take a moment</div>
+          <div style={{ fontWeight: 500 }}>
+            {progress?.total > 1
+              ? `Loading chunk ${progress.chunk} of ${progress.total}…`
+              : 'Fetching refunded orders from Shopify…'}
+          </div>
+          <div style={{ fontSize: 12, color: '#bbb', marginTop: 6 }}>
+            {progress?.total > 1
+              ? `Date range split into ${progress.total} × 90-day requests to avoid timeout`
+              : 'Larger date ranges may take a moment'}
+          </div>
         </div>
       )}
 
