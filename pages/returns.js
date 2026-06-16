@@ -41,8 +41,7 @@ const FIELDS = [
   { key: 'avgDaysToReturn',  label: 'Avg Days to Return',  type: 'number' },
   { key: 'totalRefundCount', label: 'Refund Events',       type: 'number' },
   { key: 'totalRefunded',    label: 'Total Refunded (£)',  type: 'number' },
-  { key: 'totalSpent',       label: 'Total Spent (£)',     type: 'number' },
-  { key: 'netSpend',         label: 'Net Spend (£)',       type: 'number' },
+  { key: 'totalSpent',       label: 'Net Lifetime Spend (£)', type: 'number' },
   { key: 'lastReturn',       label: 'Last Return Date',    type: 'date' },
   { key: '_pattern',         label: 'Pattern',             type: 'select',
     options: ['both', 'high-value', 'frequent', 'low'],
@@ -107,7 +106,7 @@ function buildCSV(customers) {
   const headers = [
     'Name', 'Email', 'Tags', 'Total Orders', 'Return Orders', 'Lifetime Rate %',
     'Avg Days to Return', 'Refund Events', 'Total Refunded (£)',
-    'Total Spent (£)', 'Net Spend (£)', 'First Return', 'Last Return', 'Pattern',
+    'Net Lifetime Spend (£)', 'First Return', 'Last Return', 'Pattern',
   ]
   const rows = customers.map(c => [
     c.name, c.email, c.tags || '',
@@ -117,7 +116,6 @@ function buildCSV(customers) {
     c.avgDaysToReturn, c.totalRefundCount,
     c.totalRefunded.toFixed(2),
     c.totalSpent !== null ? c.totalSpent.toFixed(2) : '',
-    c.netSpend !== null ? c.netSpend.toFixed(2) : '',
     c.firstReturn || '', c.lastReturn || '', PATTERN_LABEL[pattern(c)],
   ])
   return [headers, ...rows]
@@ -147,7 +145,6 @@ const SORTERS = {
   totalRefundCount: (a, b, d) => d === 'asc' ? a.totalRefundCount - b.totalRefundCount : b.totalRefundCount - a.totalRefundCount,
   totalRefunded:    (a, b, d) => d === 'asc' ? a.totalRefunded - b.totalRefunded : b.totalRefunded - a.totalRefunded,
   totalSpent:       (a, b, d) => d === 'asc' ? (a.totalSpent??-1) - (b.totalSpent??-1) : (b.totalSpent??-1) - (a.totalSpent??-1),
-  netSpend:         (a, b, d) => d === 'asc' ? (a.netSpend??-1) - (b.netSpend??-1) : (b.netSpend??-1) - (a.netSpend??-1),
   lastReturn:       (a, b, d) => d === 'asc'
     ? (a.lastReturn || '').localeCompare(b.lastReturn || '')
     : (b.lastReturn || '').localeCompare(a.lastReturn || ''),
@@ -472,8 +469,7 @@ export default function ReturnsPage() {
                     {th('avgDaysToReturn',  'Avg Days',      'Order→refund',     { textAlign: 'right' })}
                     {th('totalRefundCount', 'Refunds',       'Events',           { textAlign: 'right' })}
                     {th('totalRefunded',    'Refunded',      'In period',        { textAlign: 'right' })}
-                    {th('totalSpent',       'Total Spent',   'Lifetime',         { textAlign: 'right' })}
-                    {th('netSpend',         'Net Spend',     'Spent − refunded', { textAlign: 'right' })}
+                    {th('totalSpent',       'Net Lifetime',  'After all refunds',{ textAlign: 'right' })}
                     {th('lastReturn',       'Last Return',   'Most recent')}
                     <th>Tags<div className="col-sub">Shopify tags</div></th>
                     <th>Pattern<div className="col-sub">Flags</div></th>
@@ -507,9 +503,6 @@ export default function ReturnsPage() {
                           <td style={{ textAlign: 'right' }}>{c.totalRefundCount}</td>
                           <td style={{ textAlign: 'right', fontWeight: 600 }}>{fmtGbp(c.totalRefunded)}</td>
                           <td style={{ textAlign: 'right' }}>{c.totalSpent !== null ? fmtGbp(c.totalSpent) : <span style={{ color: '#ccc' }}>—</span>}</td>
-                          <td style={{ textAlign: 'right', fontWeight: 600, color: c.netSpend !== null ? (c.netSpend < 0 ? '#dc2626' : '#16a34a') : undefined }}>
-                            {c.netSpend !== null ? fmtGbp(c.netSpend) : <span style={{ color: '#ccc' }}>—</span>}
-                          </td>
                           <td style={{ whiteSpace: 'nowrap' }}>{fmtDate(c.lastReturn)}</td>
                           <td style={{ maxWidth: 160 }}>
                             {c.tags ? c.tags.split(',').map(t => t.trim()).filter(Boolean).map(t => (
@@ -522,7 +515,7 @@ export default function ReturnsPage() {
                         </tr>
                         {isOpen && (
                           <tr>
-                            <td colSpan={13} className="expanded-detail">
+                            <td colSpan={12} className="expanded-detail">
                               {[...c.returns]
                                 .sort((a, b) => b.refundDate.localeCompare(a.refundDate))
                                 .map((ret, i) => (

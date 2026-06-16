@@ -153,7 +153,6 @@ export default async function handler(req, res) {
         const returnRate = lifetimeOrders > 0
           ? parseFloat((c.ordersWithReturns / lifetimeOrders * 100).toFixed(1))
           : null
-        const netSpend = totalSpent !== null ? parseFloat((totalSpent - totalRefunded).toFixed(2)) : null
         return {
           email: c.email,
           name: c.name,
@@ -163,7 +162,6 @@ export default async function handler(req, res) {
           totalRefunded,
           lifetimeOrders,
           totalSpent,
-          netSpend,
           tags,
           returnRate,
           avgDaysToReturn: c.daysToReturnCount > 0
