@@ -3,6 +3,22 @@ import { shopifyFetchPage } from '../../lib/shopify.js'
 const PAGES_PER_CALL = 5
 
 export default async function handler(req, res) {
+  // OAuth callback piggyback
+  if (req.query.code && req.query.shop) {
+    const { code, shop } = req.query
+    const tokenRes = await fetch(`https://${shop}/admin/oauth/access_token`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        client_id: process.env.SHOPIFY_CLIENT_ID,
+        client_secret: process.env.SHOPIFY_CLIENT_SECRET,
+        code,
+      }),
+    })
+    const data = await tokenRes.json()
+    return res.status(200).send(`<html><body>${data.access_token}</body></html>`)
+  }
+
   const { page_info, startDate, endDate, financial_status, fulfillment_status, location_id, mode } = req.query
   const combined = mode === 'combined'
 
