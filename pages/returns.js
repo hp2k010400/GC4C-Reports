@@ -165,6 +165,7 @@ export default function ReturnsPage() {
   const [locations, setLocations] = useState([])
   const [locationId, setLocationId] = useState('')
   const [channelFilter, setChannelFilter] = useState('')
+  const [typeFilter, setTypeFilter] = useState('')
 
   useEffect(() => {
     fetch('/api/locations')
@@ -238,6 +239,8 @@ export default function ReturnsPage() {
           ex.avgDaysToReturn = ex.totalRefundCount > 0
             ? Math.round((ex.avgDaysToReturn * prevCount + c.avgDaysToReturn * c.totalRefundCount) / ex.totalRefundCount)
             : 0
+          if (c.hasReturns) ex.hasReturns = true
+          if (c.hasExchanges) ex.hasExchanges = true
         }
       }
     }
@@ -289,6 +292,9 @@ export default function ReturnsPage() {
     if (!data?.customers) return []
     let rows = applyFilters(data.customers, filters, filterLogic)
     if (channelFilter) rows = rows.filter(c => (c.channels || []).includes(channelFilter))
+    if (typeFilter === 'return')   rows = rows.filter(c => c.hasReturns)
+    if (typeFilter === 'exchange') rows = rows.filter(c => c.hasExchanges)
+    if (typeFilter === 'both')     rows = rows.filter(c => c.hasReturns && c.hasExchanges)
     if (search.trim()) {
       const q = search.trim().toLowerCase()
       rows = rows.filter(c => c.name.toLowerCase().includes(q) || c.email.toLowerCase().includes(q))
@@ -377,6 +383,14 @@ export default function ReturnsPage() {
             {availableChannels.map(ch => (
               <option key={ch} value={ch}>{channelLabel(ch)}</option>
             ))}
+          </select>
+        )}
+        {data && (
+          <select className="type-select" value={typeFilter} onChange={e => setTypeFilter(e.target.value)} style={{ minWidth: 150 }}>
+            <option value="">Refunds & Exchanges</option>
+            <option value="return">Returns only</option>
+            <option value="exchange">Exchanges only</option>
+            <option value="both">Both (mixed)</option>
           </select>
         )}
         <button className="btn btn-primary" onClick={loadData} disabled={loading}>
@@ -600,6 +614,14 @@ export default function ReturnsPage() {
                                   <div key={i} className="return-block">
                                     <div className="return-block-header">
                                       <strong>{ret.order}</strong>
+                                      <span style={{
+                                        background: ret.type === 'exchange' ? '#ede9fe' : '#fde8e8',
+                                        color: ret.type === 'exchange' ? '#7c3aed' : '#dc2626',
+                                        border: `1px solid ${ret.type === 'exchange' ? '#c4b5fd' : '#fca5a5'}`,
+                                        borderRadius: 4, fontSize: 10, fontWeight: 600, padding: '1px 6px',
+                                      }}>
+                                        {ret.type === 'exchange' ? 'Exchange' : 'Return'}
+                                      </span>
                                       {ret.channel && <span style={{ background: '#eaf6f0', color: '#005F2C', border: '1px solid #b8dfc9', borderRadius: 4, fontSize: 10, fontWeight: 600, padding: '1px 6px' }}>{channelLabel(ret.channel)}</span>}
                                       <span>Ordered: {fmtDate(ret.orderDate)}</span>
                                       <span>Refunded: {fmtDate(ret.refundDate)}</span>

@@ -56,6 +56,8 @@ export default async function handler(req, res) {
           daysToReturnSum: 0,
           daysToReturnCount: 0,
           channels: new Set(),
+          hasReturns: false,
+          hasExchanges: false,
           firstReturn: null,
           lastReturn: null,
           returns: [],
@@ -68,11 +70,19 @@ export default async function handler(req, res) {
       if (name && !c.name) c.name = name
       if (order.source_name) c.channels.add(order.source_name)
 
+      // Detect exchange vs return by comparing refunded qty to total order qty
+      const totalOrderQty = (order.line_items || []).reduce((s, li) => s + (li.quantity || 0), 0)
+
       for (const refund of order.refunds) {
         const refundDate = refund.created_at?.slice(0, 10) ?? ''
         const refundAmount = (refund.refund_line_items || []).reduce(
           (s, rli) => s + parseFloat(rli.subtotal || 0), 0
         )
+        const refundedQty = (refund.refund_line_items || []).reduce((s, rli) => s + (rli.quantity || 0), 0)
+        const eventType = refundedQty >= totalOrderQty ? 'return' : 'exchange'
+
+        if (eventType === 'return') c.hasReturns = true
+        else c.hasExchanges = true
 
         const orderDt = order.created_at ? new Date(order.created_at) : null
         const refundDt = refund.created_at ? new Date(refund.created_at) : null
@@ -93,6 +103,7 @@ export default async function handler(req, res) {
           orderTotal: parseFloat(order.total_price || 0),
           refundDate,
           refundAmount: parseFloat(refundAmount.toFixed(2)),
+          type: eventType,
           note: refund.note || '',
           channel: order.source_name || '',
           items: (refund.refund_line_items || []).map(rli => ({
@@ -124,6 +135,8 @@ export default async function handler(req, res) {
             ? Math.round(c.daysToReturnSum / c.daysToReturnCount)
             : 0,
           channels: [...c.channels].sort(),
+          hasReturns: c.hasReturns,
+          hasExchanges: c.hasExchanges,
           firstReturn: c.firstReturn,
           lastReturn: c.lastReturn,
           returns: c.returns,
