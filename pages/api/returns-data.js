@@ -87,6 +87,7 @@ export default async function handler(req, res) {
           totalRefunded: 0,
           daysToReturnSum: 0,
           daysToReturnCount: 0,
+          channels: new Set(),
           firstReturn: null,
           lastReturn: null,
           returns: [],
@@ -96,6 +97,7 @@ export default async function handler(req, res) {
       const c = customerMap.get(email)
       c.ordersWithReturns++
       if (name && !c.name) c.name = name
+      if (order.source_name) c.channels.add(order.source_name)
 
       for (const refund of order.refunds) {
         const refundDate = refund.created_at?.slice(0, 10) ?? ''
@@ -123,6 +125,7 @@ export default async function handler(req, res) {
           refundDate,
           refundAmount: parseFloat(refundAmount.toFixed(2)),
           note: refund.note || '',
+          channel: order.source_name || '',
           items: (refund.refund_line_items || []).map(rli => ({
             product: rli.line_item?.title || rli.line_item?.name || 'Unknown',
             variant: rli.line_item?.variant_title || '',
@@ -163,6 +166,7 @@ export default async function handler(req, res) {
           lifetimeOrders,
           totalSpent,
           tags,
+          channels: [...c.channels].sort(),
           returnRate,
           avgDaysToReturn: c.daysToReturnCount > 0
             ? Math.round(c.daysToReturnSum / c.daysToReturnCount)

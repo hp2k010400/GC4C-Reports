@@ -13,6 +13,12 @@ function fmtGbp(n) {
   return `£${(n || 0).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 }
 
+const CHANNEL_LABEL = {
+  web: 'Web', ebay: 'eBay', pos: 'POS',
+  iphone: 'iOS', android: 'Android', shopify_draft_order: 'Draft',
+}
+function channelLabel(s) { return CHANNEL_LABEL[s] || s }
+
 // High Value: refunded >= £500 | Frequent: 3+ orders with returns in period
 function pattern(c) {
   const highValue = c.totalRefunded >= 500
@@ -138,6 +144,7 @@ function downloadCSV(customers, filename) {
 // --- Sorting ---
 const SORTERS = {
   name:             (a, b, d) => d === 'asc' ? a.name.localeCompare(b.name) : b.name.localeCompare(a.name),
+  channels:         (a, b, d) => d === 'asc' ? (a.channels[0]||'').localeCompare(b.channels[0]||'') : (b.channels[0]||'').localeCompare(a.channels[0]||''),
   lifetimeOrders:   (a, b, d) => d === 'asc' ? (a.lifetimeOrders??-1) - (b.lifetimeOrders??-1) : (b.lifetimeOrders??-1) - (a.lifetimeOrders??-1),
   ordersWithReturns:(a, b, d) => d === 'asc' ? a.ordersWithReturns - b.ordersWithReturns : b.ordersWithReturns - a.ordersWithReturns,
   returnRate:       (a, b, d) => d === 'asc' ? (a.returnRate??-1) - (b.returnRate??-1) : (b.returnRate??-1) - (a.returnRate??-1),
@@ -145,6 +152,8 @@ const SORTERS = {
   totalRefundCount: (a, b, d) => d === 'asc' ? a.totalRefundCount - b.totalRefundCount : b.totalRefundCount - a.totalRefundCount,
   totalRefunded:    (a, b, d) => d === 'asc' ? a.totalRefunded - b.totalRefunded : b.totalRefunded - a.totalRefunded,
   totalSpent:       (a, b, d) => d === 'asc' ? (a.totalSpent??-1) - (b.totalSpent??-1) : (b.totalSpent??-1) - (a.totalSpent??-1),
+  estGross:         (a, b, d) => { const ag = (a.totalSpent??0)+a.totalRefunded, bg = (b.totalSpent??0)+b.totalRefunded; return d==='asc'?ag-bg:bg-ag },
+  tags:             (a, b, d) => d === 'asc' ? (a.tags||'').localeCompare(b.tags||'') : (b.tags||'').localeCompare(a.tags||''),
   lastReturn:       (a, b, d) => d === 'asc'
     ? (a.lastReturn || '').localeCompare(b.lastReturn || '')
     : (b.lastReturn || '').localeCompare(a.lastReturn || ''),
@@ -164,6 +173,7 @@ export default function ReturnsPage() {
   const [expanded, setExpanded] = useState(new Set())
   const [locations, setLocations] = useState([])
   const [locationId, setLocationId] = useState('')
+  const [channelFilter, setChannelFilter] = useState('')
 
   useEffect(() => {
     fetch('/api/locations')
@@ -222,9 +232,17 @@ export default function ReturnsPage() {
     setFilters(f => f.filter(filter => filter.id !== id))
   }
 
+  const availableChannels = useMemo(() => {
+    if (!data?.customers) return []
+    const s = new Set()
+    data.customers.forEach(c => (c.channels || []).forEach(ch => s.add(ch)))
+    return [...s].sort()
+  }, [data])
+
   const displayedCustomers = useMemo(() => {
     if (!data?.customers) return []
     let rows = applyFilters(data.customers, filters, filterLogic)
+    if (channelFilter) rows = rows.filter(c => (c.channels || []).includes(channelFilter))
     if (search.trim()) {
       const q = search.trim().toLowerCase()
       rows = rows.filter(c => c.name.toLowerCase().includes(q) || c.email.toLowerCase().includes(q))
@@ -232,7 +250,7 @@ export default function ReturnsPage() {
     const fn = SORTERS[sortField]
     if (fn) rows = [...rows].sort((a, b) => fn(a, b, sortDir))
     return rows
-  }, [data, filters, filterLogic, search, sortField, sortDir])
+  }, [data, filters, filterLogic, channelFilter, search, sortField, sortDir])
 
   const stats = useMemo(() => {
     if (!data?.customers?.length) return null
@@ -376,6 +394,14 @@ export default function ReturnsPage() {
                   Clear filters
                 </button>
               )}
+              {availableChannels.length > 1 && (
+                <select className="type-select" value={channelFilter} onChange={e => setChannelFilter(e.target.value)} style={{ minWidth: 130 }}>
+                  <option value="">All channels</option>
+                  {availableChannels.map(ch => (
+                    <option key={ch} value={ch}>{channelLabel(ch)}</option>
+                  ))}
+                </select>
+              )}
               <input
                 className="search-input"
                 type="text"
@@ -463,6 +489,7 @@ export default function ReturnsPage() {
                   <tr>
                     <th style={{ width: 28 }}></th>
                     {th('name',             'Customer',      'Name & email')}
+                    {th('channels',         'Channel',       'Sale source')}
                     {th('lifetimeOrders',   'Total Orders',  'Lifetime',         { textAlign: 'right' })}
                     {th('ordersWithReturns','Return Orders', 'In period',        { textAlign: 'right' })}
                     {th('returnRate',       'Lifetime Rate', 'Returns ÷ orders', { textAlign: 'right' })}
@@ -470,12 +497,9 @@ export default function ReturnsPage() {
                     {th('totalRefundCount', 'Refunds',       'Events',           { textAlign: 'right' })}
                     {th('totalRefunded',    'Refunded',      'In period',        { textAlign: 'right' })}
                     {th('totalSpent',       'Net Lifetime',  'After all refunds',{ textAlign: 'right' })}
-                    <th style={{ textAlign: 'right', cursor: 'default' }}>
-                      Est. Gross
-                      <div className="col-sub">Net + period refunds</div>
-                    </th>
+                    {th('estGross',         'Est. Gross',    'Net + period refunds',{ textAlign: 'right' })}
                     {th('lastReturn',       'Last Return',   'Most recent')}
-                    <th>Tags<div className="col-sub">Shopify tags</div></th>
+                    {th('tags',             'Tags',          'Shopify tags')}
                     <th>Pattern<div className="col-sub">Flags</div></th>
                   </tr>
                 </thead>
@@ -493,6 +517,13 @@ export default function ReturnsPage() {
                           <td>
                             <div style={{ fontWeight: 500 }}>{c.name}</div>
                             <div style={{ fontSize: 11, color: '#888', marginTop: 1 }}>{c.email}</div>
+                          </td>
+                          <td>
+                            {(c.channels || []).map(ch => (
+                              <span key={ch} style={{ display: 'inline-block', background: '#eaf6f0', color: '#005F2C', border: '1px solid #b8dfc9', borderRadius: 4, fontSize: 10, fontWeight: 600, padding: '1px 6px', marginRight: 3, whiteSpace: 'nowrap' }}>
+                                {channelLabel(ch)}
+                              </span>
+                            ))}
                           </td>
                           <td style={{ textAlign: 'right' }}>{c.lifetimeOrders !== null ? c.lifetimeOrders : <span style={{ color: '#ccc' }}>—</span>}</td>
                           <td style={{ textAlign: 'right' }}>{c.ordersWithReturns}</td>
@@ -522,13 +553,14 @@ export default function ReturnsPage() {
                         </tr>
                         {isOpen && (
                           <tr>
-                            <td colSpan={13} className="expanded-detail">
+                            <td colSpan={14} className="expanded-detail">
                               {[...c.returns]
                                 .sort((a, b) => b.refundDate.localeCompare(a.refundDate))
                                 .map((ret, i) => (
                                   <div key={i} className="return-block">
                                     <div className="return-block-header">
                                       <strong>{ret.order}</strong>
+                                      {ret.channel && <span style={{ background: '#eaf6f0', color: '#005F2C', border: '1px solid #b8dfc9', borderRadius: 4, fontSize: 10, fontWeight: 600, padding: '1px 6px' }}>{channelLabel(ret.channel)}</span>}
                                       <span>Ordered: {fmtDate(ret.orderDate)}</span>
                                       <span>Refunded: {fmtDate(ret.refundDate)}</span>
                                       <span style={{ fontWeight: 600 }}>{fmtGbp(ret.refundAmount)}</span>
