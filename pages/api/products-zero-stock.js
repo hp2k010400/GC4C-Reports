@@ -1,10 +1,10 @@
 import { shopifyGraphQL } from '../../lib/shopify.js'
 
-const PAGES_PER_CALL = 4
+const PAGES_PER_CALL = 12
 
 const QUERY = `
   query ZeroStock($cursor: String, $filter: String!) {
-    products(first: 250, after: $cursor, query: $filter) {
+    products(first: 80, after: $cursor, query: $filter) {
       pageInfo {
         hasNextPage
         endCursor
@@ -27,7 +27,7 @@ const QUERY = `
                 price
                 inventoryQuantity
                 inventoryItem {
-                  inventoryLevels(first: 20) {
+                  inventoryLevels(first: 5) {
                     edges {
                       node {
                         quantities(names: ["on_hand"]) {
