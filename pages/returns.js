@@ -470,6 +470,10 @@ export default function ReturnsPage() {
                     {th('totalRefundCount', 'Refunds',       'Events',           { textAlign: 'right' })}
                     {th('totalRefunded',    'Refunded',      'In period',        { textAlign: 'right' })}
                     {th('totalSpent',       'Net Lifetime',  'After all refunds',{ textAlign: 'right' })}
+                    <th style={{ textAlign: 'right', cursor: 'default' }}>
+                      Est. Gross
+                      <div className="col-sub">Net + period refunds</div>
+                    </th>
                     {th('lastReturn',       'Last Return',   'Most recent')}
                     <th>Tags<div className="col-sub">Shopify tags</div></th>
                     <th>Pattern<div className="col-sub">Flags</div></th>
@@ -503,6 +507,9 @@ export default function ReturnsPage() {
                           <td style={{ textAlign: 'right' }}>{c.totalRefundCount}</td>
                           <td style={{ textAlign: 'right', fontWeight: 600 }}>{fmtGbp(c.totalRefunded)}</td>
                           <td style={{ textAlign: 'right' }}>{c.totalSpent !== null ? fmtGbp(c.totalSpent) : <span style={{ color: '#ccc' }}>—</span>}</td>
+                          <td style={{ textAlign: 'right', color: '#555' }}>
+                            {c.totalSpent !== null ? fmtGbp(c.totalSpent + c.totalRefunded) : <span style={{ color: '#ccc' }}>—</span>}
+                          </td>
                           <td style={{ whiteSpace: 'nowrap' }}>{fmtDate(c.lastReturn)}</td>
                           <td style={{ maxWidth: 160 }}>
                             {c.tags ? c.tags.split(',').map(t => t.trim()).filter(Boolean).map(t => (
@@ -515,7 +522,7 @@ export default function ReturnsPage() {
                         </tr>
                         {isOpen && (
                           <tr>
-                            <td colSpan={12} className="expanded-detail">
+                            <td colSpan={13} className="expanded-detail">
                               {[...c.returns]
                                 .sort((a, b) => b.refundDate.localeCompare(a.refundDate))
                                 .map((ret, i) => (
