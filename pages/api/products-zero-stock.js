@@ -26,6 +26,17 @@ const QUERY = `
                 title
                 price
                 inventoryQuantity
+                inventoryItem {
+                  inventoryLevels(first: 20) {
+                    edges {
+                      node {
+                        quantities(names: ["on_hand"]) {
+                          quantity
+                        }
+                      }
+                    }
+                  }
+                }
               }
             }
           }
@@ -53,19 +64,25 @@ export default async function handler(req, res) {
       const page = data.products
 
       const rows = page.edges.flatMap(({ node: product }) =>
-        product.variants.edges.map(({ node: v }) => ({
-          'Product ID':   product.legacyResourceId,
-          'Variant ID':   v.legacyResourceId,
-          'Title':        product.title,
-          'Variant':      v.title !== 'Default Title' ? v.title : '',
-          'SKU':          v.sku || '',
-          'Type':         product.productType || '',
-          'Brand':        product.vendor || '',
-          'Tags':         (product.tags || []).join(', '),
-          'Price':        v.price,
-          'Inventory':    v.inventoryQuantity,
-          'Date Created': product.createdAt ? product.createdAt.slice(0, 10) : '',
-        }))
+        product.variants.edges
+          .map(({ node: v }) => {
+            const onHand = (v.inventoryItem?.inventoryLevels?.edges || [])
+              .reduce((sum, { node: l }) => sum + (l.quantities?.[0]?.quantity ?? 0), 0)
+            return {
+              'Product ID':   product.legacyResourceId,
+              'Variant ID':   v.legacyResourceId,
+              'Title':        product.title,
+              'Variant':      v.title !== 'Default Title' ? v.title : '',
+              'SKU':          v.sku || '',
+              'Type':         product.productType || '',
+              'Brand':        product.vendor || '',
+              'Tags':         (product.tags || []).join(', '),
+              'Price':        v.price,
+              'Inventory':    onHand,
+              'Date Created': product.createdAt ? product.createdAt.slice(0, 10) : '',
+            }
+          })
+          .filter(row => row['Inventory'] === 0)
       )
 
       allRows = allRows.concat(rows)
