@@ -1,4 +1,4 @@
-import { shopifyFetchPage, shopifyGetOne } from '../../lib/shopify.js'
+import { shopifyFetchPage } from '../../lib/shopify.js'
 
 async function fetchByStatus(financialStatus, startDate, endDate, locationId) {
   const orders = []
@@ -20,36 +20,25 @@ async function fetchByStatus(financialStatus, startDate, endDate, locationId) {
   return orders
 }
 
-// Fetch orders_count for a specific set of customer IDs (max 300 — keeps it within timeout)
-async function fetchOrdersCounts(customerIds) {
-  const details = new Map()
-  const ids = [...customerIds]
-  // Run batches of 100 in parallel (3 parallel rounds max for 300 customers)
-  for (let i = 0; i < ids.length; i += 300) {
-    const round = []
-    for (let j = i; j < Math.min(i + 300, ids.length); j += 100) {
-      round.push(ids.slice(j, j + 100))
-    }
-    const results = await Promise.all(
-      round.map(batch =>
-        shopifyGetOne('customers.json', {
-          ids: batch.join(','),
-          fields: 'id,orders_count,total_spent,tags',
-          limit: 250,
-        })
-      )
-    )
-    for (const result of results) {
-      for (const c of result.customers || []) {
-        details.set(String(c.id), {
-          orders_count: c.orders_count,
-          total_spent: c.total_spent,
-          tags: c.tags,
-        })
-      }
-    }
-  }
-  return details
+// Minimal fields fetch for all orders — just enough to count orders and sum spend per customer
+async function fetchAllOrders(startDate, endDate, locationId) {
+  const orders = []
+  let pageInfo = null
+  do {
+    const params = pageInfo
+      ? { page_info: pageInfo }
+      : {
+          status: 'any',
+          created_at_min: new Date(startDate).toISOString(),
+          created_at_max: new Date(endDate + 'T23:59:59').toISOString(),
+          fields: 'id,email,customer,total_price',
+          ...(locationId ? { location_id: locationId } : {}),
+        }
+    const { items, nextPageInfo } = await shopifyFetchPage('orders.json', 'orders', params)
+    orders.push(...items)
+    pageInfo = nextPageInfo
+  } while (pageInfo)
+  return orders
 }
 
 export default async function handler(req, res) {
@@ -59,15 +48,28 @@ export default async function handler(req, res) {
   }
 
   try {
-    const [refunded, partialRefunded] = await Promise.all([
+    // Run all three fetches in parallel
+    const [refunded, partialRefunded, allOrders] = await Promise.all([
       fetchByStatus('refunded', startDate, endDate, location_id),
       fetchByStatus('partially_refunded', startDate, endDate, location_id),
+      fetchAllOrders(startDate, endDate, location_id),
     ])
 
-    const allOrders = [...refunded, ...partialRefunded]
+    // Per-customer period stats from ALL orders
+    const periodStats = new Map()
+    for (const order of allOrders) {
+      const email = (order.customer?.email || order.email || '').toLowerCase().trim()
+      if (!email) continue
+      if (!periodStats.has(email)) periodStats.set(email, { totalOrders: 0, grossSpend: 0 })
+      const s = periodStats.get(email)
+      s.totalOrders++
+      s.grossSpend += parseFloat(order.total_price || 0)
+    }
+
+    // Build customer map from refunded orders
     const customerMap = new Map()
 
-    for (const order of allOrders) {
+    for (const order of [...refunded, ...partialRefunded]) {
       if (!order.refunds?.length) continue
 
       const email = (order.customer?.email || order.email || '').toLowerCase().trim()
@@ -137,40 +139,31 @@ export default async function handler(req, res) {
       }
     }
 
-    // Fetch lifetime orders_count for the top 300 customers by refund value only
-    const top300Ids = [...customerMap.values()]
-      .filter(c => c.customerId)
-      .sort((a, b) => b.totalRefunded - a.totalRefunded)
-      .slice(0, 300)
-      .map(c => c.customerId)
-
-    const ordersCounts = await fetchOrdersCounts(new Set(top300Ids))
-
     const customers = Array.from(customerMap.values())
       .map(c => {
         const totalRefunded = parseFloat(c.totalRefunded.toFixed(2))
-        const full = c.customerId ? ordersCounts.get(c.customerId) : null
-        const lifetimeOrders = full?.orders_count ?? null
-        const totalSpent = full?.total_spent ? parseFloat(full.total_spent) : null
-        const tags = full?.tags || ''
-        const returnRate = lifetimeOrders > 0
-          ? parseFloat((c.ordersWithReturns / lifetimeOrders * 100).toFixed(1))
-          : null
+        const period = periodStats.get(c.email)
+        const totalOrdersInPeriod = period?.totalOrders || 0
+        const grossSpendInPeriod = parseFloat((period?.grossSpend || 0).toFixed(2))
+        const netSpendInPeriod = parseFloat((grossSpendInPeriod - totalRefunded).toFixed(2))
+        const periodReturnRate = totalOrdersInPeriod > 0
+          ? parseFloat((c.ordersWithReturns / totalOrdersInPeriod * 100).toFixed(1))
+          : 0
         return {
           email: c.email,
           name: c.name,
           customerId: c.customerId,
+          totalOrdersInPeriod,
           ordersWithReturns: c.ordersWithReturns,
           totalRefundCount: c.totalRefundCount,
           totalRefunded,
-          lifetimeOrders,
-          totalSpent,
-          tags,
-          channels: [...c.channels].sort(),
-          returnRate,
+          grossSpendInPeriod,
+          netSpendInPeriod,
+          periodReturnRate,
           avgDaysToReturn: c.daysToReturnCount > 0
             ? Math.round(c.daysToReturnSum / c.daysToReturnCount)
             : 0,
+          channels: [...c.channels].sort(),
           firstReturn: c.firstReturn,
           lastReturn: c.lastReturn,
           returns: c.returns,
