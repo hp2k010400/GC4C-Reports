@@ -34,14 +34,18 @@ async function fetchOrdersCounts(customerIds) {
       round.map(batch =>
         shopifyGetOne('customers.json', {
           ids: batch.join(','),
-          fields: 'id,orders_count',
+          fields: 'id,orders_count,total_spent,tags',
           limit: 250,
         })
       )
     )
     for (const result of results) {
       for (const c of result.customers || []) {
-        details.set(String(c.id), c.orders_count)
+        details.set(String(c.id), {
+          orders_count: c.orders_count,
+          total_spent: c.total_spent,
+          tags: c.tags,
+        })
       }
     }
   }
@@ -142,10 +146,14 @@ export default async function handler(req, res) {
     const customers = Array.from(customerMap.values())
       .map(c => {
         const totalRefunded = parseFloat(c.totalRefunded.toFixed(2))
-        const lifetimeOrders = c.customerId ? (ordersCounts.get(c.customerId) ?? null) : null
+        const full = c.customerId ? ordersCounts.get(c.customerId) : null
+        const lifetimeOrders = full?.orders_count ?? null
+        const totalSpent = full?.total_spent ? parseFloat(full.total_spent) : null
+        const tags = full?.tags || ''
         const returnRate = lifetimeOrders > 0
           ? parseFloat((c.ordersWithReturns / lifetimeOrders * 100).toFixed(1))
           : null
+        const netSpend = totalSpent !== null ? parseFloat((totalSpent - totalRefunded).toFixed(2)) : null
         return {
           email: c.email,
           name: c.name,
@@ -154,6 +162,9 @@ export default async function handler(req, res) {
           totalRefundCount: c.totalRefundCount,
           totalRefunded,
           lifetimeOrders,
+          totalSpent,
+          netSpend,
+          tags,
           returnRate,
           avgDaysToReturn: c.daysToReturnCount > 0
             ? Math.round(c.daysToReturnSum / c.daysToReturnCount)
