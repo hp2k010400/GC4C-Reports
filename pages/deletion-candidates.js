@@ -85,9 +85,6 @@ export default function DeletionCandidatesPage() {
   const [createdAfter, setCreatedAfter] = useState('')
   const [createdBefore, setCreatedBefore] = useState(ONE_YEAR_AGO)
   const [activePreset, setActivePreset] = useState('older1year')
-  const [transferSkus, setTransferSkus] = useState(null)
-  const [transferLoading, setTransferLoading] = useState(false)
-  const [transferWarning, setTransferWarning] = useState(null)
 
   async function fetchAllProducts() {
     try {
@@ -176,29 +173,8 @@ export default function DeletionCandidatesPage() {
     return soldSkus
   }
 
-  async function fetchTransfers() {
-    setTransferLoading(true)
-    setTransferWarning(null)
-    try {
-      const res = await fetch('/api/transfers')
-      const data = await res.json()
-      setTransferSkus(new Set(data.skus || []))
-      if (data.warning) setTransferWarning(data.warning)
-    } catch (err) {
-      setTransferWarning(err.message)
-      setTransferSkus(new Set())
-    } finally {
-      setTransferLoading(false)
-    }
-  }
-
-  function downloadDeleteList() {
-    const rows = safeToDelete.map(row => ({
-      'Product Variant ID': row['Variant ID'] || '',
-      'Product SKU': row['SKU'] || '',
-      'Command': 'DELETE',
-    }))
-    const csv = ['Product Variant ID,Product SKU,Command', ...rows.map(r => `${r['Product Variant ID']},${r['Product SKU']},${r['Command']}`)].join('\n')
+  function downloadDeleteList(rows) {
+    const csv = ['Product Variant ID,Product SKU,Command', ...rows.map(r => `${r['Variant ID'] || ''},${r['SKU'] || ''},DELETE`)].join('\n')
     const blob = new Blob([csv], { type: 'text/csv' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
@@ -212,8 +188,6 @@ export default function DeletionCandidatesPage() {
     setProductCount(0)
     setOrderCount(0)
     setSearchQuery('')
-    setTransferSkus(null)
-    setTransferWarning(null)
 
     try {
       setPhase('products')
@@ -266,15 +240,6 @@ export default function DeletionCandidatesPage() {
     }
     return rows
   }, [candidates, searchQuery, sortField, sortDir, filterBrand, filterType, createdAfter, createdBefore])
-
-  const safeToDelete = useMemo(() => {
-    if (!transferSkus) return displayRows
-    return displayRows.filter(r => !transferSkus.has(String(r['SKU'] || '').trim()))
-  }, [displayRows, transferSkus])
-
-  const transferExcludedCount = transferSkus
-    ? displayRows.length - safeToDelete.length
-    : 0
 
   function handleSort(col) {
     if (sortField === col) setSortDir(d => d === 'asc' ? 'desc' : 'asc')
@@ -423,41 +388,18 @@ export default function DeletionCandidatesPage() {
                 )}
               </div>
 
-              {/* Transfer cross-reference */}
-              <div className="adj-card" style={{ marginBottom: 16 }}>
-                <div className="adj-card-title">Cross-reference Active Transfers</div>
-                <div style={{ fontSize: 13, color: '#666', marginBottom: 12 }}>
-                  Removes any SKU currently on a Draft, Ready to Ship or In Progress Shopify transfer — so you don't delete stock that's just in transit.
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-                  <button className="btn btn-secondary" onClick={fetchTransfers} disabled={transferLoading}>
-                    {transferLoading ? 'Fetching transfers…' : transferSkus ? 'Re-fetch transfers' : 'Fetch active transfers'}
-                  </button>
-                  {transferSkus && (
-                    <>
-                      <span style={{ fontSize: 13, color: '#888' }}>
-                        {transferExcludedCount > 0
-                          ? <><strong style={{ color: '#c0392b' }}>{transferExcludedCount}</strong> SKU{transferExcludedCount !== 1 ? 's' : ''} excluded (on active transfers) · <strong style={{ color: '#005F2C' }}>{safeToDelete.length.toLocaleString()}</strong> safe to delete</>
-                          : <><strong style={{ color: '#005F2C' }}>No overlap</strong> — none of the candidates are on active transfers</>}
-                      </span>
-                      <button className="btn btn-primary" onClick={downloadDeleteList}>
-                        Download Delete List ({safeToDelete.length.toLocaleString()})
-                      </button>
-                    </>
-                  )}
-                  {transferWarning && (
-                    <span style={{ fontSize: 12, color: '#c0392b' }}>Warning: {transferWarning}</span>
-                  )}
-                </div>
-              </div>
-
               <div className="results-bar">
                 <span className="results-count">
                   {displayRows.length.toLocaleString()} of {candidates.length.toLocaleString()} candidates
                 </span>
-                <button className="btn btn-secondary" onClick={() => downloadCSV(displayRows)}>
-                  Download CSV
-                </button>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button className="btn btn-secondary" onClick={() => downloadCSV(displayRows)}>
+                    Download CSV
+                  </button>
+                  <button className="btn btn-primary" onClick={() => downloadDeleteList(displayRows)}>
+                    Download Delete List ({displayRows.length.toLocaleString()})
+                  </button>
+                </div>
               </div>
 
               <div className="table-wrap">
