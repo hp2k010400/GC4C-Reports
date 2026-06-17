@@ -385,10 +385,9 @@ export default function ReturnsPage() {
         )}
         {data && (
           <select className="type-select" value={typeFilter} onChange={e => setTypeFilter(e.target.value)} style={{ minWidth: 150 }}>
-            <option value="">Refunds & Exchanges</option>
+            <option value="">All</option>
             <option value="return">Returns only</option>
             <option value="exchange">Exchanges only</option>
-            <option value="both">Both (mixed)</option>
           </select>
         )}
         <button className="btn btn-primary" onClick={loadData} disabled={loading}>
