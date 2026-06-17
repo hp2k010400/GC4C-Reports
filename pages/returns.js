@@ -182,7 +182,7 @@ export default function ReturnsPage() {
     setProgress(null)
     try {
       // Split into 90-day chunks to avoid serverless timeout on large ranges
-      const CHUNK = 89
+      const CHUNK = 28
       const start = new Date(startDate)
       const end = new Date(endDate)
       const chunks = []
