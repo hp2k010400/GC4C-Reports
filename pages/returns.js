@@ -181,8 +181,8 @@ export default function ReturnsPage() {
     setExpanded(new Set())
     setProgress(null)
     try {
-      // Split into 90-day chunks to avoid serverless timeout on large ranges
-      const CHUNK = 28
+      // Split into 7-day chunks — Netlify serverless has a 10s timeout so keep chunks small
+      const CHUNK = 7
       const start = new Date(startDate)
       const end = new Date(endDate)
       const chunks = []
@@ -200,7 +200,7 @@ export default function ReturnsPage() {
         if (locationId) params.set('location_id', locationId)
         const res = await fetch(`/api/returns-data?${params}`)
         let json
-        try { json = await res.json() } catch { throw new Error('Request timed out — try a shorter date range') }
+        try { json = await res.json() } catch { throw new Error(`Chunk ${i + 1} of ${chunks.length} timed out — Netlify hit the 10s serverless limit. Try the 30-day preset.`) }
         if (!res.ok) throw new Error(json.error)
         results.push(json)
       }
@@ -408,8 +408,8 @@ export default function ReturnsPage() {
           </div>
           <div style={{ fontSize: 12, color: '#bbb', marginTop: 6 }}>
             {progress?.total > 1
-              ? `Date range split into ${progress.total} × 90-day requests to avoid timeout`
-              : 'Larger date ranges may take a moment'}
+              ? `Date range split into ${progress.total} × 7-day requests to avoid timeout`
+              : 'Fetching refund data from Shopify…'}
           </div>
         </div>
       )}

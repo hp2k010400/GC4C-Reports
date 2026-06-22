@@ -1,5 +1,7 @@
 import { shopifyFetchPage } from '../../lib/shopify.js'
 
+const FIELDS = 'id,name,created_at,total_price,email,source_name,customer,refunds,line_items'
+
 async function fetchByStatus(financialStatus, startDate, endDate, locationId) {
   const orders = []
   let pageInfo = null
@@ -11,6 +13,7 @@ async function fetchByStatus(financialStatus, startDate, endDate, locationId) {
           financial_status: financialStatus,
           created_at_min: new Date(startDate).toISOString(),
           created_at_max: new Date(endDate + 'T23:59:59').toISOString(),
+          fields: FIELDS,
           ...(locationId ? { location_id: locationId } : {}),
         }
     const { items, nextPageInfo } = await shopifyFetchPage('orders.json', 'orders', params)
