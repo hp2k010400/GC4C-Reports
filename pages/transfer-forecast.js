@@ -46,18 +46,16 @@ export default function TransferForecastPage() {
   const [weeksCover, setWeeksCover] = useState(3)
   const [weeksCoverInput, setWeeksCoverInput] = useState('3')
 
-  const [loadingPhase, setLoadingPhase] = useState(null) // null | 'products' | 'orders' | 'inventory'
+  const [loadingPhase, setLoadingPhase] = useState(null) // null | 'orders' | 'inventory'
   const [loadingLocation, setLoadingLocation] = useState(null)
   const [progress, setProgress] = useState(null)
   const [error, setError] = useState(null)
 
-  const [productMap, setProductMap] = useState(null)   // sku -> { title, variant, type, brand }
+  const [productMap, setProductMap] = useState(null)    // sku -> { title, variant }
   const [inventoryMap, setInventoryMap] = useState(null) // sku -> locationId -> available
-  const [salesMap, setSalesMap] = useState(null)        // locationId -> sku -> totalQty
+  const [salesMap, setSalesMap] = useState(null)         // locationId -> sku -> totalQty
 
   const [filterLocation, setFilterLocation] = useState('')
-  const [filterType, setFilterType] = useState('')
-  const [filterBrand, setFilterBrand] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
   const [sortField, setSortField] = useState('suggestedTransfer')
   const [sortDir, setSortDir] = useState('desc')
@@ -81,39 +79,15 @@ export default function TransferForecastPage() {
     setSalesMap(null)
 
     try {
-      // --- Phase 1: Products (meta + iid only, no inventory) ---
-      setLoadingPhase('products')
-      setProgress({ count: 0 })
-
-      const allProductRows = []
-      let pageInfo = null
-      do {
-        const params = new URLSearchParams()
-        if (pageInfo) params.set('page_info', pageInfo)
-        const res = await fetch(`/api/transfer-forecast-products?${params}`)
-        const json = await res.json()
-        if (!res.ok) throw new Error(json.error)
-        allProductRows.push(...json.rows)
-        pageInfo = json.nextPageInfo
-        setProgress({ count: allProductRows.length })
-      } while (pageInfo)
-
-      // Build sku -> { meta, iid }
-      const skuToMeta = {}
-      const skuToIid = {}
-      for (const row of allProductRows) {
-        if (!row.sku) continue
-        skuToMeta[row.sku] = { title: row.title, variant: row.variant, type: row.type, brand: row.brand }
-        if (row.iid) skuToIid[row.sku] = row.iid
-      }
-      setProductMap(skuToMeta)
-
-      // --- Phase 2: POS orders per store location ---
+      // --- Phase 1: POS orders per store location ---
+      // Title and variantId come directly from line items — no full product scan needed.
       setLoadingPhase('orders')
       const storeLocations = locations.filter(l => String(l.id) !== warehouseId)
       const startDate = weeksAgo(WEEKS)
       const endDate = today()
       const salesAgg = {}
+      const skuToMeta = {}      // sku -> { title, variant }
+      const skuToVariantId = {} // sku -> first variantId seen (for iid lookup)
 
       for (const loc of storeLocations) {
         setLoadingLocation(loc.name)
@@ -133,6 +107,8 @@ export default function TransferForecastPage() {
           if (!salesAgg[locId]) salesAgg[locId] = {}
           for (const row of json.rows) {
             salesAgg[locId][row.sku] = (salesAgg[locId][row.sku] || 0) + row.qty
+            if (!skuToMeta[row.sku])      skuToMeta[row.sku]      = { title: row.title, variant: row.variantTitle }
+            if (!skuToVariantId[row.sku]) skuToVariantId[row.sku] = row.variantId
             locTotal++
           }
           ordersPageInfo = json.nextPageInfo
@@ -140,13 +116,33 @@ export default function TransferForecastPage() {
         } while (ordersPageInfo)
       }
 
-      // --- Phase 3: Inventory levels for sold SKUs only ---
+      setProductMap(skuToMeta)
+
+      // --- Phase 2: Variant IDs -> inventory_item_ids (targeted, sold SKUs only) ---
       setLoadingPhase('inventory')
       setProgress(null)
 
-      const soldSkus = new Set(Object.values(salesAgg).flatMap(m => Object.keys(m)))
-      const soldIids = [...soldSkus].map(sku => skuToIid[sku]).filter(Boolean).map(Number)
+      const variantIds = Object.values(skuToVariantId).filter(Boolean)
+      let variantToIid = {}
+      if (variantIds.length > 0) {
+        const res = await fetch('/api/transfer-forecast-variants', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ids: variantIds }),
+        })
+        const json = await res.json()
+        if (res.ok) variantToIid = json.map || {}
+      }
 
+      // sku -> iid
+      const skuToIid = {}
+      for (const [sku, vid] of Object.entries(skuToVariantId)) {
+        const iid = variantToIid[String(vid)]
+        if (iid) skuToIid[sku] = iid
+      }
+
+      // Fetch inventory levels for sold SKUs across all locations
+      const soldIids = Object.values(skuToIid).map(Number).filter(Boolean)
       let inventoryLevels = []
       if (soldIids.length > 0) {
         const res = await fetch('/api/inventory-levels', {
@@ -158,7 +154,6 @@ export default function TransferForecastPage() {
         if (res.ok) inventoryLevels = json.levels || []
       }
 
-      // Build iid -> sku map for the reverse lookup
       const iidToSku = {}
       for (const [sku, iid] of Object.entries(skuToIid)) iidToSku[String(iid)] = sku
 
@@ -186,15 +181,6 @@ export default function TransferForecastPage() {
     return locations.filter(l => String(l.id) !== warehouseId)
   }, [locations, warehouseId])
 
-  const types = useMemo(() => {
-    if (!productMap) return []
-    return [...new Set(Object.values(productMap).map(m => m.type).filter(Boolean))].sort()
-  }, [productMap])
-
-  const brands = useMemo(() => {
-    if (!productMap) return []
-    return [...new Set(Object.values(productMap).map(m => m.brand).filter(Boolean))].sort()
-  }, [productMap])
 
   const rows = useMemo(() => {
     if (!salesMap || !inventoryMap || !productMap || !warehouseId) return []
@@ -216,15 +202,13 @@ export default function TransferForecastPage() {
 
         const suggestedTransfer = Math.min(raw, extStorageStock)
 
-        const meta = productMap[sku] || { title: sku, variant: '', type: '', brand: '' }
+        const meta = productMap[sku] || { title: sku, variant: '' }
         result.push({
           sku,
           locationId: locId,
           locationName: loc.name,
           title: meta.title,
           variant: meta.variant,
-          type: meta.type,
-          brand: meta.brand,
           avgWeeklySales,
           currentStock,
           targetStock,
@@ -239,8 +223,6 @@ export default function TransferForecastPage() {
   const filteredRows = useMemo(() => {
     let r = rows
     if (filterLocation) r = r.filter(row => row.locationId === filterLocation)
-    if (filterType)     r = r.filter(row => row.type === filterType)
-    if (filterBrand)    r = r.filter(row => row.brand === filterBrand)
     if (searchQuery.trim()) {
       const q = searchQuery.trim().toLowerCase()
       r = r.filter(row =>
@@ -334,14 +316,12 @@ export default function TransferForecastPage() {
         <div className="state-box">
           <div className="spinner" />
           <div style={{ fontWeight: 500 }}>
-            {loadingPhase === 'products' && `Loading product catalogue… ${(progress?.count ?? 0).toLocaleString()} variants`}
             {loadingPhase === 'orders' && `Loading ${loadingLocation} orders… ${(progress?.count ?? 0).toLocaleString()} items`}
-            {loadingPhase === 'inventory' && 'Loading stock levels…'}
+            {loadingPhase === 'inventory' && 'Loading stock levels for sold SKUs…'}
           </div>
           <div style={{ fontSize: 12, color: '#bbb', marginTop: 6 }}>
-            {loadingPhase === 'products' && 'Fetching active products from Shopify'}
             {loadingPhase === 'orders' && `Fetching ${WEEKS} weeks of POS sales data`}
-            {loadingPhase === 'inventory' && 'Fetching per-location inventory for sold SKUs only'}
+            {loadingPhase === 'inventory' && 'Fetching per-location inventory'}
           </div>
         </div>
       )}
@@ -382,28 +362,6 @@ export default function TransferForecastPage() {
                 <option key={l.id} value={String(l.id)}>{l.name}</option>
               ))}
             </select>
-
-            {types.length > 0 && (
-              <select
-                className="type-select"
-                value={filterType}
-                onChange={e => setFilterType(e.target.value)}
-              >
-                <option value="">All types</option>
-                {types.map(t => <option key={t} value={t}>{t}</option>)}
-              </select>
-            )}
-
-            {brands.length > 0 && (
-              <select
-                className="type-select"
-                value={filterBrand}
-                onChange={e => setFilterBrand(e.target.value)}
-              >
-                <option value="">All brands</option>
-                {brands.map(b => <option key={b} value={b}>{b}</option>)}
-              </select>
-            )}
 
             <input
               className="search-input"

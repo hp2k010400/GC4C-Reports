@@ -33,7 +33,13 @@ export default async function handler(req, res) {
       for (const order of items) {
         for (const item of order.line_items || []) {
           if (!item.sku) continue
-          allRows.push({ sku: item.sku, qty: item.quantity })
+          allRows.push({
+            sku:          item.sku,
+            qty:          item.quantity,
+            variantId:    item.variant_id,
+            title:        item.title || '',
+            variantTitle: item.variant_title || '',
+          })
         }
       }
 
