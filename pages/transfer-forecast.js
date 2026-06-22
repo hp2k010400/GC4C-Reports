@@ -6,7 +6,7 @@ const weeksAgo = n => new Date(Date.now() - n * 7 * 86400000).toISOString().slic
 
 function toCSV(rows, weeksCover) {
   const headers = [
-    'SKU', 'Product', 'Variant', 'Type', 'Brand', 'Location',
+    'SKU', 'Product', 'Variant', 'Location',
     'Avg Weekly Sales', 'Current Store Stock', `Target Stock (${weeksCover}wk)`,
     'Ext. Storage Stock', 'Suggested Transfer',
   ]
@@ -14,8 +14,6 @@ function toCSV(rows, weeksCover) {
     r.sku,
     r.title,
     r.variant,
-    r.type,
-    r.brand,
     r.locationName,
     r.avgWeeklySales.toFixed(2),
     r.currentStock,
@@ -236,7 +234,7 @@ export default function TransferForecastPage() {
       if (typeof av === 'number') return dir * (av - bv)
       return dir * String(av).localeCompare(String(bv))
     })
-  }, [rows, filterLocation, filterType, filterBrand, searchQuery, sortField, sortDir])
+  }, [rows, filterLocation, searchQuery, sortField, sortDir])
 
   const stats = useMemo(() => {
     if (!rows.length) return null
