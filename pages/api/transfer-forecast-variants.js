@@ -15,7 +15,7 @@ export default async function handler(req, res) {
 
     const results = await Promise.all(
       batches.map(batch =>
-        shopifyGetOne('variants.json', { ids: batch.join(','), limit: 250, fields: 'id,inventory_item_id' })
+        shopifyGetOne('variants.json', { ids: batch.join(','), limit: 250, fields: 'id,inventory_item_id,requires_shipping' })
           .then(d => d.variants || [])
           .catch(() => [])
       )
@@ -25,7 +25,10 @@ export default async function handler(req, res) {
     const map = {}
     for (const variants of results) {
       for (const v of variants) {
-        if (v.id && v.inventory_item_id) map[String(v.id)] = v.inventory_item_id
+        if (v.id && v.inventory_item_id) map[String(v.id)] = {
+          iid: v.inventory_item_id,
+          requiresShipping: v.requires_shipping !== false,
+        }
       }
     }
 

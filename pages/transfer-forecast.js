@@ -49,11 +49,13 @@ export default function TransferForecastPage() {
   const [progress, setProgress] = useState(null)
   const [error, setError] = useState(null)
 
-  const [productMap, setProductMap] = useState(null)    // sku -> { title, variant }
-  const [inventoryMap, setInventoryMap] = useState(null) // sku -> locationId -> available
-  const [salesMap, setSalesMap] = useState(null)         // locationId -> sku -> totalQty
+  const [productMap, setProductMap] = useState(null)       // sku -> { title, variant }
+  const [inventoryMap, setInventoryMap] = useState(null)   // sku -> locationId -> available
+  const [salesMap, setSalesMap] = useState(null)           // locationId -> sku -> totalQty
+  const [shippingMap, setShippingMap] = useState(null)     // sku -> requiresShipping bool
 
   const [filterLocation, setFilterLocation] = useState('')
+  const [physicalOnly, setPhysicalOnly] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [sortField, setSortField] = useState('suggestedTransfer')
   const [sortDir, setSortDir] = useState('desc')
@@ -75,6 +77,7 @@ export default function TransferForecastPage() {
     setProductMap(null)
     setInventoryMap(null)
     setSalesMap(null)
+    setShippingMap(null)
 
     try {
       // --- Phase 1: POS orders — all store locations fetched in parallel ---
@@ -132,9 +135,13 @@ export default function TransferForecastPage() {
 
       // sku -> iid
       const skuToIid = {}
+      const skuRequiresShipping = {}
       for (const [sku, vid] of Object.entries(skuToVariantId)) {
-        const iid = variantToIid[String(vid)]
-        if (iid) skuToIid[sku] = iid
+        const entry = variantToIid[String(vid)]
+        if (entry) {
+          skuToIid[sku] = entry.iid
+          skuRequiresShipping[sku] = entry.requiresShipping
+        }
       }
 
       // Fetch inventory levels for sold SKUs across all locations
@@ -161,7 +168,7 @@ export default function TransferForecastPage() {
         invMap[sku][String(level.location_id)] = level.available ?? 0
       }
       setInventoryMap(invMap)
-
+      setShippingMap(skuRequiresShipping)
       setSalesMap(salesAgg)
     } catch (err) {
       setError(err.message)
@@ -201,6 +208,7 @@ export default function TransferForecastPage() {
           locationName: loc.name,
           title: meta.title,
           variant: meta.variant,
+          requiresShipping: shippingMap?.[sku] !== false,
           avgWeeklySales,
           currentStock,
           targetStock,
@@ -210,10 +218,11 @@ export default function TransferForecastPage() {
       }
     }
     return result
-  }, [salesMap, inventoryMap, productMap, warehouseId, weeksCover, locations])
+  }, [salesMap, inventoryMap, productMap, shippingMap, warehouseId, weeksCover, locations])
 
   const filteredRows = useMemo(() => {
     let r = rows
+    if (physicalOnly) r = r.filter(row => row.requiresShipping !== false)
     if (filterLocation) r = r.filter(row => row.locationId === filterLocation)
     if (searchQuery.trim()) {
       const q = searchQuery.trim().toLowerCase()
@@ -228,7 +237,7 @@ export default function TransferForecastPage() {
       if (typeof av === 'number') return dir * (av - bv)
       return dir * String(av).localeCompare(String(bv))
     })
-  }, [rows, filterLocation, searchQuery, sortField, sortDir])
+  }, [rows, physicalOnly, filterLocation, searchQuery, sortField, sortDir])
 
   const stats = useMemo(() => {
     if (!rows.length) return null
@@ -344,6 +353,15 @@ export default function TransferForecastPage() {
           )}
 
           <div className="load-bar" style={{ marginTop: 16, flexWrap: 'wrap', gap: 8 }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 500, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+              <input
+                type="checkbox"
+                checked={physicalOnly}
+                onChange={e => setPhysicalOnly(e.target.checked)}
+                style={{ width: 15, height: 15, accentColor: '#005F2C' }}
+              />
+              Physical products only
+            </label>
             <select
               className="type-select"
               value={filterLocation}
