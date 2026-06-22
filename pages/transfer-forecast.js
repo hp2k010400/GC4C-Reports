@@ -46,8 +46,8 @@ export default function TransferForecastPage() {
   const [weeksCover, setWeeksCover] = useState(3)
   const [weeksCoverInput, setWeeksCoverInput] = useState('3')
 
-  const [loadingPhase, setLoadingPhase] = useState(null) // null | 'products' | 'orders'
-  const [loadingLocation, setLoadingLocation] = useState(null) // location name while loading orders
+  const [loadingPhase, setLoadingPhase] = useState(null) // null | 'products' | 'orders' | 'inventory'
+  const [loadingLocation, setLoadingLocation] = useState(null)
   const [progress, setProgress] = useState(null)
   const [error, setError] = useState(null)
 
@@ -81,7 +81,7 @@ export default function TransferForecastPage() {
     setSalesMap(null)
 
     try {
-      // --- Phase 1: Products + inventory levels ---
+      // --- Phase 1: Products (meta + iid only, no inventory) ---
       setLoadingPhase('products')
       setProgress({ count: 0 })
 
@@ -98,15 +98,15 @@ export default function TransferForecastPage() {
         setProgress({ count: allProductRows.length })
       } while (pageInfo)
 
+      // Build sku -> { meta, iid }
       const skuToMeta = {}
-      const invMap = {}
+      const skuToIid = {}
       for (const row of allProductRows) {
         if (!row.sku) continue
         skuToMeta[row.sku] = { title: row.title, variant: row.variant, type: row.type, brand: row.brand }
-        invMap[row.sku] = row.inventory || {}
+        if (row.iid) skuToIid[row.sku] = row.iid
       }
       setProductMap(skuToMeta)
-      setInventoryMap(invMap)
 
       // --- Phase 2: POS orders per store location ---
       setLoadingPhase('orders')
@@ -139,6 +139,37 @@ export default function TransferForecastPage() {
           setProgress({ count: locTotal })
         } while (ordersPageInfo)
       }
+
+      // --- Phase 3: Inventory levels for sold SKUs only ---
+      setLoadingPhase('inventory')
+      setProgress(null)
+
+      const soldSkus = new Set(Object.values(salesAgg).flatMap(m => Object.keys(m)))
+      const soldIids = [...soldSkus].map(sku => skuToIid[sku]).filter(Boolean).map(Number)
+
+      let inventoryLevels = []
+      if (soldIids.length > 0) {
+        const res = await fetch('/api/inventory-levels', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ids: soldIids }),
+        })
+        const json = await res.json()
+        if (res.ok) inventoryLevels = json.levels || []
+      }
+
+      // Build iid -> sku map for the reverse lookup
+      const iidToSku = {}
+      for (const [sku, iid] of Object.entries(skuToIid)) iidToSku[String(iid)] = sku
+
+      const invMap = {}
+      for (const level of inventoryLevels) {
+        const sku = iidToSku[String(level.inventory_item_id)]
+        if (!sku) continue
+        if (!invMap[sku]) invMap[sku] = {}
+        invMap[sku][String(level.location_id)] = level.available ?? 0
+      }
+      setInventoryMap(invMap)
 
       setSalesMap(salesAgg)
     } catch (err) {
@@ -305,10 +336,12 @@ export default function TransferForecastPage() {
           <div style={{ fontWeight: 500 }}>
             {loadingPhase === 'products' && `Loading product catalogue… ${(progress?.count ?? 0).toLocaleString()} variants`}
             {loadingPhase === 'orders' && `Loading ${loadingLocation} orders… ${(progress?.count ?? 0).toLocaleString()} items`}
+            {loadingPhase === 'inventory' && 'Loading stock levels…'}
           </div>
           <div style={{ fontSize: 12, color: '#bbb', marginTop: 6 }}>
-            {loadingPhase === 'products' && 'Fetching active products and stock levels from Shopify'}
+            {loadingPhase === 'products' && 'Fetching active products from Shopify'}
             {loadingPhase === 'orders' && `Fetching ${WEEKS} weeks of POS sales data`}
+            {loadingPhase === 'inventory' && 'Fetching per-location inventory for sold SKUs only'}
           </div>
         </div>
       )}
