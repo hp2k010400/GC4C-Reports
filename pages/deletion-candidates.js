@@ -1,6 +1,5 @@
-import { useState, useMemo } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { TYPE_GROUPS } from '../lib/typeGroups.js'
-import { VENDOR_GROUPS } from '../lib/vendorGroups.js'
 
 const CACHE_CHUNK_SIZE = 4000
 const NINETY_DAYS_MS = 90 * 86400000
@@ -80,11 +79,19 @@ export default function DeletionCandidatesPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [filterBrand, setFilterBrand] = useState('')
   const [filterType, setFilterType] = useState('')
+  const [liveVendors, setLiveVendors] = useState([])
   const [preRunVendor, setPreRunVendor] = useState('')
   const [preRunType, setPreRunType] = useState('')
   const [createdAfter, setCreatedAfter] = useState('')
   const [createdBefore, setCreatedBefore] = useState(ONE_YEAR_AGO)
   const [activePreset, setActivePreset] = useState('older1year')
+
+  useEffect(() => {
+    fetch('/api/vendors')
+      .then(r => r.json())
+      .then(d => setLiveVendors(d.vendors || []))
+      .catch(() => {})
+  }, [])
 
   async function fetchAllProducts() {
     try {
@@ -107,10 +114,7 @@ export default function DeletionCandidatesPage() {
     do {
       const params = new URLSearchParams()
       if (pageInfo) params.set('page_info', pageInfo)
-      if (preRunVendor) {
-        const vendorVariants = VENDOR_GROUPS[preRunVendor] || [preRunVendor]
-        params.set('vendor', vendorVariants[0])
-      }
+      if (preRunVendor) params.set('vendor', preRunVendor)
       if (preRunType) {
         const typeVariants = TYPE_GROUPS[preRunType] || [preRunType]
         params.set('productType', typeVariants[0])
@@ -273,7 +277,7 @@ export default function DeletionCandidatesPage() {
           <label>Brand (pre-filter)</label>
           <select className="type-select" value={preRunVendor} onChange={e => setPreRunVendor(e.target.value)}>
             <option value="">All brands</option>
-            {Object.keys(VENDOR_GROUPS).map(v => <option key={v} value={v}>{v}</option>)}
+            {liveVendors.map(v => <option key={v} value={v}>{v}</option>)}
           </select>
         </div>
         <div className="field">
