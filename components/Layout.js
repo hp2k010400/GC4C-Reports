@@ -8,6 +8,7 @@ const NAV = [
   { label: 'Combined', href: '/combined' },
   { label: 'Deletions', href: '/deletion-candidates' },
   { label: 'Adjustments', href: '/adjustments' },
+  { label: 'Transfers', href: '/transfer-forecast' },
   { label: 'Reports', href: '/' },
   { label: 'Bulk Edit', href: '/bulk-update' },
   { label: 'History', href: '/history' },
