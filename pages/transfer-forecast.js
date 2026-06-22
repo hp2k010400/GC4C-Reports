@@ -190,15 +190,11 @@ export default function TransferForecastPage() {
 
       for (const [sku, totalQty] of Object.entries(skuQtyMap)) {
         const extStorageStock = (inventoryMap[sku] || {})[warehouseId] ?? 0
-        if (extStorageStock <= 0) continue
-
         const currentStock = (inventoryMap[sku] || {})[locId] ?? 0
         const avgWeeklySales = totalQty / WEEKS
         const targetStock = Math.ceil(avgWeeklySales * weeksCover)
-        const raw = targetStock - currentStock
-        if (raw <= 0) continue
-
-        const suggestedTransfer = Math.min(raw, extStorageStock)
+        const suggestedTransfer = targetStock - currentStock
+        if (suggestedTransfer <= 0) continue
 
         const meta = productMap[sku] || { title: sku, variant: '' }
         result.push({
