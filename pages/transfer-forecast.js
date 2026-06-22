@@ -56,6 +56,7 @@ export default function TransferForecastPage() {
 
   const [filterLocation, setFilterLocation] = useState('')
   const [physicalOnly, setPhysicalOnly] = useState(true)
+  const [excludeKeywords, setExcludeKeywords] = useState('Charge, Staff Purchase')
   const [searchQuery, setSearchQuery] = useState('')
   const [sortField, setSortField] = useState('suggestedTransfer')
   const [sortDir, setSortDir] = useState('desc')
@@ -221,8 +222,10 @@ export default function TransferForecastPage() {
   }, [salesMap, inventoryMap, productMap, shippingMap, warehouseId, weeksCover, locations])
 
   const filteredRows = useMemo(() => {
+    const excludeTerms = excludeKeywords.split(',').map(k => k.trim().toLowerCase()).filter(Boolean)
     let r = rows
     if (physicalOnly) r = r.filter(row => row.requiresShipping !== false)
+    if (excludeTerms.length) r = r.filter(row => !excludeTerms.some(t => row.title.toLowerCase().includes(t)))
     if (filterLocation) r = r.filter(row => row.locationId === filterLocation)
     if (searchQuery.trim()) {
       const q = searchQuery.trim().toLowerCase()
@@ -237,7 +240,7 @@ export default function TransferForecastPage() {
       if (typeof av === 'number') return dir * (av - bv)
       return dir * String(av).localeCompare(String(bv))
     })
-  }, [rows, physicalOnly, filterLocation, searchQuery, sortField, sortDir])
+  }, [rows, physicalOnly, excludeKeywords, filterLocation, searchQuery, sortField, sortDir])
 
   const stats = useMemo(() => {
     if (!rows.length) return null
@@ -360,8 +363,18 @@ export default function TransferForecastPage() {
                 onChange={e => setPhysicalOnly(e.target.checked)}
                 style={{ width: 15, height: 15, accentColor: '#005F2C' }}
               />
-              Physical products only
+              Physical only
             </label>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <label style={{ fontSize: 12, color: '#666', whiteSpace: 'nowrap' }}>Exclude titles:</label>
+              <input
+                type="text"
+                value={excludeKeywords}
+                onChange={e => setExcludeKeywords(e.target.value)}
+                placeholder="e.g. Charge, Staff"
+                style={{ padding: '6px 10px', border: '1px solid #ddd', borderRadius: 6, fontSize: 12, width: 200 }}
+              />
+            </div>
             <select
               className="type-select"
               value={filterLocation}
