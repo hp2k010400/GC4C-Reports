@@ -77,42 +77,40 @@ export default function TransferForecastPage() {
     setSalesMap(null)
 
     try {
-      // --- Phase 1: POS orders per store location ---
-      // Title and variantId come directly from line items — no full product scan needed.
+      // --- Phase 1: POS orders — all store locations fetched in parallel ---
       setLoadingPhase('orders')
       const storeLocations = locations.filter(l => String(l.id) !== warehouseId)
       const startDate = weeksAgo(WEEKS)
       const endDate = today()
-      const salesAgg = {}
-      const skuToMeta = {}      // sku -> { title, variant }
-      const skuToVariantId = {} // sku -> first variantId seen (for iid lookup)
 
-      for (const loc of storeLocations) {
-        setLoadingLocation(loc.name)
-        setProgress({ count: 0 })
-        let ordersPageInfo = null
-        let locTotal = 0
+      let totalItems = 0
+      const salesAgg = {}
+      const skuToMeta = {}
+      const skuToVariantId = {}
+
+      await Promise.all(storeLocations.map(async loc => {
+        const locId = String(loc.id)
+        salesAgg[locId] = {}
+        let pageInfo = null
 
         do {
           const params = new URLSearchParams({ startDate, endDate, location_id: loc.id })
-          if (ordersPageInfo) params.set('page_info', ordersPageInfo)
+          if (pageInfo) params.set('page_info', pageInfo)
           const res = await fetch(`/api/transfer-forecast-orders?${params}`)
           let json
           try { json = await res.json() } catch { throw new Error(`Orders request timed out for ${loc.name}`) }
           if (!res.ok) throw new Error(json.error)
 
-          const locId = String(loc.id)
-          if (!salesAgg[locId]) salesAgg[locId] = {}
           for (const row of json.rows) {
             salesAgg[locId][row.sku] = (salesAgg[locId][row.sku] || 0) + row.qty
             if (!skuToMeta[row.sku])      skuToMeta[row.sku]      = { title: row.title, variant: row.variantTitle }
             if (!skuToVariantId[row.sku]) skuToVariantId[row.sku] = row.variantId
-            locTotal++
+            totalItems++
           }
-          ordersPageInfo = json.nextPageInfo
-          setProgress({ count: locTotal })
-        } while (ordersPageInfo)
-      }
+          pageInfo = json.nextPageInfo
+          setProgress({ count: totalItems })
+        } while (pageInfo)
+      }))
 
       setProductMap(skuToMeta)
 
@@ -310,11 +308,11 @@ export default function TransferForecastPage() {
         <div className="state-box">
           <div className="spinner" />
           <div style={{ fontWeight: 500 }}>
-            {loadingPhase === 'orders' && `Loading ${loadingLocation} orders… ${(progress?.count ?? 0).toLocaleString()} items`}
+            {loadingPhase === 'orders' && `Loading orders… ${(progress?.count ?? 0).toLocaleString()} items`}
             {loadingPhase === 'inventory' && 'Loading stock levels for sold SKUs…'}
           </div>
           <div style={{ fontSize: 12, color: '#bbb', marginTop: 6 }}>
-            {loadingPhase === 'orders' && `Fetching ${WEEKS} weeks of POS sales data`}
+            {loadingPhase === 'orders' && `Fetching ${WEEKS} weeks of POS sales from all stores simultaneously`}
             {loadingPhase === 'inventory' && 'Fetching per-location inventory'}
           </div>
         </div>
