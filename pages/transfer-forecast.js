@@ -46,7 +46,7 @@ export default function TransferForecastPage() {
   const [newProductSkus, setNewProductSkus] = useState(null) // Set of SKUs tagged 'new product'
 
   const [filterLocation, setFilterLocation] = useState('')
-  const [excludeKeywords, setExcludeKeywords] = useState('Charge, Staff Purchase')
+  const [excludeKeywords, setExcludeKeywords] = useState('Charge, Staff Purchase, Adapter Change')
   const [searchQuery, setSearchQuery] = useState('')
   const [sortField, setSortField] = useState('suggestedTransfer')
   const [sortDir, setSortDir] = useState('desc')
