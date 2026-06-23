@@ -1,8 +1,21 @@
 import { shopifyGraphQL } from '../../lib/shopify.js'
 
-// Given a list of SKUs, returns their current inventory_item_ids via GraphQL SKU search.
-// This is correct even when variant IDs on order line items are stale (deleted/recreated variants).
-const BATCH = 20 // 20 aliases per GraphQL request — safe within cost limits
+// Resolves inventory_item_id for each SKU via GraphQL search.
+// Batches 200 SKUs per request using OR query — max ~15 GraphQL calls vs hundreds with per-SKU aliases.
+const BATCH = 200
+
+const QUERY = `
+  query GetVariantsBySkus($query: String!) {
+    productVariants(first: 250, query: $query) {
+      edges {
+        node {
+          sku
+          inventoryItem { id }
+        }
+      }
+    }
+  }
+`
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end()
@@ -16,21 +29,13 @@ export default async function handler(req, res) {
     const map = {}
 
     await Promise.all(batches.map(async (batch) => {
-      const fields = batch.map((sku, i) => {
-        const escaped = sku.replace(/\\/g, '\\\\').replace(/"/g, '\\"')
-        return `v${i}: productVariants(first: 1, query: "sku:\\"${escaped}\\"") {
-          edges { node { sku inventoryItem { id } } }
-        }`
-      }).join('\n')
+      const queryStr = batch.map(sku => `sku:'${sku.replace(/'/g, "\\'")}'`).join(' OR ')
+      const result = await shopifyGraphQL(QUERY, { query: queryStr }).catch(() => null)
+      if (!result) return
 
-      const result = await shopifyGraphQL(`{ ${fields} }`, {}).catch(() => ({}))
-
-      for (let i = 0; i < batch.length; i++) {
-        const data = result[`v${i}`]
-        const node = data?.edges?.[0]?.node
-        if (!node?.sku || !node?.inventoryItem?.id) continue
-        const iid = node.inventoryItem.id.split('/').pop()
-        map[node.sku] = { iid }
+      for (const { node } of (result.productVariants?.edges || [])) {
+        if (!node.sku || !node.inventoryItem?.id) continue
+        map[node.sku] = { iid: node.inventoryItem.id.split('/').pop() }
       }
     }))
 
