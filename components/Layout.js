@@ -57,15 +57,17 @@ export default function Layout({ children }) {
                     {group.label}{CHEVRON}
                   </button>
                   <div className="nav-dropdown-menu">
-                    {group.items.map(item => (
-                      <Link
-                        key={item.href}
-                        href={item.href}
-                        className={`nav-dropdown-item${isActive(item.href, router.pathname) ? ' nav-dropdown-item-active' : ''}`}
-                      >
-                        {item.label}
-                      </Link>
-                    ))}
+                    <div className="nav-dropdown-menu-inner">
+                      {group.items.map(item => (
+                        <Link
+                          key={item.href}
+                          href={item.href}
+                          className={`nav-dropdown-item${isActive(item.href, router.pathname) ? ' nav-dropdown-item-active' : ''}`}
+                        >
+                          {item.label}
+                        </Link>
+                      ))}
+                    </div>
                   </div>
                 </div>
               ) : (

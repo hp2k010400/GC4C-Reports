@@ -95,15 +95,21 @@ body {
 .nav-dropdown-menu {
   display: none;
   position: absolute;
-  top: calc(100% + 10px);
+  top: 100%;
   left: 0;
+  padding-top: 10px;
+  min-width: 160px;
+  z-index: 200;
+  flex-direction: column;
+}
+
+.nav-dropdown-menu-inner {
   background: white;
   border: 1px solid #e4e4e4;
   border-radius: 9px;
   padding: 6px;
-  min-width: 160px;
   box-shadow: 0 6px 20px rgba(0,0,0,0.13);
-  z-index: 200;
+  display: flex;
   flex-direction: column;
 }
 
