@@ -227,7 +227,8 @@ export default function TransferForecastPage() {
     let r = rows
     if (excludeTerms.length) r = r.filter(row => !excludeTerms.some(t => row.title.toLowerCase().includes(t)))
     if (filterLocation) r = r.filter(row => row.locationId === filterLocation)
-    if (filterType) r = r.filter(row => row.type === filterType)
+    if (filterType === '__clubs__') r = r.filter(row => /driver|fairway|hybrid|iron|putter|wedge|wood|rescue/i.test(row.type))
+    else if (filterType) r = r.filter(row => row.type === filterType)
     if (filterVendor) r = r.filter(row => row.vendor === filterVendor)
     if (searchQuery.trim()) {
       const q = searchQuery.trim().toLowerCase()
@@ -333,6 +334,7 @@ export default function TransferForecastPage() {
 
             <select className="type-select" value={filterType} onChange={e => setFilterType(e.target.value)}>
               <option value="">All product types</option>
+              <option value="__clubs__">— All clubs —</option>
               {allTypes.map(t => <option key={t} value={t}>{t}</option>)}
             </select>
 
