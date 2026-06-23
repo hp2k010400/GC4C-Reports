@@ -1,6 +1,16 @@
-import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 
-const NAMES_KEY = 'gc4c_staff_names'
+const AVATAR_COLORS = ['#005F2C', '#1a6b8a', '#7b2d8b', '#c0392b', '#d4860a', '#2e86ab', '#a23b72', '#16a085']
+
+function avatarColor(name) {
+  let hash = 0
+  for (const c of name) hash = (hash * 31 + c.charCodeAt(0)) & 0xffffffff
+  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length]
+}
+
+function initials(name) {
+  return name.split(' ').filter(Boolean).map(w => w[0]).join('').toUpperCase().slice(0, 2)
+}
 
 function getDateBounds() {
   const now = new Date()
@@ -22,61 +32,51 @@ function fmtDay(d) {
   return new Date(d + 'T12:00:00').toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })
 }
 
-function loadNames() {
-  try { return JSON.parse(localStorage.getItem(NAMES_KEY) || '{}') } catch { return {} }
-}
-
-function saveName(userId, name) {
-  const names = loadNames()
-  if (name.trim()) names[userId] = name.trim()
-  else delete names[userId]
-  localStorage.setItem(NAMES_KEY, JSON.stringify(names))
-}
-
-function StaffName({ userId, names, onSaved }) {
-  const [editing, setEditing] = useState(false)
-  const [val, setVal] = useState(names[userId] || '')
-
-  function commit() {
-    saveName(userId, val)
-    setEditing(false)
-    onSaved()
-  }
-
-  if (editing) {
-    return (
-      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-        <input
-          autoFocus
-          value={val}
-          onChange={e => setVal(e.target.value)}
-          onKeyDown={e => { if (e.key === 'Enter') commit(); if (e.key === 'Escape') setEditing(false) }}
-          style={{ fontSize: 13, padding: '3px 8px', border: '1.5px solid #005F2C', borderRadius: 5, outline: 'none', width: 140 }}
-        />
-        <button onClick={commit} style={{ background: '#005F2C', color: 'white', border: 'none', borderRadius: 5, padding: '3px 10px', fontSize: 12, cursor: 'pointer' }}>Save</button>
-        <button onClick={() => setEditing(false)} style={{ background: 'none', border: 'none', color: '#aaa', fontSize: 12, cursor: 'pointer' }}>Cancel</button>
-      </span>
-    )
-  }
-
-  const name = names[userId]
+function StatPill({ label, value }) {
   return (
-    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-      {name
-        ? <span style={{ fontWeight: 500 }}>{name}</span>
-        : <span style={{ color: '#aaa', fontStyle: 'italic' }}>Staff #{userId}</span>
-      }
-      <button
-        onClick={() => { setVal(name || ''); setEditing(true) }}
-        title="Name this person"
-        style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#bbb', padding: 0, lineHeight: 1 }}
-      >
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-        </svg>
-      </button>
-    </span>
+    <div style={{ textAlign: 'center', flex: 1 }}>
+      <div style={{ fontSize: 22, fontWeight: 700, color: '#111', letterSpacing: '-0.5px', lineHeight: 1 }}>
+        {value ?? '—'}
+      </div>
+      <div style={{ fontSize: 10, fontWeight: 600, color: '#999', textTransform: 'uppercase', letterSpacing: '0.06em', marginTop: 5 }}>
+        {label}
+      </div>
+    </div>
+  )
+}
+
+function StaffCard({ author, stats }) {
+  const color = avatarColor(author)
+  return (
+    <div style={{
+      background: 'white',
+      border: '1px solid #e8e8e8',
+      borderRadius: 12,
+      padding: '20px 22px',
+      boxShadow: '0 1px 4px rgba(0,0,0,0.05)',
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 16,
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div style={{
+          width: 40, height: 40, borderRadius: '50%',
+          background: color, color: 'white',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontSize: 14, fontWeight: 700, flexShrink: 0, letterSpacing: '0.02em',
+        }}>
+          {initials(author)}
+        </div>
+        <div style={{ fontWeight: 600, fontSize: 14, color: '#111', lineHeight: 1.3 }}>{author}</div>
+      </div>
+      <div style={{ display: 'flex', gap: 8, borderTop: '1px solid #f0f0f0', paddingTop: 14 }}>
+        <StatPill label="Today" value={stats.today || 0} />
+        <div style={{ width: 1, background: '#f0f0f0' }} />
+        <StatPill label="This Week" value={stats.week} />
+        <div style={{ width: 1, background: '#f0f0f0' }} />
+        <StatPill label="This Month" value={stats.month} />
+      </div>
+    </div>
   )
 }
 
@@ -85,13 +85,8 @@ export default function FulfillmentsPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const [fetchedAt, setFetchedAt] = useState(null)
-  const [names, setNames] = useState({})
 
   const bounds = useMemo(() => getDateBounds(), [])
-
-  useEffect(() => { setNames(loadNames()) }, [])
-
-  const refreshNames = useCallback(() => setNames(loadNames()), [])
 
   async function load() {
     setLoading(true)
@@ -111,111 +106,89 @@ export default function FulfillmentsPage() {
 
   useEffect(() => { load() }, [])
 
-  const { totals, staffStats, userIds, monthRows } = useMemo(() => {
-    if (!rows) return { totals: { today: 0, week: 0, month: 0 }, staffStats: {}, userIds: [], monthRows: [] }
+  const { totals, staffStats, staffList, monthRows } = useMemo(() => {
+    if (!rows) return { totals: { today: 0, week: 0, month: 0 }, staffStats: {}, staffList: [], monthRows: [] }
 
     const { todayStr, weekStart, monthStart } = bounds
     const totals = { today: 0, week: 0, month: 0 }
     const staffStats = {}
 
     for (const r of rows) {
-      if (!staffStats[r.userId]) staffStats[r.userId] = { today: 0, week: 0, month: 0 }
-      if (r.date === todayStr) { totals.today += r.count; staffStats[r.userId].today += r.count }
-      if (r.date >= weekStart) { totals.week += r.count; staffStats[r.userId].week += r.count }
-      if (r.date >= monthStart) { totals.month += r.count; staffStats[r.userId].month += r.count }
+      if (!staffStats[r.author]) staffStats[r.author] = { today: 0, week: 0, month: 0 }
+      if (r.date === todayStr) { totals.today += r.count; staffStats[r.author].today += r.count }
+      if (r.date >= weekStart)  { totals.week  += r.count; staffStats[r.author].week  += r.count }
+      if (r.date >= monthStart) { totals.month += r.count; staffStats[r.author].month += r.count }
     }
 
-    const userIds = Object.keys(staffStats).sort((a, b) =>
-      staffStats[b].month - staffStats[a].month
-    )
-
+    const staffList = Object.keys(staffStats).sort((a, b) => staffStats[b].month - staffStats[a].month)
     const monthRows = rows.filter(r => r.date >= monthStart)
 
-    return { totals, staffStats, userIds, monthRows }
+    return { totals, staffStats, staffList, monthRows }
   }, [rows, bounds])
+
+  const monthStr = new Date().toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })
 
   return (
     <div className="container">
+
+      {/* Header */}
       <div className="page-header">
         <div>
-          <div className="page-title">Orders Fulfilled</div>
+          <div className="page-title">Fulfillments</div>
           <div className="page-sub" style={{ marginBottom: 0 }}>
-            Fulfilled orders by staff member — today, this week, and this month
+            Orders dispatched by staff — {monthStr}
           </div>
         </div>
-        <button className="btn" onClick={load} disabled={loading} style={{ alignSelf: 'flex-start', marginTop: 4 }}>
-          {loading ? 'Loading…' : 'Refresh'}
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          {fetchedAt && (
+            <span style={{ fontSize: 12, color: '#aaa' }}>
+              Updated {fetchedAt.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
+            </span>
+          )}
+          <button className="btn btn-primary" onClick={load} disabled={loading}>
+            {loading ? 'Loading…' : 'Refresh'}
+          </button>
+        </div>
       </div>
 
-      {error && <div className="state-box error" style={{ marginBottom: 20 }}>{error}</div>}
+      {error && <div className="state-box error" style={{ marginBottom: 24 }}>{error}</div>}
 
       {/* Overall totals */}
-      <div className="stats-row" style={{ gridTemplateColumns: 'repeat(3, 1fr)', marginBottom: 28 }}>
+      <div className="stats-row" style={{ gridTemplateColumns: 'repeat(3, 1fr)', marginBottom: 32 }}>
         <div className="stat-card">
-          <div className="stat-value">{loading && !rows ? '—' : totals.today.toLocaleString()}</div>
+          <div className="stat-value">{loading && !rows ? '—' : totals.today}</div>
           <div className="stat-label">Today</div>
-          <div style={{ fontSize: 12, color: '#aaa', marginTop: 6 }}>{fmtDate(bounds.todayStr)}</div>
+          <div style={{ fontSize: 12, color: '#bbb', marginTop: 6 }}>{fmtDate(bounds.todayStr)}</div>
         </div>
         <div className="stat-card">
-          <div className="stat-value">{loading && !rows ? '—' : totals.week.toLocaleString()}</div>
+          <div className="stat-value">{loading && !rows ? '—' : totals.week}</div>
           <div className="stat-label">This Week</div>
-          <div style={{ fontSize: 12, color: '#aaa', marginTop: 6 }}>{fmtDate(bounds.weekStart)} – {fmtDate(bounds.todayStr)}</div>
+          <div style={{ fontSize: 12, color: '#bbb', marginTop: 6 }}>{fmtDate(bounds.weekStart)} – {fmtDate(bounds.todayStr)}</div>
         </div>
         <div className="stat-card">
-          <div className="stat-value">{loading && !rows ? '—' : totals.month.toLocaleString()}</div>
+          <div className="stat-value">{loading && !rows ? '—' : totals.month}</div>
           <div className="stat-label">This Month</div>
-          <div style={{ fontSize: 12, color: '#aaa', marginTop: 6 }}>{fmtDate(bounds.monthStart)} – {fmtDate(bounds.todayStr)}</div>
+          <div style={{ fontSize: 12, color: '#bbb', marginTop: 6 }}>{fmtDate(bounds.monthStart)} – {fmtDate(bounds.todayStr)}</div>
         </div>
       </div>
 
-      {/* Per-staff breakdown */}
-      {rows && userIds.length > 0 && (
-        <div className="table-wrap" style={{ marginBottom: 24 }}>
-          <div style={{ padding: '14px 16px 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <div className="section-label">By staff member</div>
-            {fetchedAt && (
-              <span style={{ fontSize: 12, color: '#aaa' }}>
-                Updated {fetchedAt.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
-              </span>
-            )}
+      {/* Staff cards */}
+      {rows && staffList.length > 0 && (
+        <div style={{ marginBottom: 32 }}>
+          <div className="section-label" style={{ marginBottom: 14 }}>By staff member</div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 14 }}>
+            {staffList.map(author => (
+              <StaffCard key={author} author={author} stats={staffStats[author]} />
+            ))}
           </div>
-          <table>
-            <thead>
-              <tr>
-                <th>Staff Member</th>
-                <th style={{ textAlign: 'right' }}>Today</th>
-                <th style={{ textAlign: 'right' }}>This Week</th>
-                <th style={{ textAlign: 'right' }}>This Month</th>
-              </tr>
-            </thead>
-            <tbody>
-              {userIds.map(userId => (
-                <tr key={userId}>
-                  <td>
-                    <StaffName userId={userId} names={names} onSaved={refreshNames} />
-                  </td>
-                  <td style={{ textAlign: 'right', fontWeight: 600 }}>{staffStats[userId].today || '—'}</td>
-                  <td style={{ textAlign: 'right', fontWeight: 600 }}>{staffStats[userId].week}</td>
-                  <td style={{ textAlign: 'right', fontWeight: 600 }}>{staffStats[userId].month}</td>
-                </tr>
-              ))}
-              <tr style={{ borderTop: '2px solid #e4e4e4' }}>
-                <td style={{ fontWeight: 700, color: '#111' }}>Total</td>
-                <td style={{ textAlign: 'right', fontWeight: 700 }}>{totals.today || '—'}</td>
-                <td style={{ textAlign: 'right', fontWeight: 700 }}>{totals.week}</td>
-                <td style={{ textAlign: 'right', fontWeight: 700 }}>{totals.month}</td>
-              </tr>
-            </tbody>
-          </table>
         </div>
       )}
 
-      {/* Daily breakdown this month */}
+      {/* Daily breakdown table */}
       {rows && monthRows.length > 0 && (
         <div className="table-wrap">
           <div style={{ padding: '14px 16px 0' }}>
-            <div className="section-label">Daily breakdown — this month</div>
+            <div className="section-label">Daily breakdown — {monthStr}</div>
           </div>
           <table>
             <thead>
@@ -226,10 +199,22 @@ export default function FulfillmentsPage() {
               </tr>
             </thead>
             <tbody>
-              {monthRows.map((r, i) => (
-                <tr key={`${r.date}-${r.userId}`}>
-                  <td>{fmtDay(r.date)}</td>
-                  <td>{names[r.userId] || <span style={{ color: '#aaa', fontStyle: 'italic' }}>Staff #{r.userId}</span>}</td>
+              {monthRows.map(r => (
+                <tr key={`${r.date}-${r.author}`}>
+                  <td style={{ color: '#666', whiteSpace: 'nowrap' }}>{fmtDay(r.date)}</td>
+                  <td>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{
+                        width: 24, height: 24, borderRadius: '50%',
+                        background: avatarColor(r.author), color: 'white',
+                        display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: 10, fontWeight: 700, flexShrink: 0,
+                      }}>
+                        {initials(r.author)}
+                      </span>
+                      {r.author}
+                    </span>
+                  </td>
                   <td style={{ textAlign: 'right', fontWeight: 600 }}>{r.count}</td>
                 </tr>
               ))}
@@ -239,17 +224,16 @@ export default function FulfillmentsPage() {
       )}
 
       {rows && monthRows.length === 0 && !loading && (
-        <div style={{ color: '#888', fontSize: 14, textAlign: 'center', padding: '40px 0' }}>
-          No fulfilled orders found for this month.
-        </div>
+        <div className="state-box">No fulfilled orders found for this month.</div>
       )}
 
       {loading && !rows && (
         <div className="state-box">
           <div className="spinner" />
-          <div>Loading fulfilled orders…</div>
+          <div>Loading fulfillments…</div>
         </div>
       )}
+
     </div>
   )
 }

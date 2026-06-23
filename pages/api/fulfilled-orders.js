@@ -8,7 +8,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    let allOrders = []
+    let allEvents = []
     let currentPageInfo = null
     let pagesCount = 0
 
@@ -16,38 +16,39 @@ export default async function handler(req, res) {
       const params = currentPageInfo
         ? { page_info: currentPageInfo }
         : {
-            status: 'any',
-            fulfillment_status: 'fulfilled',
-            fields: 'id,created_at,fulfillments',
+            verb: 'fulfilled',
+            subject_type: 'Order',
             created_at_min: new Date(startDate).toISOString(),
             created_at_max: new Date(endDate + 'T23:59:59').toISOString(),
             limit: 250,
           }
 
-      const { items, nextPageInfo } = await shopifyFetchPage('orders.json', 'orders', params)
-      allOrders = allOrders.concat(items)
+      const { items, nextPageInfo } = await shopifyFetchPage('events.json', 'events', params)
+      allEvents = allEvents.concat(items)
       currentPageInfo = nextPageInfo
       pagesCount++
     } while (currentPageInfo && pagesCount < 20)
 
-    // Group by userId + date
-    const counts = {} // { userId: { date: count } }
-    for (const order of allOrders) {
-      const date = order.created_at.slice(0, 10)
-      const userId = String(order.fulfillments?.[0]?.user_id ?? 'unknown')
-      if (!counts[userId]) counts[userId] = {}
-      counts[userId][date] = (counts[userId][date] || 0) + 1
+    // Group by author + date, counting unique order IDs
+    const staffDates = {}
+    for (const event of allEvents) {
+      const author = event.author
+      if (!author || author.toLowerCase() === 'shopify') continue
+      const date = event.created_at.slice(0, 10)
+      const orderId = String(event.subject_id)
+      if (!staffDates[author]) staffDates[author] = {}
+      if (!staffDates[author][date]) staffDates[author][date] = new Set()
+      staffDates[author][date].add(orderId)
     }
 
     const rows = []
-    for (const [userId, dateCounts] of Object.entries(counts)) {
-      for (const [date, count] of Object.entries(dateCounts)) {
-        rows.push({ userId, date, count })
+    for (const [author, dates] of Object.entries(staffDates)) {
+      for (const [date, orderIds] of Object.entries(dates)) {
+        rows.push({ author, date, count: orderIds.size })
       }
     }
 
-    rows.sort((a, b) => b.date.localeCompare(a.date) || a.userId.localeCompare(b.userId))
-
+    rows.sort((a, b) => b.date.localeCompare(a.date) || a.author.localeCompare(b.author))
     res.status(200).json({ rows })
   } catch (err) {
     res.status(500).json({ error: err.message })
