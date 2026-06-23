@@ -7,7 +7,7 @@ const weeksAgo = n => new Date(Date.now() - n * 7 * 86400000).toISOString().slic
 function toCSV(rows, weeksCover) {
   const headers = [
     'SKU', 'Product', 'Variant', 'Location',
-    'Avg Weekly Sales', 'Newbridge Stock', `Target Stock (${weeksCover}wk)`, 'Suggested Transfer',
+    'Avg Weekly Sales', 'Store Stock', `Target Stock (${weeksCover}wk)`, 'Suggested Transfer',
   ]
   const data = rows.map(r => [
     r.sku, r.title, r.variant, r.locationName,
@@ -191,8 +191,7 @@ export default function TransferForecastPage() {
       for (const [sku, totalQty] of Object.entries(skuQtyMap)) {
         if (!newProductSkus.has(sku)) continue  // only 'new product' tagged items
 
-        // Stock sits at External Storage (Newbridge) in Shopify under per-store variants
-        const currentStock = (inventoryMap[sku] || {})[warehouseId] ?? 0
+        const currentStock = (inventoryMap[sku] || {})[locId] ?? 0
         const avgWeeklySales = totalQty / WEEKS
         const targetStock = Math.ceil(avgWeeklySales * weeksCover)
         const suggestedTransfer = targetStock - currentStock
@@ -367,7 +366,7 @@ export default function TransferForecastPage() {
                       ['title',             'Product',      null],
                       ['locationName',      'Location',     null],
                       ['avgWeeklySales',    'Avg Weekly',   'Sales / wk'],
-                      ['currentStock',      'Newbridge Stock', 'Available'],
+                      ['currentStock',      'Store Stock',  'Current'],
                       ['targetStock',       'Target Stock', `${weeksCover}× cover`],
                       ['suggestedTransfer', 'Transfer',     'Suggested'],
                     ].map(([field, label, sub]) => (
