@@ -106,20 +106,26 @@ export default function TransferForecastPage() {
 
       setProductMap(skuToMeta)
 
-      // --- Phase 2: Stock levels — resolve inventory_item_id per SKU via GraphQL SKU search ---
-      // GraphQL search by SKU ensures we always get the current live variant, even if the
-      // variant was deleted and recreated (stale variant IDs on old order line items would
-      // return the wrong IID from the REST variants.json endpoint).
-      setLoadingPhase('inventory')
+      // --- Phase 2: New Product SKUs — fetch first so we can filter inventory lookups ---
+      setLoadingPhase('newproduct')
       setProgress(null)
+      const npRes = await fetch('/api/new-product-skus')
+      const npJson = await npRes.json()
+      const npSkuSet = new Set(npJson.skus || [])
+      setNewProductSkus(npSkuSet)
 
-      const soldSkus = Object.keys(skuToMeta)
+      // --- Phase 3: Stock levels — only for new-product sold SKUs ---
+      // Filtering here avoids fetching inventory for thousands of sold SKUs that won't
+      // appear in the forecast anyway (only new-product tagged items are shown).
+      setLoadingPhase('inventory')
+
+      const newProductSoldSkus = Object.keys(skuToMeta).filter(sku => npSkuSet.has(sku))
       const skuToIid = {}
-      if (soldSkus.length > 0) {
+      if (newProductSoldSkus.length > 0) {
         const res = await fetch('/api/transfer-forecast-variants', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ skus: soldSkus }),
+          body: JSON.stringify({ skus: newProductSoldSkus }),
         })
         const json = await res.json()
         if (res.ok) {
@@ -153,12 +159,6 @@ export default function TransferForecastPage() {
         invMap[sku] = levels
       }
       setInventoryMap(invMap)
-
-      // --- Phase 3: New Product tagged SKUs ---
-      setLoadingPhase('newproduct')
-      const npRes = await fetch('/api/new-product-skus')
-      const npJson = await npRes.json()
-      setNewProductSkus(new Set(npJson.skus || []))
 
       setSalesMap(salesAgg)
     } catch (err) {
