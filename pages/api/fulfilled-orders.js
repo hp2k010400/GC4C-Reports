@@ -1,7 +1,7 @@
 import { shopifyFetchPage } from '../../lib/shopify.js'
 
 export default async function handler(req, res) {
-  const { startDate, endDate } = req.query
+  const { startDate, endDate, debug } = req.query
 
   if (!process.env.SHOPIFY_ACCESS_TOKEN) {
     return res.status(500).json({ error: 'SHOPIFY_ACCESS_TOKEN not configured' })
@@ -17,7 +17,6 @@ export default async function handler(req, res) {
         ? { page_info: currentPageInfo }
         : {
             verb: 'fulfilled',
-            subject_type: 'Order',
             created_at_min: new Date(startDate).toISOString(),
             created_at_max: new Date(endDate + 'T23:59:59').toISOString(),
             limit: 250,
@@ -47,6 +46,8 @@ export default async function handler(req, res) {
         rows.push({ author, date, count: orderIds.size })
       }
     }
+
+    if (debug) return res.status(200).json({ raw: allEvents.slice(0, 10) })
 
     rows.sort((a, b) => b.date.localeCompare(a.date) || a.author.localeCompare(b.author))
     res.status(200).json({ rows })
