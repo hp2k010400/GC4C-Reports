@@ -16,27 +16,46 @@ export default async function handler(req, res) {
     const variant = variants[0]
 
     // Step 2: get inventory levels for this inventory_item_id
-    const levelsData = await shopifyGetOne('inventory_levels.json', {
-      inventory_item_ids: variant.inventory_item_id,
-      limit: 250,
-    })
-    const levels = levelsData.inventory_levels || []
-
-    // Step 3: get all locations for reference
+    // Step 2: get all locations for reference
     const locsData = await shopifyGetOne('locations.json', { limit: 250 })
     const locationMap = {}
     for (const l of (locsData.locations || [])) locationMap[l.id] = l.name
+
+    // Step 3: GraphQL for all quantity types
+    const { shopifyGraphQL } = await import('../../lib/shopify.js')
+    const gid = `gid://shopify/InventoryItem/${variant.inventory_item_id}`
+    const gqlData = await shopifyGraphQL(`
+      query {
+        node(id: "${gid}") {
+          ... on InventoryItem {
+            id
+            inventoryLevels(first: 20) {
+              edges {
+                node {
+                  location { legacyResourceId name }
+                  quantities(names: ["available", "on_hand", "committed", "incoming", "reserved"]) {
+                    name
+                    quantity
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    `)
+
+    const gqlLevels = gqlData?.node?.inventoryLevels?.edges || []
 
     res.status(200).json({
       sku,
       variant_id: variant.id,
       inventory_item_id: variant.inventory_item_id,
       inventory_quantity_on_variant: variant.inventory_quantity,
-      levels_count: levels.length,
-      levels: levels.map(l => ({
-        location_id: l.location_id,
-        location_name: locationMap[l.location_id] || 'unknown',
-        available: l.available,
+      levels: gqlLevels.map(({ node }) => ({
+        location_id: node.location?.legacyResourceId,
+        location_name: node.location?.name,
+        quantities: Object.fromEntries((node.quantities || []).map(q => [q.name, q.quantity])),
       })),
     })
   } catch (err) {

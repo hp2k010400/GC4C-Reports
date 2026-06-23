@@ -13,7 +13,7 @@ const QUERY = `
           edges {
             node {
               location { legacyResourceId }
-              quantities(names: ["available", "on_hand"]) {
+              quantities(names: ["available", "on_hand", "committed", "incoming"]) {
                 name
                 quantity
               }
@@ -54,6 +54,8 @@ export default async function handler(req, res) {
           map[iid][locId] = {
             available: qtys.available ?? 0,
             onHand:    qtys.on_hand   ?? 0,
+            incoming:  qtys.incoming  ?? 0,
+            committed: qtys.committed ?? 0,
           }
         }
       }
