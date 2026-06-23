@@ -18,7 +18,7 @@ export default async function handler(req, res) {
         : {
             status: 'any',
             fulfillment_status: 'fulfilled',
-            fields: 'id,created_at',
+            fields: 'id,created_at,fulfillments',
             created_at_min: new Date(startDate).toISOString(),
             created_at_max: new Date(endDate + 'T23:59:59').toISOString(),
             limit: 250,
@@ -30,15 +30,23 @@ export default async function handler(req, res) {
       pagesCount++
     } while (currentPageInfo && pagesCount < 20)
 
-    const countsByDate = {}
+    // Group by userId + date
+    const counts = {} // { userId: { date: count } }
     for (const order of allOrders) {
       const date = order.created_at.slice(0, 10)
-      countsByDate[date] = (countsByDate[date] || 0) + 1
+      const userId = String(order.fulfillments?.[0]?.user_id ?? 'unknown')
+      if (!counts[userId]) counts[userId] = {}
+      counts[userId][date] = (counts[userId][date] || 0) + 1
     }
 
-    const rows = Object.entries(countsByDate)
-      .map(([date, count]) => ({ date, count }))
-      .sort((a, b) => b.date.localeCompare(a.date))
+    const rows = []
+    for (const [userId, dateCounts] of Object.entries(counts)) {
+      for (const [date, count] of Object.entries(dateCounts)) {
+        rows.push({ userId, date, count })
+      }
+    }
+
+    rows.sort((a, b) => b.date.localeCompare(a.date) || a.userId.localeCompare(b.userId))
 
     res.status(200).json({ rows })
   } catch (err) {
