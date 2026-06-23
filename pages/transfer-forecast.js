@@ -80,7 +80,6 @@ export default function TransferForecastPage() {
       let totalItems = 0
       const salesAgg = {}
       const skuToMeta = {}
-      const skuToVariantId = {}
 
       await Promise.all(storeLocations.map(async loc => {
         const locId = String(loc.id)
@@ -97,8 +96,7 @@ export default function TransferForecastPage() {
 
           for (const row of json.rows) {
             salesAgg[locId][row.sku] = (salesAgg[locId][row.sku] || 0) + row.qty
-            if (!skuToMeta[row.sku])      skuToMeta[row.sku]      = { title: row.title, variant: row.variantTitle }
-            if (!skuToVariantId[row.sku]) skuToVariantId[row.sku] = row.variantId
+            if (!skuToMeta[row.sku]) skuToMeta[row.sku] = { title: row.title, variant: row.variantTitle }
             totalItems++
           }
           pageInfo = json.nextPageInfo
@@ -108,30 +106,27 @@ export default function TransferForecastPage() {
 
       setProductMap(skuToMeta)
 
-      // --- Phase 2: Stock levels — sum inventory across all locations per SKU ---
-      // GC4C uses per-store variants (E/W/M/S suffix). Stock sits at External Storage
-      // but is allocated to a store variant. Summing all locations gives the correct
-      // total allocation for that store's variant.
+      // --- Phase 2: Stock levels — resolve inventory_item_id per SKU via GraphQL SKU search ---
+      // GraphQL search by SKU ensures we always get the current live variant, even if the
+      // variant was deleted and recreated (stale variant IDs on old order line items would
+      // return the wrong IID from the REST variants.json endpoint).
       setLoadingPhase('inventory')
       setProgress(null)
 
-      const variantIds = Object.values(skuToVariantId).filter(Boolean)
-      let variantData = {}
-      if (variantIds.length > 0) {
+      const soldSkus = Object.keys(skuToMeta)
+      const skuToIid = {}
+      if (soldSkus.length > 0) {
         const res = await fetch('/api/transfer-forecast-variants', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ ids: variantIds }),
+          body: JSON.stringify({ skus: soldSkus }),
         })
         const json = await res.json()
-        if (res.ok) variantData = json.map || {}
-      }
-
-      // Build sku -> inventory_item_id
-      const skuToIid = {}
-      for (const [sku, vid] of Object.entries(skuToVariantId)) {
-        const entry = variantData[String(vid)]
-        if (entry?.iid) skuToIid[sku] = entry.iid
+        if (res.ok) {
+          for (const [sku, entry] of Object.entries(json.map || {})) {
+            if (entry?.iid) skuToIid[sku] = entry.iid
+          }
+        }
       }
 
       // Fetch inventory quantities (available + on_hand) per location via GraphQL
