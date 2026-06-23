@@ -9,6 +9,7 @@ const NAV = [
       { label: 'Deletions', href: '/deletion-candidates' },
       { label: 'Adjustments', href: '/adjustments' },
       { label: 'Transfers', href: '/transfer-forecast' },
+      { label: 'Combined', href: '/combined' },
       { label: 'Bulk Edit', href: '/bulk-update' },
     ],
   },
@@ -17,10 +18,9 @@ const NAV = [
     items: [
       { label: 'Orders', href: '/orders' },
       { label: 'Fulfillments', href: '/fulfillments' },
-      { label: 'Returns', href: '/returns' },
-      { label: 'Combined', href: '/combined' },
     ],
   },
+  { label: 'Returns', href: '/returns' },
   { label: 'Reports', href: '/' },
 ]
 
