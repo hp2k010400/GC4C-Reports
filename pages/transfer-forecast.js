@@ -7,11 +7,11 @@ const weeksAgo = n => new Date(Date.now() - n * 7 * 86400000).toISOString().slic
 function toCSV(rows, weeksCover) {
   const headers = [
     'SKU', 'Product', 'Variant', 'Location',
-    'Avg Weekly Sales', 'Store Stock', `Target Stock (${weeksCover}wk)`, 'Suggested Transfer',
+    'Avg Weekly Sales', 'Available', 'On Hand', `Target Stock (${weeksCover}wk)`, 'Suggested Transfer',
   ]
   const data = rows.map(r => [
     r.sku, r.title, r.variant, r.locationName,
-    r.avgWeeklySales.toFixed(2), r.currentStock, r.targetStock, r.suggestedTransfer,
+    r.avgWeeklySales.toFixed(2), r.currentStock, r.onHand, r.targetStock, r.suggestedTransfer,
   ])
   return [headers, ...data]
     .map(row => row.map(v => {
@@ -134,29 +134,28 @@ export default function TransferForecastPage() {
         if (entry?.iid) skuToIid[sku] = entry.iid
       }
 
-      // Fetch inventory levels and sum across all locations per SKU
+      // Fetch inventory quantities (available + on_hand) per location via GraphQL
       const soldIids = Object.values(skuToIid).map(Number).filter(Boolean)
-      let inventoryLevels = []
+      let iidMap = {}
       if (soldIids.length > 0) {
-        const res = await fetch('/api/inventory-levels', {
+        const res = await fetch('/api/transfer-forecast-inventory', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ ids: soldIids }),
+          body: JSON.stringify({ iids: soldIids }),
         })
         const json = await res.json()
-        if (res.ok) inventoryLevels = json.levels || []
+        if (res.ok) iidMap = json.map || {}
       }
 
       const iidToSku = {}
       for (const [sku, iid] of Object.entries(skuToIid)) iidToSku[String(iid)] = sku
 
-      // Build per-location inventory map: sku -> locationId -> available
+      // sku -> locationId -> { available, onHand }
       const invMap = {}
-      for (const level of inventoryLevels) {
-        const sku = iidToSku[String(level.inventory_item_id)]
+      for (const [iid, levels] of Object.entries(iidMap)) {
+        const sku = iidToSku[String(iid)]
         if (!sku) continue
-        if (!invMap[sku]) invMap[sku] = {}
-        invMap[sku][String(level.location_id)] = level.available ?? 0
+        invMap[sku] = levels
       }
       setInventoryMap(invMap)
 
@@ -191,7 +190,9 @@ export default function TransferForecastPage() {
       for (const [sku, totalQty] of Object.entries(skuQtyMap)) {
         if (!newProductSkus.has(sku)) continue  // only 'new product' tagged items
 
-        const currentStock = (inventoryMap[sku] || {})[locId] ?? 0
+        const locInv = (inventoryMap[sku] || {})[locId] || {}
+        const currentStock = locInv.available ?? 0
+        const onHand = locInv.onHand ?? 0
         const avgWeeklySales = totalQty / WEEKS
         const targetStock = Math.ceil(avgWeeklySales * weeksCover)
         const suggestedTransfer = targetStock - currentStock
@@ -206,6 +207,7 @@ export default function TransferForecastPage() {
           variant: meta.variant,
           avgWeeklySales,
           currentStock,
+          onHand,
           targetStock,
           suggestedTransfer,
         })
@@ -248,7 +250,7 @@ export default function TransferForecastPage() {
 
   const isLoaded = salesMap !== null
   const isLoading = loadingPhase !== null
-  const NUMERIC_COLS = ['avgWeeklySales', 'currentStock', 'targetStock', 'suggestedTransfer']
+  const NUMERIC_COLS = ['avgWeeklySales', 'currentStock', 'onHand', 'targetStock', 'suggestedTransfer']
 
   return (
     <div className="container-xl">
@@ -366,7 +368,8 @@ export default function TransferForecastPage() {
                       ['title',             'Product',      null],
                       ['locationName',      'Location',     null],
                       ['avgWeeklySales',    'Avg Weekly',   'Sales / wk'],
-                      ['currentStock',      'Store Stock',  'Current'],
+                      ['currentStock',      'Available',    'Free to sell'],
+                      ['onHand',            'On Hand',      'Physical count'],
                       ['targetStock',       'Target Stock', `${weeksCover}× cover`],
                       ['suggestedTransfer', 'Transfer',     'Suggested'],
                     ].map(([field, label, sub]) => (
@@ -392,6 +395,7 @@ export default function TransferForecastPage() {
                       <td style={{ whiteSpace: 'nowrap' }}>{row.locationName}</td>
                       <td style={{ textAlign: 'right' }}>{row.avgWeeklySales.toFixed(2)}</td>
                       <td style={{ textAlign: 'right' }}>{row.currentStock}</td>
+                      <td style={{ textAlign: 'right' }}>{row.onHand}</td>
                       <td style={{ textAlign: 'right' }}>{row.targetStock}</td>
                       <td style={{ textAlign: 'right', fontWeight: 700, color: '#005F2C', fontSize: 15 }}>
                         {row.suggestedTransfer}
