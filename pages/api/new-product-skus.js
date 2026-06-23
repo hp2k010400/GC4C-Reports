@@ -6,6 +6,8 @@ const QUERY = `
       pageInfo { hasNextPage endCursor }
       edges {
         node {
+          productType
+          vendor
           variants(first: 100) {
             edges {
               node { sku }
@@ -20,6 +22,7 @@ const QUERY = `
 export default async function handler(_req, res) {
   try {
     const skus = new Set()
+    const meta = {} // sku -> { type, vendor }
     let cursor = null
 
     do {
@@ -27,8 +30,13 @@ export default async function handler(_req, res) {
       const products = data.products?.edges || []
 
       for (const { node: product } of products) {
+        const type = product.productType || ''
+        const vendor = product.vendor || ''
         for (const { node: variant } of (product.variants?.edges || [])) {
-          if (variant.sku) skus.add(variant.sku)
+          if (variant.sku) {
+            skus.add(variant.sku)
+            meta[variant.sku] = { type, vendor }
+          }
         }
       }
 
@@ -37,7 +45,7 @@ export default async function handler(_req, res) {
     } while (cursor)
 
     res.setHeader('Cache-Control', 's-maxage=3600, stale-while-revalidate=86400')
-    res.status(200).json({ skus: [...skus] })
+    res.status(200).json({ skus: [...skus], meta })
   } catch (err) {
     res.status(500).json({ error: err.message })
   }

@@ -6,11 +6,11 @@ const weeksAgo = n => new Date(Date.now() - n * 7 * 86400000).toISOString().slic
 
 function toCSV(rows, weeksCover) {
   const headers = [
-    'SKU', 'Product', 'Variant', 'Location',
+    'SKU', 'Product', 'Variant', 'Type', 'Brand', 'Location',
     'Avg Weekly Sales', 'Available', 'On Hand', `Target Stock (${weeksCover}wk)`, 'Suggested Transfer',
   ]
   const data = rows.map(r => [
-    r.sku, r.title, r.variant, r.locationName,
+    r.sku, r.title, r.variant, r.type, r.vendor, r.locationName,
     r.avgWeeklySales.toFixed(2), r.currentStock, r.onHand, r.targetStock, r.suggestedTransfer,
   ])
   return [headers, ...data]
@@ -44,8 +44,11 @@ export default function TransferForecastPage() {
   const [inventoryMap, setInventoryMap] = useState(null)     // sku -> locationId -> available
   const [salesMap, setSalesMap] = useState(null)             // locationId -> sku -> totalQty
   const [newProductSkus, setNewProductSkus] = useState(null) // Set of SKUs tagged 'new product'
+  const [skuMeta, setSkuMeta] = useState(null)               // sku -> { type, vendor }
 
   const [filterLocation, setFilterLocation] = useState('')
+  const [filterType, setFilterType] = useState('')
+  const [filterVendor, setFilterVendor] = useState('')
   const [excludeKeywords, setExcludeKeywords] = useState('Charge, Staff Purchase, Adapter Change')
   const [searchQuery, setSearchQuery] = useState('')
   const [sortField, setSortField] = useState('suggestedTransfer')
@@ -69,6 +72,7 @@ export default function TransferForecastPage() {
     setInventoryMap(null)
     setSalesMap(null)
     setNewProductSkus(null)
+    setSkuMeta(null)
 
     try {
       // --- Phase 1: POS orders — all store locations in parallel ---
@@ -113,6 +117,7 @@ export default function TransferForecastPage() {
       const npJson = await npRes.json()
       const npSkuSet = new Set(npJson.skus || [])
       setNewProductSkus(npSkuSet)
+      setSkuMeta(npJson.meta || {})
 
       // --- Phase 3: Stock levels — only for new-product sold SKUs ---
       // Filtering here avoids fetching inventory for thousands of sold SKUs that won't
@@ -194,12 +199,15 @@ export default function TransferForecastPage() {
         if (suggestedTransfer <= 0) continue
 
         const meta = productMap[sku] || { title: sku, variant: '' }
+        const typeMeta = skuMeta?.[sku] || {}
         result.push({
           sku,
           locationId: locId,
           locationName: loc.name,
           title: meta.title,
           variant: meta.variant,
+          type: typeMeta.type || '',
+          vendor: typeMeta.vendor || '',
           avgWeeklySales,
           currentStock,
           onHand,
@@ -211,11 +219,16 @@ export default function TransferForecastPage() {
     return result
   }, [salesMap, inventoryMap, productMap, newProductSkus, warehouseId, weeksCover, locations])
 
+  const allTypes = useMemo(() => [...new Set(rows.map(r => r.type).filter(Boolean))].sort(), [rows])
+  const allVendors = useMemo(() => [...new Set(rows.map(r => r.vendor).filter(Boolean))].sort(), [rows])
+
   const filteredRows = useMemo(() => {
     const excludeTerms = excludeKeywords.split(',').map(k => k.trim().toLowerCase()).filter(Boolean)
     let r = rows
     if (excludeTerms.length) r = r.filter(row => !excludeTerms.some(t => row.title.toLowerCase().includes(t)))
     if (filterLocation) r = r.filter(row => row.locationId === filterLocation)
+    if (filterType) r = r.filter(row => row.type === filterType)
+    if (filterVendor) r = r.filter(row => row.vendor === filterVendor)
     if (searchQuery.trim()) {
       const q = searchQuery.trim().toLowerCase()
       r = r.filter(row => row.sku.toLowerCase().includes(q) || row.title.toLowerCase().includes(q))
@@ -316,6 +329,16 @@ export default function TransferForecastPage() {
               {storeLocations.map(l => (
                 <option key={l.id} value={String(l.id)}>{l.name}</option>
               ))}
+            </select>
+
+            <select className="type-select" value={filterType} onChange={e => setFilterType(e.target.value)}>
+              <option value="">All product types</option>
+              {allTypes.map(t => <option key={t} value={t}>{t}</option>)}
+            </select>
+
+            <select className="type-select" value={filterVendor} onChange={e => setFilterVendor(e.target.value)}>
+              <option value="">All brands</option>
+              {allVendors.map(v => <option key={v} value={v}>{v}</option>)}
             </select>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
