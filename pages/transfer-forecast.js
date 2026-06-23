@@ -40,9 +40,9 @@ export default function TransferForecastPage() {
   const [progress, setProgress] = useState(null)
   const [error, setError] = useState(null)
 
-  const [productMap, setProductMap] = useState(null)      // sku -> { title, variant }
-  const [inventoryMap, setInventoryMap] = useState(null)  // sku -> locationId -> available
-  const [salesMap, setSalesMap] = useState(null)          // locationId -> sku -> totalQty
+  const [productMap, setProductMap] = useState(null)         // sku -> { title, variant }
+  const [stockMap, setStockMap] = useState(null)             // sku -> inventory_quantity (variant total)
+  const [salesMap, setSalesMap] = useState(null)             // locationId -> sku -> totalQty
   const [newProductSkus, setNewProductSkus] = useState(null) // Set of SKUs tagged 'new product'
 
   const [filterLocation, setFilterLocation] = useState('')
@@ -66,7 +66,7 @@ export default function TransferForecastPage() {
   async function loadData() {
     setError(null)
     setProductMap(null)
-    setInventoryMap(null)
+    setStockMap(null)
     setSalesMap(null)
     setNewProductSkus(null)
 
@@ -108,12 +108,14 @@ export default function TransferForecastPage() {
 
       setProductMap(skuToMeta)
 
-      // --- Phase 2: Inventory levels for sold SKUs ---
+      // --- Phase 2: Variant stock (inventory_quantity = total across all locations) ---
+      // GC4C uses per-store variants (E/W/M/S suffix), so variant.inventory_quantity
+      // is the correct "store stock" — not per-location inventory.
       setLoadingPhase('inventory')
       setProgress(null)
 
       const variantIds = Object.values(skuToVariantId).filter(Boolean)
-      let variantToIid = {}
+      let variantData = {}
       if (variantIds.length > 0) {
         const res = await fetch('/api/transfer-forecast-variants', {
           method: 'POST',
@@ -121,38 +123,15 @@ export default function TransferForecastPage() {
           body: JSON.stringify({ ids: variantIds }),
         })
         const json = await res.json()
-        if (res.ok) variantToIid = json.map || {}
+        if (res.ok) variantData = json.map || {}
       }
 
-      const skuToIid = {}
+      const skuToStock = {}
       for (const [sku, vid] of Object.entries(skuToVariantId)) {
-        const entry = variantToIid[String(vid)]
-        if (entry?.iid) skuToIid[sku] = entry.iid
+        const entry = variantData[String(vid)]
+        if (entry) skuToStock[sku] = entry.stock ?? 0
       }
-
-      const soldIids = Object.values(skuToIid).map(Number).filter(Boolean)
-      let inventoryLevels = []
-      if (soldIids.length > 0) {
-        const res = await fetch('/api/inventory-levels', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ ids: soldIids }),
-        })
-        const json = await res.json()
-        if (res.ok) inventoryLevels = json.levels || []
-      }
-
-      const iidToSku = {}
-      for (const [sku, iid] of Object.entries(skuToIid)) iidToSku[String(iid)] = sku
-
-      const invMap = {}
-      for (const level of inventoryLevels) {
-        const sku = iidToSku[String(level.inventory_item_id)]
-        if (!sku) continue
-        if (!invMap[sku]) invMap[sku] = {}
-        invMap[sku][String(level.location_id)] = level.available ?? 0
-      }
-      setInventoryMap(invMap)
+      setStockMap(skuToStock)
 
       // --- Phase 3: New Product tagged SKUs ---
       setLoadingPhase('newproduct')
@@ -175,7 +154,7 @@ export default function TransferForecastPage() {
   }, [locations, warehouseId])
 
   const rows = useMemo(() => {
-    if (!salesMap || !inventoryMap || !productMap || !newProductSkus) return []
+    if (!salesMap || !stockMap || !productMap || !newProductSkus) return []
 
     const result = []
     for (const [locId, skuQtyMap] of Object.entries(salesMap)) {
@@ -185,7 +164,7 @@ export default function TransferForecastPage() {
       for (const [sku, totalQty] of Object.entries(skuQtyMap)) {
         if (!newProductSkus.has(sku)) continue  // only 'new product' tagged items
 
-        const currentStock = (inventoryMap[sku] || {})[locId] ?? 0
+        const currentStock = stockMap[sku] ?? 0
         const avgWeeklySales = totalQty / WEEKS
         const targetStock = Math.ceil(avgWeeklySales * weeksCover)
         const suggestedTransfer = targetStock - currentStock
@@ -206,7 +185,7 @@ export default function TransferForecastPage() {
       }
     }
     return result
-  }, [salesMap, inventoryMap, productMap, newProductSkus, weeksCover, locations])
+  }, [salesMap, stockMap, productMap, newProductSkus, weeksCover, locations])
 
   const filteredRows = useMemo(() => {
     const excludeTerms = excludeKeywords.split(',').map(k => k.trim().toLowerCase()).filter(Boolean)
