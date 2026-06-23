@@ -15,7 +15,6 @@ export default async function handler(req, res) {
             node {
               id
               sku
-              inventoryManagement
               inventoryItem {
                 id
                 legacyResourceId
@@ -62,7 +61,6 @@ export default async function handler(req, res) {
       sku,
       variant_id: variant.id,
       inventory_item_id: iid,
-      inventory_management: variant.inventoryManagement,
       tracked: variant.inventoryItem?.tracked,
       levels: gqlLevels.map(({ node }) => ({
         location_name: node.location?.name,
