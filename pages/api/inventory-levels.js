@@ -1,6 +1,6 @@
 import { shopifyGetOne } from '../../lib/shopify.js'
 
-const BATCH = 50
+const BATCH = 20 // 20 items × up to 12 locations = 240 results, safely under Shopify's 250 limit
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end()
