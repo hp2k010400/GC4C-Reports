@@ -41,7 +41,7 @@ export default function TransferForecastPage() {
   const [error, setError] = useState(null)
 
   const [productMap, setProductMap] = useState(null)         // sku -> { title, variant }
-  const [stockMap, setStockMap] = useState(null)             // sku -> inventory_quantity (variant total)
+  const [inventoryMap, setInventoryMap] = useState(null)     // sku -> locationId -> available
   const [salesMap, setSalesMap] = useState(null)             // locationId -> sku -> totalQty
   const [newProductSkus, setNewProductSkus] = useState(null) // Set of SKUs tagged 'new product'
 
@@ -66,7 +66,7 @@ export default function TransferForecastPage() {
   async function loadData() {
     setError(null)
     setProductMap(null)
-    setStockMap(null)
+    setInventoryMap(null)
     setSalesMap(null)
     setNewProductSkus(null)
 
@@ -150,13 +150,15 @@ export default function TransferForecastPage() {
       const iidToSku = {}
       for (const [sku, iid] of Object.entries(skuToIid)) iidToSku[String(iid)] = sku
 
-      const skuToStock = {}
+      // Build per-location inventory map: sku -> locationId -> available
+      const invMap = {}
       for (const level of inventoryLevels) {
         const sku = iidToSku[String(level.inventory_item_id)]
         if (!sku) continue
-        skuToStock[sku] = (skuToStock[sku] || 0) + Math.max(0, level.available ?? 0)
+        if (!invMap[sku]) invMap[sku] = {}
+        invMap[sku][String(level.location_id)] = level.available ?? 0
       }
-      setStockMap(skuToStock)
+      setInventoryMap(invMap)
 
       // --- Phase 3: New Product tagged SKUs ---
       setLoadingPhase('newproduct')
@@ -179,7 +181,7 @@ export default function TransferForecastPage() {
   }, [locations, warehouseId])
 
   const rows = useMemo(() => {
-    if (!salesMap || !stockMap || !productMap || !newProductSkus) return []
+    if (!salesMap || !inventoryMap || !productMap || !newProductSkus) return []
 
     const result = []
     for (const [locId, skuQtyMap] of Object.entries(salesMap)) {
@@ -189,7 +191,7 @@ export default function TransferForecastPage() {
       for (const [sku, totalQty] of Object.entries(skuQtyMap)) {
         if (!newProductSkus.has(sku)) continue  // only 'new product' tagged items
 
-        const currentStock = stockMap[sku] ?? 0
+        const currentStock = (inventoryMap[sku] || {})[locId] ?? 0
         const avgWeeklySales = totalQty / WEEKS
         const targetStock = Math.ceil(avgWeeklySales * weeksCover)
         const suggestedTransfer = targetStock - currentStock
@@ -210,7 +212,7 @@ export default function TransferForecastPage() {
       }
     }
     return result
-  }, [salesMap, stockMap, productMap, newProductSkus, weeksCover, locations])
+  }, [salesMap, inventoryMap, productMap, newProductSkus, weeksCover, locations])
 
   const filteredRows = useMemo(() => {
     const excludeTerms = excludeKeywords.split(',').map(k => k.trim().toLowerCase()).filter(Boolean)
