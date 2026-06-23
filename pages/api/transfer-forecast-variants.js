@@ -10,8 +10,7 @@ const QUERY = `
       edges {
         node {
           sku
-          requiresShipping
-          inventoryItem { id }
+          inventoryItem { id tracked }
         }
       }
     }
@@ -36,7 +35,7 @@ export default async function handler(req, res) {
 
       for (const { node } of (result.productVariants?.edges || [])) {
         if (!node.sku || !node.inventoryItem?.id) continue
-        if (node.requiresShipping === false) continue  // skip gift cards, services, customisations
+        if (!node.inventoryItem.tracked) continue  // skip gift cards, services, customisations
         map[node.sku] = { iid: node.inventoryItem.id.split('/').pop() }
       }
     }))
