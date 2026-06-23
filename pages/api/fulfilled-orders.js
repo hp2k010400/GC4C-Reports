@@ -16,10 +16,10 @@ export default async function handler(req, res) {
       const params = currentPageInfo
         ? { page_info: currentPageInfo }
         : {
-            verb: 'fulfilled',
+            ...(debug ? {} : { verb: 'fulfilled' }),
             created_at_min: new Date(startDate).toISOString(),
             created_at_max: new Date(endDate + 'T23:59:59').toISOString(),
-            limit: 250,
+            limit: debug ? 5 : 250,
           }
 
       const { items, nextPageInfo } = await shopifyFetchPage('events.json', 'events', params)
@@ -47,7 +47,7 @@ export default async function handler(req, res) {
       }
     }
 
-    if (debug) return res.status(200).json({ raw: allEvents.slice(0, 10) })
+    if (debug) return res.status(200).json({ raw: allEvents.map(e => ({ verb: e.verb, author: e.author, subject_type: e.subject_type, message: e.message, created_at: e.created_at })) })
 
     rows.sort((a, b) => b.date.localeCompare(a.date) || a.author.localeCompare(b.author))
     res.status(200).json({ rows })
