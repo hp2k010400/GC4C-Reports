@@ -7,19 +7,11 @@ const weeksAgo = n => new Date(Date.now() - n * 7 * 86400000).toISOString().slic
 function toCSV(rows, weeksCover) {
   const headers = [
     'SKU', 'Product', 'Variant', 'Location',
-    'Avg Weekly Sales', 'Current Store Stock', `Target Stock (${weeksCover}wk)`,
-    'Ext. Storage Stock', 'Suggested Transfer',
+    'Avg Weekly Sales', 'Current Store Stock', `Target Stock (${weeksCover}wk)`, 'Suggested Transfer',
   ]
   const data = rows.map(r => [
-    r.sku,
-    r.title,
-    r.variant,
-    r.locationName,
-    r.avgWeeklySales.toFixed(2),
-    r.currentStock,
-    r.targetStock,
-    r.extStorageStock,
-    r.suggestedTransfer,
+    r.sku, r.title, r.variant, r.locationName,
+    r.avgWeeklySales.toFixed(2), r.currentStock, r.targetStock, r.suggestedTransfer,
   ])
   return [headers, ...data]
     .map(row => row.map(v => {
@@ -40,22 +32,20 @@ function downloadCSV(rows, weeksCover) {
 
 export default function TransferForecastPage() {
   const [locations, setLocations] = useState([])
-  const [warehouseId, setWarehouseId] = useState('')
+  const [warehouseId, setWarehouseId] = useState('') // auto-detected, used to exclude warehouse from order fetch
   const [weeksCover, setWeeksCover] = useState(3)
   const [weeksCoverInput, setWeeksCoverInput] = useState('3')
 
-  const [loadingPhase, setLoadingPhase] = useState(null) // null | 'orders' | 'inventory'
-  const [loadingLocation, setLoadingLocation] = useState(null)
+  const [loadingPhase, setLoadingPhase] = useState(null)
   const [progress, setProgress] = useState(null)
   const [error, setError] = useState(null)
 
-  const [productMap, setProductMap] = useState(null)       // sku -> { title, variant }
-  const [inventoryMap, setInventoryMap] = useState(null)   // sku -> locationId -> available
-  const [salesMap, setSalesMap] = useState(null)           // locationId -> sku -> totalQty
-  const [shippingMap, setShippingMap] = useState(null)     // sku -> requiresShipping bool
+  const [productMap, setProductMap] = useState(null)      // sku -> { title, variant }
+  const [inventoryMap, setInventoryMap] = useState(null)  // sku -> locationId -> available
+  const [salesMap, setSalesMap] = useState(null)          // locationId -> sku -> totalQty
+  const [newProductSkus, setNewProductSkus] = useState(null) // Set of SKUs tagged 'new product'
 
   const [filterLocation, setFilterLocation] = useState('')
-  const [physicalOnly, setPhysicalOnly] = useState(true)
   const [excludeKeywords, setExcludeKeywords] = useState('Charge, Staff Purchase')
   const [searchQuery, setSearchQuery] = useState('')
   const [sortField, setSortField] = useState('suggestedTransfer')
@@ -78,10 +68,10 @@ export default function TransferForecastPage() {
     setProductMap(null)
     setInventoryMap(null)
     setSalesMap(null)
-    setShippingMap(null)
+    setNewProductSkus(null)
 
     try {
-      // --- Phase 1: POS orders — all store locations fetched in parallel ---
+      // --- Phase 1: POS orders — all store locations in parallel ---
       setLoadingPhase('orders')
       const storeLocations = locations.filter(l => String(l.id) !== warehouseId)
       const startDate = weeksAgo(WEEKS)
@@ -118,7 +108,7 @@ export default function TransferForecastPage() {
 
       setProductMap(skuToMeta)
 
-      // --- Phase 2: Variant IDs -> inventory_item_ids (targeted, sold SKUs only) ---
+      // --- Phase 2: Inventory levels for sold SKUs ---
       setLoadingPhase('inventory')
       setProgress(null)
 
@@ -134,18 +124,12 @@ export default function TransferForecastPage() {
         if (res.ok) variantToIid = json.map || {}
       }
 
-      // sku -> iid
       const skuToIid = {}
-      const skuRequiresShipping = {}
       for (const [sku, vid] of Object.entries(skuToVariantId)) {
         const entry = variantToIid[String(vid)]
-        if (entry) {
-          skuToIid[sku] = entry.iid
-          skuRequiresShipping[sku] = entry.requiresShipping
-        }
+        if (entry?.iid) skuToIid[sku] = entry.iid
       }
 
-      // Fetch inventory levels for sold SKUs across all locations
       const soldIids = Object.values(skuToIid).map(Number).filter(Boolean)
       let inventoryLevels = []
       if (soldIids.length > 0) {
@@ -169,13 +153,18 @@ export default function TransferForecastPage() {
         invMap[sku][String(level.location_id)] = level.available ?? 0
       }
       setInventoryMap(invMap)
-      setShippingMap(skuRequiresShipping)
+
+      // --- Phase 3: New Product tagged SKUs ---
+      setLoadingPhase('newproduct')
+      const npRes = await fetch('/api/new-product-skus')
+      const npJson = await npRes.json()
+      setNewProductSkus(new Set(npJson.skus || []))
+
       setSalesMap(salesAgg)
     } catch (err) {
       setError(err.message)
     } finally {
       setLoadingPhase(null)
-      setLoadingLocation(null)
       setProgress(null)
     }
   }
@@ -185,9 +174,8 @@ export default function TransferForecastPage() {
     return locations.filter(l => String(l.id) !== warehouseId)
   }, [locations, warehouseId])
 
-
   const rows = useMemo(() => {
-    if (!salesMap || !inventoryMap || !productMap || !warehouseId) return []
+    if (!salesMap || !inventoryMap || !productMap || !newProductSkus) return []
 
     const result = []
     for (const [locId, skuQtyMap] of Object.entries(salesMap)) {
@@ -195,7 +183,8 @@ export default function TransferForecastPage() {
       if (!loc) continue
 
       for (const [sku, totalQty] of Object.entries(skuQtyMap)) {
-        const extStorageStock = (inventoryMap[sku] || {})[warehouseId] ?? 0
+        if (!newProductSkus.has(sku)) continue  // only 'new product' tagged items
+
         const currentStock = (inventoryMap[sku] || {})[locId] ?? 0
         const avgWeeklySales = totalQty / WEEKS
         const targetStock = Math.ceil(avgWeeklySales * weeksCover)
@@ -209,29 +198,24 @@ export default function TransferForecastPage() {
           locationName: loc.name,
           title: meta.title,
           variant: meta.variant,
-          requiresShipping: shippingMap?.[sku] !== false,
           avgWeeklySales,
           currentStock,
           targetStock,
-          extStorageStock,
           suggestedTransfer,
         })
       }
     }
     return result
-  }, [salesMap, inventoryMap, productMap, shippingMap, warehouseId, weeksCover, locations])
+  }, [salesMap, inventoryMap, productMap, newProductSkus, weeksCover, locations])
 
   const filteredRows = useMemo(() => {
     const excludeTerms = excludeKeywords.split(',').map(k => k.trim().toLowerCase()).filter(Boolean)
     let r = rows
-    if (physicalOnly) r = r.filter(row => row.requiresShipping !== false)
     if (excludeTerms.length) r = r.filter(row => !excludeTerms.some(t => row.title.toLowerCase().includes(t)))
     if (filterLocation) r = r.filter(row => row.locationId === filterLocation)
     if (searchQuery.trim()) {
       const q = searchQuery.trim().toLowerCase()
-      r = r.filter(row =>
-        row.sku.toLowerCase().includes(q) || row.title.toLowerCase().includes(q)
-      )
+      r = r.filter(row => row.sku.toLowerCase().includes(q) || row.title.toLowerCase().includes(q))
     }
     const dir = sortDir === 'asc' ? 1 : -1
     return [...r].sort((a, b) => {
@@ -240,7 +224,7 @@ export default function TransferForecastPage() {
       if (typeof av === 'number') return dir * (av - bv)
       return dir * String(av).localeCompare(String(bv))
     })
-  }, [rows, physicalOnly, excludeKeywords, filterLocation, searchQuery, sortField, sortDir])
+  }, [rows, excludeKeywords, filterLocation, searchQuery, sortField, sortDir])
 
   const stats = useMemo(() => {
     if (!rows.length) return null
@@ -258,16 +242,14 @@ export default function TransferForecastPage() {
 
   const isLoaded = salesMap !== null
   const isLoading = loadingPhase !== null
-  const canLoad = !!warehouseId && !isLoading
-
-  const NUMERIC_COLS = ['avgWeeklySales', 'currentStock', 'targetStock', 'extStorageStock', 'suggestedTransfer']
+  const NUMERIC_COLS = ['avgWeeklySales', 'currentStock', 'targetStock', 'suggestedTransfer']
 
   return (
     <div className="container-xl">
       <div className="page-title">Transfer Forecast</div>
       <div className="page-sub">
-        Recommends stock transfers from the warehouse to each store based on {WEEKS} weeks of POS sales.
-        Target Stock = Avg Weekly Sales × Weeks Cover.
+        Recommended transfers from External Storage to each store for products tagged <strong>New Product</strong>,
+        based on {WEEKS} weeks of POS sales. Target Stock = Avg Weekly Sales × Weeks Cover.
       </div>
 
       <div className="load-bar" style={{ flexWrap: 'wrap', gap: 12 }}>
@@ -275,8 +257,7 @@ export default function TransferForecastPage() {
           <label style={{ fontWeight: 600, fontSize: 13, color: '#333', whiteSpace: 'nowrap' }}>Weeks Cover</label>
           <input
             type="number"
-            min={1}
-            max={52}
+            min={1} max={52}
             value={weeksCoverInput}
             onChange={e => {
               setWeeksCoverInput(e.target.value)
@@ -288,26 +269,7 @@ export default function TransferForecastPage() {
           <span style={{ fontSize: 12, color: '#888' }}>weeks (default 3)</span>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <label style={{ fontWeight: 600, fontSize: 13, color: '#333', whiteSpace: 'nowrap' }}>Warehouse</label>
-          <select
-            className="type-select"
-            value={warehouseId}
-            onChange={e => setWarehouseId(e.target.value)}
-          >
-            <option value="">Select warehouse…</option>
-            {locations.map(l => (
-              <option key={l.id} value={String(l.id)}>{l.name}</option>
-            ))}
-          </select>
-        </div>
-
-        <button
-          className="btn btn-primary"
-          onClick={loadData}
-          disabled={!canLoad}
-          title={!warehouseId ? 'Select a warehouse location first' : ''}
-        >
+        <button className="btn btn-primary" onClick={loadData} disabled={isLoading}>
           {isLoading ? 'Loading…' : isLoaded ? 'Reload' : 'Load Forecast'}
         </button>
 
@@ -320,12 +282,14 @@ export default function TransferForecastPage() {
         <div className="state-box">
           <div className="spinner" />
           <div style={{ fontWeight: 500 }}>
-            {loadingPhase === 'orders' && `Loading orders… ${(progress?.count ?? 0).toLocaleString()} items`}
-            {loadingPhase === 'inventory' && 'Loading stock levels for sold SKUs…'}
+            {loadingPhase === 'orders'     && `Loading orders… ${(progress?.count ?? 0).toLocaleString()} items`}
+            {loadingPhase === 'inventory'  && 'Loading stock levels…'}
+            {loadingPhase === 'newproduct' && 'Loading New Product catalogue…'}
           </div>
           <div style={{ fontSize: 12, color: '#bbb', marginTop: 6 }}>
-            {loadingPhase === 'orders' && `Fetching ${WEEKS} weeks of POS sales from all stores simultaneously`}
-            {loadingPhase === 'inventory' && 'Fetching per-location inventory'}
+            {loadingPhase === 'orders'     && `Fetching ${WEEKS} weeks of POS sales from all stores`}
+            {loadingPhase === 'inventory'  && 'Fetching per-location stock levels'}
+            {loadingPhase === 'newproduct' && 'Fetching SKUs tagged New Product from Shopify'}
           </div>
         </div>
       )}
@@ -336,35 +300,21 @@ export default function TransferForecastPage() {
         <>
           {stats && (
             <div className="stats-bar">
-              <div className="stat-card">
-                <div className="stat-label">Recommendations</div>
-                <div className="stat-value">{stats.skus.toLocaleString()}</div>
-              </div>
-              <div className="stat-card">
-                <div className="stat-label">Total Units</div>
-                <div className="stat-value">{stats.totalUnits.toLocaleString()}</div>
-              </div>
-              <div className="stat-card">
-                <div className="stat-label">Stores</div>
-                <div className="stat-value">{stats.locs}</div>
-              </div>
-              <div className="stat-card">
-                <div className="stat-label">Weeks Cover</div>
-                <div className="stat-value">{weeksCover}</div>
-              </div>
+              <div className="stat-card"><div className="stat-label">Recommendations</div><div className="stat-value">{stats.skus.toLocaleString()}</div></div>
+              <div className="stat-card"><div className="stat-label">Total Units</div><div className="stat-value">{stats.totalUnits.toLocaleString()}</div></div>
+              <div className="stat-card"><div className="stat-label">Stores</div><div className="stat-value">{stats.locs}</div></div>
+              <div className="stat-card"><div className="stat-label">Weeks Cover</div><div className="stat-value">{weeksCover}</div></div>
             </div>
           )}
 
           <div className="load-bar" style={{ marginTop: 16, flexWrap: 'wrap', gap: 8 }}>
-            <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 500, cursor: 'pointer', whiteSpace: 'nowrap' }}>
-              <input
-                type="checkbox"
-                checked={physicalOnly}
-                onChange={e => setPhysicalOnly(e.target.checked)}
-                style={{ width: 15, height: 15, accentColor: '#005F2C' }}
-              />
-              Physical only
-            </label>
+            <select className="type-select" value={filterLocation} onChange={e => setFilterLocation(e.target.value)}>
+              <option value="">All locations</option>
+              {storeLocations.map(l => (
+                <option key={l.id} value={String(l.id)}>{l.name}</option>
+              ))}
+            </select>
+
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <label style={{ fontSize: 12, color: '#666', whiteSpace: 'nowrap' }}>Exclude titles:</label>
               <input
@@ -375,16 +325,6 @@ export default function TransferForecastPage() {
                 style={{ padding: '6px 10px', border: '1px solid #ddd', borderRadius: 6, fontSize: 12, width: 200 }}
               />
             </div>
-            <select
-              className="type-select"
-              value={filterLocation}
-              onChange={e => setFilterLocation(e.target.value)}
-            >
-              <option value="">All locations</option>
-              {storeLocations.map(l => (
-                <option key={l.id} value={String(l.id)}>{l.name}</option>
-              ))}
-            </select>
 
             <input
               className="search-input"
@@ -396,11 +336,7 @@ export default function TransferForecastPage() {
             />
 
             {filteredRows.length > 0 && (
-              <button
-                className="btn btn-secondary"
-                style={{ marginLeft: 'auto' }}
-                onClick={() => downloadCSV(filteredRows, weeksCover)}
-              >
+              <button className="btn btn-secondary" style={{ marginLeft: 'auto' }} onClick={() => downloadCSV(filteredRows, weeksCover)}>
                 Download CSV
               </button>
             )}
@@ -420,23 +356,18 @@ export default function TransferForecastPage() {
                 <thead>
                   <tr>
                     {[
-                      ['sku',               'SKU',             null],
-                      ['title',             'Product',         null],
-                      ['locationName',      'Location',        null],
-                      ['avgWeeklySales',    'Avg Weekly',      'Sales / wk'],
-                      ['currentStock',      'Store Stock',     'Current'],
-                      ['targetStock',       'Target Stock',    `${weeksCover}× cover`],
-                      ['extStorageStock',   'Ext. Storage',    'Available'],
-                      ['suggestedTransfer', 'Transfer',        'Suggested'],
+                      ['sku',               'SKU',          null],
+                      ['title',             'Product',      null],
+                      ['locationName',      'Location',     null],
+                      ['avgWeeklySales',    'Avg Weekly',   'Sales / wk'],
+                      ['currentStock',      'Store Stock',  'Current'],
+                      ['targetStock',       'Target Stock', `${weeksCover}× cover`],
+                      ['suggestedTransfer', 'Transfer',     'Suggested'],
                     ].map(([field, label, sub]) => (
                       <th
                         key={field}
                         onClick={() => handleSort(field)}
-                        style={{
-                          cursor: 'pointer',
-                          userSelect: 'none',
-                          textAlign: NUMERIC_COLS.includes(field) ? 'right' : 'left',
-                        }}
+                        style={{ cursor: 'pointer', userSelect: 'none', textAlign: NUMERIC_COLS.includes(field) ? 'right' : 'left' }}
                       >
                         <span style={{ whiteSpace: 'nowrap' }}>{label}{si(field)}</span>
                         {sub && <div className="col-sub">{sub}</div>}
@@ -456,7 +387,6 @@ export default function TransferForecastPage() {
                       <td style={{ textAlign: 'right' }}>{row.avgWeeklySales.toFixed(2)}</td>
                       <td style={{ textAlign: 'right' }}>{row.currentStock}</td>
                       <td style={{ textAlign: 'right' }}>{row.targetStock}</td>
-                      <td style={{ textAlign: 'right' }}>{row.extStorageStock}</td>
                       <td style={{ textAlign: 'right', fontWeight: 700, color: '#005F2C', fontSize: 15 }}>
                         {row.suggestedTransfer}
                       </td>
