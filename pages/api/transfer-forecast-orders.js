@@ -3,7 +3,7 @@ import { shopifyFetchPage } from '../../lib/shopify.js'
 // Fetches POS orders for a specific location.
 // Using location_id filter means Shopify returns only POS orders for that store,
 // keeping page counts low vs fetching all orders and discarding web ones.
-const PAGES_PER_CALL = 5
+const PAGES_PER_CALL = 2 // 2 × ~2s per Shopify request = ~4s, safely under Netlify's 10s limit
 
 export default async function handler(req, res) {
   const { page_info, startDate, endDate, location_id } = req.query
