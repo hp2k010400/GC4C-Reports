@@ -108,9 +108,10 @@ export default function TransferForecastPage() {
 
       setProductMap(skuToMeta)
 
-      // --- Phase 2: Variant stock (inventory_quantity = total across all locations) ---
-      // GC4C uses per-store variants (E/W/M/S suffix), so variant.inventory_quantity
-      // is the correct "store stock" — not per-location inventory.
+      // --- Phase 2: Stock levels — sum inventory across all locations per SKU ---
+      // GC4C uses per-store variants (E/W/M/S suffix). Stock sits at External Storage
+      // but is allocated to a store variant. Summing all locations gives the correct
+      // total allocation for that store's variant.
       setLoadingPhase('inventory')
       setProgress(null)
 
@@ -126,10 +127,34 @@ export default function TransferForecastPage() {
         if (res.ok) variantData = json.map || {}
       }
 
-      const skuToStock = {}
+      // Build sku -> inventory_item_id
+      const skuToIid = {}
       for (const [sku, vid] of Object.entries(skuToVariantId)) {
         const entry = variantData[String(vid)]
-        if (entry) skuToStock[sku] = entry.stock ?? 0
+        if (entry?.iid) skuToIid[sku] = entry.iid
+      }
+
+      // Fetch inventory levels and sum across all locations per SKU
+      const soldIids = Object.values(skuToIid).map(Number).filter(Boolean)
+      let inventoryLevels = []
+      if (soldIids.length > 0) {
+        const res = await fetch('/api/inventory-levels', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ids: soldIids }),
+        })
+        const json = await res.json()
+        if (res.ok) inventoryLevels = json.levels || []
+      }
+
+      const iidToSku = {}
+      for (const [sku, iid] of Object.entries(skuToIid)) iidToSku[String(iid)] = sku
+
+      const skuToStock = {}
+      for (const level of inventoryLevels) {
+        const sku = iidToSku[String(level.inventory_item_id)]
+        if (!sku) continue
+        skuToStock[sku] = (skuToStock[sku] || 0) + Math.max(0, level.available ?? 0)
       }
       setStockMap(skuToStock)
 
