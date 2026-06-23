@@ -7,7 +7,7 @@ const weeksAgo = n => new Date(Date.now() - n * 7 * 86400000).toISOString().slic
 function toCSV(rows, weeksCover) {
   const headers = [
     'SKU', 'Product', 'Variant', 'Location',
-    'Avg Weekly Sales', 'Current Store Stock', `Target Stock (${weeksCover}wk)`, 'Suggested Transfer',
+    'Avg Weekly Sales', 'Newbridge Stock', `Target Stock (${weeksCover}wk)`, 'Suggested Transfer',
   ]
   const data = rows.map(r => [
     r.sku, r.title, r.variant, r.locationName,
@@ -32,7 +32,7 @@ function downloadCSV(rows, weeksCover) {
 
 export default function TransferForecastPage() {
   const [locations, setLocations] = useState([])
-  const [warehouseId, setWarehouseId] = useState('') // auto-detected, used to exclude warehouse from order fetch
+  const [warehouseId, setWarehouseId] = useState('') // auto-detected: excludes from order fetch + used for stock lookup
   const [weeksCover, setWeeksCover] = useState(3)
   const [weeksCoverInput, setWeeksCoverInput] = useState('3')
 
@@ -181,7 +181,7 @@ export default function TransferForecastPage() {
   }, [locations, warehouseId])
 
   const rows = useMemo(() => {
-    if (!salesMap || !inventoryMap || !productMap || !newProductSkus) return []
+    if (!salesMap || !inventoryMap || !productMap || !newProductSkus || !warehouseId) return []
 
     const result = []
     for (const [locId, skuQtyMap] of Object.entries(salesMap)) {
@@ -191,7 +191,8 @@ export default function TransferForecastPage() {
       for (const [sku, totalQty] of Object.entries(skuQtyMap)) {
         if (!newProductSkus.has(sku)) continue  // only 'new product' tagged items
 
-        const currentStock = (inventoryMap[sku] || {})[locId] ?? 0
+        // Stock sits at External Storage (Newbridge) in Shopify under per-store variants
+        const currentStock = (inventoryMap[sku] || {})[warehouseId] ?? 0
         const avgWeeklySales = totalQty / WEEKS
         const targetStock = Math.ceil(avgWeeklySales * weeksCover)
         const suggestedTransfer = targetStock - currentStock
@@ -212,7 +213,7 @@ export default function TransferForecastPage() {
       }
     }
     return result
-  }, [salesMap, inventoryMap, productMap, newProductSkus, weeksCover, locations])
+  }, [salesMap, inventoryMap, productMap, newProductSkus, warehouseId, weeksCover, locations])
 
   const filteredRows = useMemo(() => {
     const excludeTerms = excludeKeywords.split(',').map(k => k.trim().toLowerCase()).filter(Boolean)
@@ -366,7 +367,7 @@ export default function TransferForecastPage() {
                       ['title',             'Product',      null],
                       ['locationName',      'Location',     null],
                       ['avgWeeklySales',    'Avg Weekly',   'Sales / wk'],
-                      ['currentStock',      'Store Stock',  'Current'],
+                      ['currentStock',      'Newbridge Stock', 'Available'],
                       ['targetStock',       'Target Stock', `${weeksCover}× cover`],
                       ['suggestedTransfer', 'Transfer',     'Suggested'],
                     ].map(([field, label, sub]) => (
