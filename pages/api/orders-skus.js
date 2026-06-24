@@ -33,7 +33,7 @@ export default async function handler(req, res) {
       const params = currentPageInfo
         ? { page_info: currentPageInfo }
         : {
-            financial_status: 'paid',
+            status: 'any',
             fields: 'id,line_items',
             created_at_min: new Date(startDate).toISOString(),
             created_at_max: new Date(endDate + 'T23:59:59').toISOString(),
