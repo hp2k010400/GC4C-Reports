@@ -47,7 +47,7 @@ export default function TransferForecastPage() {
   const [skuMeta, setSkuMeta] = useState(null)               // sku -> { type, vendor }
 
   const [filterLocation, setFilterLocation] = useState('')
-  const [filterType, setFilterType] = useState('')
+  const [excludeTypes, setExcludeTypes] = useState(new Set())
   const [filterVendor, setFilterVendor] = useState('')
   const [excludeKeywords, setExcludeKeywords] = useState('Charge, Staff Purchase, Adapter Change')
   const [searchQuery, setSearchQuery] = useState('')
@@ -227,8 +227,7 @@ export default function TransferForecastPage() {
     let r = rows
     if (excludeTerms.length) r = r.filter(row => !excludeTerms.some(t => row.title.toLowerCase().includes(t)))
     if (filterLocation) r = r.filter(row => row.locationId === filterLocation)
-    if (filterType === '__clubs__') r = r.filter(row => /driver|fairway|hybrid|iron|putter|wedge|wood|rescue/i.test(row.type))
-    else if (filterType) r = r.filter(row => row.type === filterType)
+    if (excludeTypes.size > 0) r = r.filter(row => !excludeTypes.has(row.type))
     if (filterVendor) r = r.filter(row => row.vendor === filterVendor)
     if (searchQuery.trim()) {
       const q = searchQuery.trim().toLowerCase()
@@ -241,7 +240,7 @@ export default function TransferForecastPage() {
       if (typeof av === 'number') return dir * (av - bv)
       return dir * String(av).localeCompare(String(bv))
     })
-  }, [rows, excludeKeywords, filterLocation, searchQuery, sortField, sortDir])
+  }, [rows, excludeKeywords, filterLocation, excludeTypes, filterVendor, searchQuery, sortField, sortDir])
 
   const stats = useMemo(() => {
     if (!rows.length) return null
@@ -332,12 +331,6 @@ export default function TransferForecastPage() {
               ))}
             </select>
 
-            <select className="type-select" value={filterType} onChange={e => setFilterType(e.target.value)}>
-              <option value="">All product types</option>
-              <option value="__clubs__">— All clubs —</option>
-              {allTypes.map(t => <option key={t} value={t}>{t}</option>)}
-            </select>
-
             <select className="type-select" value={filterVendor} onChange={e => setFilterVendor(e.target.value)}>
               <option value="">All brands</option>
               {allVendors.map(v => <option key={v} value={v}>{v}</option>)}
@@ -369,6 +362,35 @@ export default function TransferForecastPage() {
               </button>
             )}
           </div>
+
+          {allTypes.length > 0 && (
+            <div style={{ marginTop: 10, padding: '8px 12px', background: '#f9f9f9', borderRadius: 6, border: '1px solid #eee' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+                <span style={{ fontSize: 12, fontWeight: 600, color: '#444' }}>
+                  Exclude types {excludeTypes.size > 0 && <span style={{ color: '#005F2C' }}>({excludeTypes.size} excluded)</span>}
+                </span>
+                {excludeTypes.size > 0 && (
+                  <button onClick={() => setExcludeTypes(new Set())} style={{ fontSize: 11, background: 'none', border: 'none', color: '#999', cursor: 'pointer', padding: 0 }}>Clear all</button>
+                )}
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 16px' }}>
+                {allTypes.map(t => (
+                  <label key={t} style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                    <input
+                      type="checkbox"
+                      checked={!excludeTypes.has(t)}
+                      onChange={e => {
+                        const next = new Set(excludeTypes)
+                        if (!e.target.checked) next.add(t); else next.delete(t)
+                        setExcludeTypes(next)
+                      }}
+                    />
+                    {t}
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
 
           <div className="results-bar">
             <span className="results-count">
