@@ -95,7 +95,7 @@ export default function DeletionCandidatesPage() {
 
   async function fetchAllProducts() {
     try {
-      const metaRes = preRunVendor || preRunType ? null : await fetch('/api/products-cache?meta=1&scope=active')
+      const metaRes = await fetch('/api/products-cache?meta=1&scope=active')
       const meta = metaRes ? await metaRes.json() : {}
       if (meta.hit && meta.totalChunks > 0) {
         const chunks = await Promise.all(

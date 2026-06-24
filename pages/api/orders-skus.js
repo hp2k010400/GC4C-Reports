@@ -1,9 +1,9 @@
 import { shopifyFetchPage } from '../../lib/shopify.js'
 
-// Fetch 15 Shopify pages per Netlify call (15 × 250 = 3750 orders).
-// Each Shopify call ~300-400ms so 15 pages ≈ 5-6s, safely within Netlify's 10s limit.
-// Reduces client↔server round trips ~15x vs fetching one page at a time.
-const PAGES_PER_CALL = 15
+// Fetch 7 Shopify pages per Netlify call (7 × 250 = 1750 orders).
+// Each Shopify call ~500-700ms so 7 pages ≈ 4-5s, safely within Netlify's 10s limit.
+// Reduces client↔server round trips ~7x vs fetching one page at a time.
+const PAGES_PER_CALL = 7
 
 async function fetchWithRetry(params, retries = 3) {
   for (let i = 0; i < retries; i++) {
