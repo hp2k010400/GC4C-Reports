@@ -1,5 +1,9 @@
 import { shopifyFetchPage } from '../../lib/shopify.js'
 
+// Fetch 5 Shopify pages per Netlify call (5 × 250 = 1250 orders).
+// Reduces client↔server round trips ~5x vs fetching one page at a time.
+const PAGES_PER_CALL = 5
+
 async function fetchWithRetry(params, retries = 3) {
   for (let i = 0; i < retries; i++) {
     try {
@@ -19,24 +23,34 @@ export default async function handler(req, res) {
   const { page_info, startDate, endDate } = req.query
 
   try {
-    const params = page_info
-      ? { page_info }
-      : {
-          status: 'any',
-          fields: 'id,line_items',
-          created_at_min: new Date(startDate).toISOString(),
-          created_at_max: new Date(endDate + 'T23:59:59').toISOString(),
-          limit: 250,
-        }
-
-    const { items, nextPageInfo } = await fetchWithRetry(params)
-
     const skus = []
-    for (const order of items) {
-      for (const item of order.line_items || []) {
-        if (item.sku) skus.push(String(item.sku).trim())
+    let currentPageInfo = page_info || null
+    let nextPageInfo = null
+    let pagesCount = 0
+
+    do {
+      const params = currentPageInfo
+        ? { page_info: currentPageInfo }
+        : {
+            status: 'any',
+            fields: 'id,line_items',
+            created_at_min: new Date(startDate).toISOString(),
+            created_at_max: new Date(endDate + 'T23:59:59').toISOString(),
+            limit: 250,
+          }
+
+      const { items, nextPageInfo: next } = await fetchWithRetry(params)
+
+      for (const order of items) {
+        for (const item of order.line_items || []) {
+          if (item.sku) skus.push(String(item.sku).trim())
+        }
       }
-    }
+
+      currentPageInfo = next
+      nextPageInfo = next
+      pagesCount++
+    } while (currentPageInfo && pagesCount < PAGES_PER_CALL)
 
     res.status(200).json({ skus, nextPageInfo })
   } catch (err) {
