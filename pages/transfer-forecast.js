@@ -48,6 +48,7 @@ export default function TransferForecastPage() {
 
   const [filterLocation, setFilterLocation] = useState('')
   const [excludeTypes, setExcludeTypes] = useState(new Set())
+  const [typesOpen, setTypesOpen] = useState(false)
   const [filterVendor, setFilterVendor] = useState('')
   const [excludeKeywords, setExcludeKeywords] = useState('Charge, Staff Purchase, Adapter Change')
   const [searchQuery, setSearchQuery] = useState('')
@@ -364,31 +365,40 @@ export default function TransferForecastPage() {
           </div>
 
           {allTypes.length > 0 && (
-            <div style={{ marginTop: 10, padding: '8px 12px', background: '#f9f9f9', borderRadius: 6, border: '1px solid #eee' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
-                <span style={{ fontSize: 12, fontWeight: 600, color: '#444' }}>
-                  Exclude types {excludeTypes.size > 0 && <span style={{ color: '#005F2C' }}>({excludeTypes.size} excluded)</span>}
-                </span>
-                {excludeTypes.size > 0 && (
-                  <button onClick={() => setExcludeTypes(new Set())} style={{ fontSize: 11, background: 'none', border: 'none', color: '#999', cursor: 'pointer', padding: 0 }}>Clear all</button>
-                )}
-              </div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 16px' }}>
-                {allTypes.map(t => (
-                  <label key={t} style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap' }}>
-                    <input
-                      type="checkbox"
-                      checked={!excludeTypes.has(t)}
-                      onChange={e => {
-                        const next = new Set(excludeTypes)
-                        if (!e.target.checked) next.add(t); else next.delete(t)
-                        setExcludeTypes(next)
-                      }}
-                    />
-                    {t}
-                  </label>
-                ))}
-              </div>
+            <div style={{ marginTop: 10, position: 'relative' }}>
+              <button
+                onClick={() => setTypesOpen(o => !o)}
+                style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 12px', border: '1px solid #ddd', borderRadius: 6, background: '#fff', cursor: 'pointer', fontSize: 12, fontWeight: 600, color: '#444' }}
+              >
+                Exclude types
+                {excludeTypes.size > 0 && <span style={{ background: '#005F2C', color: '#fff', borderRadius: 10, padding: '1px 7px', fontSize: 11 }}>{excludeTypes.size} excluded</span>}
+                <span style={{ fontSize: 10, color: '#999' }}>{typesOpen ? '▲' : '▼'}</span>
+              </button>
+
+              {typesOpen && (
+                <div style={{ position: 'absolute', top: '100%', left: 0, zIndex: 100, marginTop: 4, background: '#fff', border: '1px solid #ddd', borderRadius: 8, boxShadow: '0 4px 16px rgba(0,0,0,0.12)', padding: '10px 14px', minWidth: 320 }}>
+                  <div style={{ display: 'flex', gap: 8, marginBottom: 8, paddingBottom: 8, borderBottom: '1px solid #eee' }}>
+                    <button onClick={() => setExcludeTypes(new Set())} style={{ fontSize: 11, padding: '3px 8px', border: '1px solid #ddd', borderRadius: 4, background: '#f5f5f5', cursor: 'pointer' }}>Select all</button>
+                    <button onClick={() => setExcludeTypes(new Set(allTypes))} style={{ fontSize: 11, padding: '3px 8px', border: '1px solid #ddd', borderRadius: 4, background: '#f5f5f5', cursor: 'pointer' }}>Deselect all</button>
+                  </div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px 18px' }}>
+                    {allTypes.map(t => (
+                      <label key={t} style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                        <input
+                          type="checkbox"
+                          checked={!excludeTypes.has(t)}
+                          onChange={e => {
+                            const next = new Set(excludeTypes)
+                            if (!e.target.checked) next.add(t); else next.delete(t)
+                            setExcludeTypes(next)
+                          }}
+                        />
+                        {t}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
