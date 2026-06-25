@@ -21,8 +21,13 @@ const NAV = [
     ],
   },
   { label: 'Returns', href: '/returns' },
-  { label: 'Trade-Ins', href: '/trade-ins' },
-  { label: 'Store Credit', href: '/store-credit' },
+  {
+    label: 'Trade-Ins',
+    items: [
+      { label: 'Payment Split', href: '/trade-ins' },
+      { label: 'Store Credit', href: '/store-credit' },
+    ],
+  },
   { label: 'Reports', href: '/' },
 ]
 
