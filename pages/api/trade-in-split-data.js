@@ -10,6 +10,7 @@ const GIFT_CARDS_QUERY = `
         node {
           initialValue { amount }
           customer { tags }
+          order { location { name } }
         }
       }
     }
@@ -18,6 +19,8 @@ const GIFT_CARDS_QUERY = `
 
 async function fetchGiftCards(startDate, endDate) {
   const queryStr = `created_at:>='${startDate}' created_at:<='${endDate}T23:59:59'`
+  // byStore: { [storeName]: { count, total } }
+  const byStore = {}
   let count = 0
   let total = 0
   let cursor = null
@@ -30,14 +33,21 @@ async function fetchGiftCards(startDate, endDate) {
       if (!node.customer) continue
       const tags = (node.customer.tags || []).map(t => t.toLowerCase())
       if (tags.some(t => t === PRO_TAG)) continue
+      const amount = parseFloat(node.initialValue?.amount || 0)
+      const store = node.order?.location?.name || null
       count++
-      total += parseFloat(node.initialValue?.amount || 0)
+      total += amount
+      if (store) {
+        if (!byStore[store]) byStore[store] = { count: 0, total: 0 }
+        byStore[store].count++
+        byStore[store].total = parseFloat((byStore[store].total + amount).toFixed(2))
+      }
     }
     hasNext = gc.pageInfo.hasNextPage
     cursor = gc.pageInfo.endCursor
   }
 
-  return { count, total: parseFloat(total.toFixed(2)) }
+  return { count, total: parseFloat(total.toFixed(2)), byStore }
 }
 
 async function fetchFormSubmissions(startDate, endDate) {
@@ -87,8 +97,13 @@ export default async function handler(req, res) {
       byType[type].total = parseFloat((byType[type].total + amount).toFixed(2))
     }
 
-    // Inject store credit from Shopify (store breakdown not available)
-    byType['Store Credit'] = giftCards
+    // Merge gift card store breakdown into byStore
+    for (const [store, sc] of Object.entries(giftCards.byStore)) {
+      if (!byStore[store]) byStore[store] = {}
+      byStore[store]['Store Credit'] = sc
+    }
+
+    byType['Store Credit'] = { count: giftCards.count, total: giftCards.total }
 
     const paidOutCount = rows.length
     const paidOutTotal = parseFloat(rows.reduce((s, r) => s + parseFloat(r.payment_amount || 0), 0).toFixed(2))

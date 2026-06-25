@@ -175,21 +175,20 @@ export default function TradeInsPage() {
             </table>
           </div>
 
-          {/* Per-store breakdown (paid out methods only) */}
+          {/* Per-store breakdown including store credit */}
           {Object.keys(data.byStore).length > 0 && (
             <>
               <div style={{ marginBottom: 8, fontWeight: 600, fontSize: 13, color: '#444', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                Per Store — Paid-Out Methods
-                <span style={{ fontSize: 11, color: '#999', fontWeight: 400, marginLeft: 8, textTransform: 'none', letterSpacing: 0 }}>
-                  (Store Credit not broken down by store)
-                </span>
+                Per Store — Payment Method Split
               </div>
               <div className="table-wrap">
                 <table className="table-compact">
                   <thead>
                     <tr>
                       <th>Store</th>
-                      <th style={{ textAlign: 'right' }}>Total Paid Out</th>
+                      <th style={{ textAlign: 'right' }}>Total</th>
+                      <th style={{ textAlign: 'right', color: '#005F2C' }}>Store Credit</th>
+                      <th style={{ textAlign: 'right' }}>% Store Credit</th>
                       <th style={{ textAlign: 'right' }}>Bank Transfer</th>
                       <th style={{ textAlign: 'right' }}>PayPal</th>
                       <th style={{ textAlign: 'right' }}>International</th>
@@ -198,17 +197,30 @@ export default function TradeInsPage() {
                   <tbody>
                     {sortedStores(data.byStore).map(store => {
                       const s = data.byStore[store]
+                      const sc = s['Store Credit'] || { count: 0, total: 0 }
                       const bt = s['Bank Transfer'] || { count: 0, total: 0 }
                       const pp = s['Paypal'] || { count: 0, total: 0 }
                       const intl = s['International'] || { count: 0, total: 0 }
                       const storeTotal = Object.values(s).reduce((sum, t) => sum + t.count, 0)
                       const storeTotalVal = Object.values(s).reduce((sum, t) => sum + t.total, 0)
+                      const scPct = storeTotal > 0 ? ((sc.count / storeTotal) * 100).toFixed(1) : '0.0'
                       return (
                         <tr key={store}>
                           <td style={{ fontWeight: 500 }}>{store}</td>
                           <td style={{ textAlign: 'right', fontWeight: 600 }}>
                             {storeTotal.toLocaleString()}
                             <div style={{ fontSize: 11, color: '#888' }}>{fmtGbp(storeTotalVal)}</div>
+                          </td>
+                          <td style={{ textAlign: 'right', color: '#005F2C', fontWeight: 600 }}>
+                            {sc.count > 0 ? (<>{sc.count.toLocaleString()}<div style={{ fontSize: 11, color: '#888', fontWeight: 400 }}>{fmtGbp(sc.total)}</div></>) : <span style={{ color: '#ccc' }}>—</span>}
+                          </td>
+                          <td style={{ textAlign: 'right' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8 }}>
+                              <div style={{ width: 60, height: 6, background: '#eee', borderRadius: 3, overflow: 'hidden' }}>
+                                <div style={{ width: `${scPct}%`, height: '100%', background: '#005F2C', borderRadius: 3 }} />
+                              </div>
+                              <span style={{ minWidth: 36, fontWeight: 600, color: parseFloat(scPct) >= 30 ? '#005F2C' : '#444' }}>{scPct}%</span>
+                            </div>
                           </td>
                           <td style={{ textAlign: 'right' }}>
                             {bt.count > 0 ? (<>{bt.count.toLocaleString()}<div style={{ fontSize: 11, color: '#888' }}>{fmtGbp(bt.total)}</div></>) : <span style={{ color: '#ccc' }}>—</span>}

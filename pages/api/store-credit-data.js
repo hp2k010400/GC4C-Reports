@@ -22,6 +22,9 @@ const GIFT_CARDS_QUERY = `
             lastName
             tags
           }
+          order {
+            location { name }
+          }
         }
       }
     }
@@ -54,6 +57,7 @@ export default async function handler(req, res) {
           balance: parseFloat(node.balance?.amount || 0),
           createdAt: node.createdAt?.slice(0, 10) || '',
           note: node.note || '',
+          store: node.order?.location?.name || null,
           customer: {
             id: node.customer.id,
             email: node.customer.email || '',
