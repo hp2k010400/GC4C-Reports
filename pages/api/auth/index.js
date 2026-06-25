@@ -4,7 +4,7 @@ export default function handler(req, res) {
   const store = req.query.shop || process.env.SHOPIFY_STORE
   const state = crypto.randomBytes(16).toString('hex')
   const redirectUri = `${process.env.NEXT_PUBLIC_URL}/api/orders-data`
-  const scopes = 'read_all_orders,read_customers,read_inventory,read_inventory_transfers,read_locations,read_orders,read_products'
+  const scopes = 'read_all_orders,read_customers,read_gift_cards,read_inventory,read_inventory_transfers,read_locations,read_orders,read_products'
 
   const authUrl =
     `https://${store}/admin/oauth/authorize` +

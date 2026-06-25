@@ -21,6 +21,7 @@ const NAV = [
     ],
   },
   { label: 'Returns', href: '/returns' },
+  { label: 'Store Credit', href: '/store-credit' },
   { label: 'Reports', href: '/' },
 ]
 
