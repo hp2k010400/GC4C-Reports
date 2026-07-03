@@ -48,31 +48,37 @@ export default function GripSalesPage() {
     let accGripRows = []
 
     try {
-      let cursor = null
-      do {
-        const params = new URLSearchParams({ startDate, endDate, ...(cursor ? { cursor } : {}) })
-        const res = await fetch(`/api/grip-sales-data?${params}`)
-        const json = await res.json()
-        if (!res.ok) throw new Error(json.error)
+      // Phase 1: get locations list
+      const locRes = await fetch(`/api/grip-sales-data?startDate=${startDate}&endDate=${endDate}`)
+      const locJson = await locRes.json()
+      if (!locRes.ok) throw new Error(locJson.error)
 
-        const p = json.partial
-        accPosQty     += p.posQty
-        accPosRevenue += p.posRevenue
-        accGripQty    += p.gripQty
-        accGripRevenue += p.gripRevenue
+      // Phase 2: paginate orders per location
+      for (const loc of locJson.locations) {
+        let cursor = null
+        do {
+          const params = new URLSearchParams({ startDate, endDate, locationId: String(loc.id), ...(cursor ? { cursor } : {}) })
+          const res = await fetch(`/api/grip-sales-data?${params}`)
+          const json = await res.json()
+          if (!res.ok) throw new Error(json.error)
 
-        for (const [store, d] of Object.entries(p.byStore)) {
-          if (!accByStore[store]) accByStore[store] = { posQty: 0, posRevenue: 0, gripQty: 0, gripRevenue: 0 }
-          accByStore[store].posQty      += d.posQty
-          accByStore[store].posRevenue  += d.posRevenue
-          accByStore[store].gripQty     += d.gripQty
-          accByStore[store].gripRevenue += d.gripRevenue
-        }
+          const p = json.partial
+          accPosQty     += p.posQty
+          accPosRevenue += p.posRevenue
+          accGripQty    += p.gripQty
+          accGripRevenue += p.gripRevenue
 
-        accGripRows = accGripRows.concat(json.gripRows)
-        setProgress(accPosQty)
-        cursor = json.nextCursor
-      } while (cursor)
+          if (!accByStore[p.store]) accByStore[p.store] = { posQty: 0, posRevenue: 0, gripQty: 0, gripRevenue: 0 }
+          accByStore[p.store].posQty      += p.posQty
+          accByStore[p.store].posRevenue  += p.posRevenue
+          accByStore[p.store].gripQty     += p.gripQty
+          accByStore[p.store].gripRevenue += p.gripRevenue
+
+          accGripRows = accGripRows.concat(json.gripRows)
+          setProgress(accPosQty)
+          cursor = json.nextCursor
+        } while (cursor)
+      }
 
       const byStore = [
         ...STORE_ORDER.filter(s => accByStore[s]),
