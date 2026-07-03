@@ -1,4 +1,4 @@
-import { shopifyGraphQL } from '../../lib/shopify.js'
+import { shopifyGraphQL, shopifyGetOne } from '../../lib/shopify.js'
 
 const GRIP_TYPES = new Set(['golf club grips', 'golf club grip'])
 const PAGES_PER_CALL = 3
@@ -11,7 +11,7 @@ const ORDERS_QUERY = `
         node {
           name
           createdAt
-          location { name }
+          locationId
           lineItems(first: 100) {
             edges {
               node {
@@ -34,6 +34,13 @@ export default async function handler(req, res) {
   if (!startDate || !endDate) return res.status(400).json({ error: 'startDate and endDate required' })
 
   try {
+    // locationId in GraphQL is a GID like "gid://shopify/Location/12345" — resolve to names via REST
+    const locData = await shopifyGetOne('locations.json')
+    const locationMap = {}
+    for (const loc of (locData.locations || [])) {
+      locationMap[`gid://shopify/Location/${loc.id}`] = loc.name
+    }
+
     const q = `source_name:pos created_at:>='${startDate}' created_at:<='${endDate}T23:59:59'`
 
     let posQty = 0, posRevenue = 0
@@ -50,7 +57,7 @@ export default async function handler(req, res) {
       const page = data.orders
 
       for (const { node: order } of page.edges) {
-        const store = order.location?.name || 'Unknown'
+        const store = locationMap[order.locationId] || 'Unknown'
         if (!byStore[store]) byStore[store] = { posQty: 0, posRevenue: 0, gripQty: 0, gripRevenue: 0 }
 
         for (const { node: item } of order.lineItems.edges) {
