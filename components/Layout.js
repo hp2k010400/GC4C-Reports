@@ -22,6 +22,12 @@ const NAV = [
   },
   { label: 'Returns', href: '/returns' },
   {
+    label: 'POS',
+    items: [
+      { label: 'Grip Sales', href: '/grip-sales' },
+    ],
+  },
+  {
     label: 'Trade-Ins',
     items: [
       { label: 'Payment Split', href: '/trade-ins' },
