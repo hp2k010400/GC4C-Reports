@@ -265,45 +265,47 @@ export default function GripSalesPage() {
           </div>
 
           {/* By Colleague */}
-          {data.byColleague.length > 0 && (
-            <>
-              <h2 style={{ fontSize: 14, fontWeight: 700, color: '#555', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 10 }}>
-                By Colleague
-              </h2>
-              <div className="table-wrap" style={{ marginBottom: 28 }}>
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Colleague</th>
-                      <th style={{ textAlign: 'right' }}>Grip Orders</th>
-                      <th style={{ textAlign: 'right' }}>Total Orders</th>
-                      <th style={{ textAlign: 'right' }}>Order Ratio</th>
-                      <th style={{ textAlign: 'right' }}>Grip Units</th>
-                      <th style={{ textAlign: 'right' }}>Grip Revenue</th>
+          <h2 style={{ fontSize: 14, fontWeight: 700, color: '#555', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 10 }}>
+            By Colleague
+          </h2>
+          {data.byColleague.length === 0 ? (
+            <p style={{ color: '#888', fontSize: 13, marginBottom: 28 }}>
+              No colleague data — the Shopify token may need the <code>read_users</code> scope, or POS orders have no assigned staff.
+            </p>
+          ) : (
+            <div className="table-wrap" style={{ marginBottom: 28 }}>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Colleague</th>
+                    <th style={{ textAlign: 'right' }}>Grip Orders</th>
+                    <th style={{ textAlign: 'right' }}>Total Orders</th>
+                    <th style={{ textAlign: 'right' }}>Order Ratio</th>
+                    <th style={{ textAlign: 'right' }}>Grip Units</th>
+                    <th style={{ textAlign: 'right' }}>Grip Revenue</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.byColleague.map(c => (
+                    <tr key={c.name}>
+                      <td style={{ fontWeight: 500 }}>{c.name}</td>
+                      <td style={{ textAlign: 'right', fontWeight: 600 }}>{c.gripOrders}</td>
+                      <td style={{ textAlign: 'right', color: '#888' }}>{c.totalOrders}</td>
+                      <td style={{ textAlign: 'right' }}>
+                        <span style={{
+                          fontWeight: 700,
+                          color: c.ratio >= 20 ? '#005F2C' : c.ratio >= 10 ? '#d97706' : '#333',
+                        }}>
+                          {c.ratio}%
+                        </span>
+                      </td>
+                      <td style={{ textAlign: 'right' }}>{c.gripQty}</td>
+                      <td style={{ textAlign: 'right' }}>{fmtGbp(c.gripRevenue)}</td>
                     </tr>
-                  </thead>
-                  <tbody>
-                    {data.byColleague.map(c => (
-                      <tr key={c.name}>
-                        <td style={{ fontWeight: 500 }}>{c.name}</td>
-                        <td style={{ textAlign: 'right', fontWeight: 600 }}>{c.gripOrders}</td>
-                        <td style={{ textAlign: 'right', color: '#888' }}>{c.totalOrders}</td>
-                        <td style={{ textAlign: 'right' }}>
-                          <span style={{
-                            fontWeight: 700,
-                            color: c.ratio >= 20 ? '#005F2C' : c.ratio >= 10 ? '#d97706' : '#333',
-                          }}>
-                            {c.ratio}%
-                          </span>
-                        </td>
-                        <td style={{ textAlign: 'right' }}>{c.gripQty}</td>
-                        <td style={{ textAlign: 'right' }}>{fmtGbp(c.gripRevenue)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
 
           {/* Grip Transactions */}
