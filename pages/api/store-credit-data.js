@@ -23,7 +23,7 @@ const GIFT_CARDS_QUERY = `
             tags
           }
           order {
-            location { name }
+            tags
           }
         }
       }
@@ -57,7 +57,7 @@ export default async function handler(req, res) {
           balance: parseFloat(node.balance?.amount || 0),
           createdAt: node.createdAt?.slice(0, 10) || '',
           note: node.note || '',
-          store: node.order?.location?.name || null,
+          store: ['Edinburgh', 'Milton Keynes', 'Southampton', 'Warrington'].find(s => (node.order?.tags || []).includes(s)) || null,
           customer: {
             id: node.customer.id,
             email: node.customer.email || '',
