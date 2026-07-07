@@ -4,7 +4,7 @@ export default async function handler(req, res) {
   if (req.query.secret !== process.env.ACTION_SECRET) {
     return res.status(401).json({ error: 'Unauthorized' })
   }
-  const typeName = req.query.type || 'ReturnLineItemType'
+  const typeName = req.query.type || 'Return'
   const data = await shopifyGraphQL(`
     {
       __type(name: "${typeName}") {
