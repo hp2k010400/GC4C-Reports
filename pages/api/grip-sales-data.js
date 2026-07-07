@@ -1,6 +1,13 @@
 import { shopifyFetchPage, shopifyGetOne } from '../../lib/shopify.js'
 import { STAFF_NAMES } from '../../lib/staff-names.js'
 
+function staffFromTags(tags) {
+  if (!tags) return null
+  const arr = typeof tags === 'string' ? tags.split(',') : tags
+  const t = arr.find(t => t.trim().toLowerCase().startsWith('staff:'))
+  return t ? t.trim().slice(6).trim() : null
+}
+
 const PAGES_PER_CALL = 2
 
 async function loadGripVariantIds() {
@@ -58,7 +65,7 @@ export default async function handler(req, res) {
         ? { page_info: currentCursor }
         : {
             status: 'any',
-            fields: 'id,name,created_at,line_items,user_id',
+            fields: 'id,name,created_at,line_items,user_id,tags',
             created_at_min: new Date(startDate).toISOString(),
             created_at_max: new Date(endDate + 'T23:59:59').toISOString(),
             location_id: locationId,
@@ -69,7 +76,8 @@ export default async function handler(req, res) {
 
       for (const order of items) {
         totalOrders++
-        const userId = String(order.user_id || 'unknown')
+        const staffName = staffFromTags(order.tags) || STAFF_NAMES[String(order.user_id)] || null
+        const userId = staffName || String(order.user_id || 'unknown')
         if (!byUser[userId]) byUser[userId] = { totalOrders: 0, gripOrders: 0, gripQty: 0, gripRevenue: 0 }
         byUser[userId].totalOrders++
 

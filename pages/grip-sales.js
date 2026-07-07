@@ -110,7 +110,7 @@ export default function GripSalesPage() {
 
       const byColleague = Object.entries(accByUser)
         .map(([uid, d]) => ({
-          name:        users[uid] || (uid === 'unknown' ? 'Unassigned' : `Staff #${uid}`),
+          name:        users[uid] || (uid === 'unknown' ? 'Unassigned' : /^\d+$/.test(uid) ? `Staff #${uid}` : uid),
           totalOrders: d.totalOrders,
           gripOrders:  d.gripOrders,
           gripQty:     d.gripQty,
