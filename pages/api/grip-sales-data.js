@@ -80,7 +80,7 @@ export default async function handler(req, res) {
         const userId = staffName || String(order.user_id || 'unknown')
         if (!byUser[userId]) byUser[userId] = { totalOrders: 0, gripOrders: 0, gripQty: 0, gripRevenue: 0, stores: {} }
         byUser[userId].totalOrders++
-        byUser[userId].stores[storeName] = true
+        byUser[userId].stores[storeName] = (byUser[userId].stores[storeName] || 0) + 1
 
         let orderHasGrip = false
         for (const item of (order.line_items || [])) {
