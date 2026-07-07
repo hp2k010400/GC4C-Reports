@@ -10,7 +10,7 @@ const GIFT_CARDS_QUERY = `
         node {
           initialValue { amount }
           customer { tags }
-          order { location { name } }
+          order { tags }
         }
       }
     }
@@ -34,7 +34,7 @@ async function fetchGiftCards(startDate, endDate) {
       const tags = (node.customer.tags || []).map(t => t.toLowerCase())
       if (tags.some(t => t === PRO_TAG)) continue
       const amount = parseFloat(node.initialValue?.amount || 0)
-      const store = node.order?.location?.name || null
+      const store = ['Edinburgh', 'Milton Keynes', 'Southampton', 'Warrington'].find(s => (node.order?.tags || []).includes(s)) || null
       count++
       total += amount
       if (store) {
