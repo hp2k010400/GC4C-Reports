@@ -120,7 +120,7 @@ export default function GripSalesPage() {
           ratio:       d.totalOrders > 0 ? parseFloat(((d.gripOrders / d.totalOrders) * 100).toFixed(1)) : 0,
         }))
         .filter(c => c.totalOrders > 0)
-        .sort((a, b) => b.ratio - a.ratio)
+        .sort((a, b) => b.gripOrders - a.gripOrders || b.ratio - a.ratio)
 
       setData({
         summary: {
