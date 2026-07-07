@@ -1,4 +1,5 @@
 import { shopifyFetchPage, shopifyGetOne } from '../../lib/shopify.js'
+import { STAFF_NAMES } from '../../lib/staff-names.js'
 
 const PAGES_PER_CALL = 2
 
@@ -30,7 +31,7 @@ export default async function handler(req, res) {
         shopifyGetOne('locations.json'),
         shopifyGetOne('users.json').catch(() => ({ users: [] })),
       ])
-      const users = {}
+      const users = { ...STAFF_NAMES }
       for (const u of (usersData.users || [])) {
         users[String(u.id)] = [u.first_name, u.last_name].filter(Boolean).join(' ').trim() || u.email || String(u.id)
       }
