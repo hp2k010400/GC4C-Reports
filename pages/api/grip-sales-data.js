@@ -78,8 +78,9 @@ export default async function handler(req, res) {
         totalOrders++
         const staffName = staffFromTags(order.tags) || STAFF_NAMES[String(order.user_id)] || null
         const userId = staffName || String(order.user_id || 'unknown')
-        if (!byUser[userId]) byUser[userId] = { totalOrders: 0, gripOrders: 0, gripQty: 0, gripRevenue: 0 }
+        if (!byUser[userId]) byUser[userId] = { totalOrders: 0, gripOrders: 0, gripQty: 0, gripRevenue: 0, stores: {} }
         byUser[userId].totalOrders++
+        byUser[userId].stores[storeName] = true
 
         let orderHasGrip = false
         for (const item of (order.line_items || [])) {

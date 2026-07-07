@@ -79,11 +79,12 @@ export default function GripSalesPage() {
           accByStore[p.store].gripRevenue += p.gripRevenue
 
           for (const [uid, d] of Object.entries(p.byUser || {})) {
-            if (!accByUser[uid]) accByUser[uid] = { totalOrders: 0, gripOrders: 0, gripQty: 0, gripRevenue: 0 }
+            if (!accByUser[uid]) accByUser[uid] = { totalOrders: 0, gripOrders: 0, gripQty: 0, gripRevenue: 0, stores: {} }
             accByUser[uid].totalOrders += d.totalOrders
             accByUser[uid].gripOrders  += d.gripOrders
             accByUser[uid].gripQty     += d.gripQty
             accByUser[uid].gripRevenue += d.gripRevenue
+            for (const s of Object.keys(d.stores || {})) accByUser[uid].stores[s] = true
           }
 
           accGripRows = accGripRows.concat(json.gripRows)
@@ -111,6 +112,7 @@ export default function GripSalesPage() {
       const byColleague = Object.entries(accByUser)
         .map(([uid, d]) => ({
           name:        users[uid] || (uid === 'unknown' ? 'Unassigned' : /^\d+$/.test(uid) ? `Staff #${uid}` : uid),
+          store:       Object.keys(d.stores || {}).sort().join(' / '),
           totalOrders: d.totalOrders,
           gripOrders:  d.gripOrders,
           gripQty:     d.gripQty,
@@ -278,6 +280,7 @@ export default function GripSalesPage() {
                 <thead>
                   <tr>
                     <th>Colleague</th>
+                    <th>Store</th>
                     <th style={{ textAlign: 'right' }}>Grip Orders</th>
                     <th style={{ textAlign: 'right' }}>Total Orders</th>
                     <th style={{ textAlign: 'right' }}>Order Ratio</th>
@@ -289,6 +292,7 @@ export default function GripSalesPage() {
                   {data.byColleague.map(c => (
                     <tr key={c.name}>
                       <td style={{ fontWeight: 500 }}>{c.name}</td>
+                      <td style={{ color: '#555', fontSize: 13 }}>{c.store || '—'}</td>
                       <td style={{ textAlign: 'right', fontWeight: 600 }}>{c.gripOrders}</td>
                       <td style={{ textAlign: 'right', color: '#888' }}>{c.totalOrders}</td>
                       <td style={{ textAlign: 'right' }}>
