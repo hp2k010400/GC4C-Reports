@@ -6,7 +6,7 @@ const PRO_TAG = (process.env.PRO_CUSTOMER_TAG || 'trade account').toLowerCase()
 
 const GIFT_CARDS_QUERY = `
   query GiftCards($cursor: String, $query: String!) {
-    giftCards(first: 50, after: $cursor, query: $query) {
+    giftCards(first: 250, after: $cursor, query: $query) {
       pageInfo { hasNextPage endCursor }
       edges {
         node {
@@ -40,11 +40,16 @@ export default async function handler(req, res) {
     const cards = []
     let cursor = null
     let hasNext = true
+    let pages = 0
 
-    while (hasNext) {
+    while (hasNext && pages < 10) {
       const data = await shopifyGraphQL(GIFT_CARDS_QUERY, { cursor, query: queryStr })
       const gc = data.giftCards
+      pages++
       for (const { node } of gc.edges) {
+        // skip cards outside the requested date range
+        const cardDate = node.createdAt?.slice(0, 10) || ''
+        if (cardDate < startDate || cardDate > endDate) continue
         // only include cards linked to a real customer (excludes gift cards sold as products)
         if (!node.customer) continue
         // exclude pro/trade accounts
