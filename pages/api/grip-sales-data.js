@@ -75,6 +75,10 @@ export default async function handler(req, res) {
       const { items, nextPageInfo } = await shopifyFetchPage('orders.json', 'orders', params)
 
       for (const order of items) {
+        const lineItems = order.line_items || []
+        const isClubOrder = lineItems.some(item => !gripIds.has(item.variant_id))
+        if (!isClubOrder) continue
+
         totalOrders++
         const staffName = staffFromTags(order.tags) || STAFF_NAMES[String(order.user_id)] || null
         const userId = staffName || String(order.user_id || 'unknown')
@@ -83,7 +87,7 @@ export default async function handler(req, res) {
         byUser[userId].stores[storeName] = (byUser[userId].stores[storeName] || 0) + 1
 
         let orderHasGrip = false
-        for (const item of (order.line_items || [])) {
+        for (const item of lineItems) {
           const qty = item.quantity
           const price = parseFloat(item.price || 0)
           const lineTotal = qty * price

@@ -181,7 +181,7 @@ export default function GripSalesPage() {
       <div className="page-header">
         <div>
           <h1 className="page-title">Grip Sales — POS</h1>
-          <p className="page-sub">Golf Club Grips sold in-store, as a % of total POS items and revenue</p>
+          <p className="page-sub">Golf Club Grips added on to club sales — % of club sale orders and revenue</p>
         </div>
       </div>
 
@@ -226,14 +226,14 @@ export default function GripSalesPage() {
               <div className="stat-value">{fmtGbp(s.totalGripRevenue)}</div>
             </div>
             <div className="stat-card" style={{ flex: 1, minWidth: 160 }}>
-              <div className="stat-label">% of POS Items</div>
+              <div className="stat-label">% of Club Sale Items</div>
               <div className="stat-value" style={{ color: '#005F2C' }}>{s.pctQty}%</div>
               <div style={{ fontSize: 11, color: '#999', marginTop: 3 }}>
                 {s.totalGripQty} of {s.totalPosQty.toLocaleString()} units
               </div>
             </div>
             <div className="stat-card" style={{ flex: 1, minWidth: 160 }}>
-              <div className="stat-label">% of POS Revenue</div>
+              <div className="stat-label">% of Club Sale Revenue</div>
               <div className="stat-value" style={{ color: '#005F2C' }}>{s.pctRevenue}%</div>
               <div style={{ fontSize: 11, color: '#999', marginTop: 3 }}>
                 of {fmtGbp(s.totalPosRevenue)} total
@@ -265,8 +265,8 @@ export default function GripSalesPage() {
                   <th>Store</th>
                   <th style={{ textAlign: 'right' }}>Grip Units</th>
                   <th style={{ textAlign: 'right' }}>Grip Revenue</th>
-                  <th style={{ textAlign: 'right' }}>POS Items</th>
-                  <th style={{ textAlign: 'right' }}>POS Revenue</th>
+                  <th style={{ textAlign: 'right' }}>Club Sale Items</th>
+                  <th style={{ textAlign: 'right' }}>Club Sale Revenue</th>
                   <th style={{ textAlign: 'right' }}>% Items</th>
                   <th style={{ textAlign: 'right' }}>% Revenue</th>
                 </tr>
