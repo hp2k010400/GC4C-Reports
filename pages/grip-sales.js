@@ -34,6 +34,9 @@ export default function GripSalesPage() {
   const [progress, setProgress]   = useState(0)
   const [error, setError]         = useState(null)
   const [showRows, setShowRows]   = useState(false)
+  const [sortCol, setSortCol]     = useState('ratio')
+  const [sortDir, setSortDir]     = useState('desc')
+  const [storeFilter, setStoreFilter] = useState('all')
 
   async function loadData() {
     setLoading(true)
@@ -120,7 +123,6 @@ export default function GripSalesPage() {
           ratio:       d.totalOrders > 0 ? parseFloat(((d.gripOrders / d.totalOrders) * 100).toFixed(1)) : 0,
         }))
         .filter(c => c.totalOrders > 0)
-        .sort((a, b) => b.gripOrders - a.gripOrders || b.ratio - a.ratio)
 
       setData({
         summary: {
@@ -156,6 +158,21 @@ export default function GripSalesPage() {
       setStartDate(daysAgo(29)); setEndDate(today())
     }
   }
+
+  function toggleSort(col) {
+    if (sortCol === col) setSortDir(d => d === 'desc' ? 'asc' : 'desc')
+    else { setSortCol(col); setSortDir('desc') }
+  }
+
+  const sortedColleagues = data
+    ? [...data.byColleague].sort((a, b) => sortDir === 'desc' ? b[sortCol] - a[sortCol] : a[sortCol] - b[sortCol])
+    : []
+
+  const filteredStores = data
+    ? (storeFilter === 'all' ? data.byStore : data.byStore.filter(r => r.store === storeFilter))
+    : []
+
+  const sortIcon = col => sortCol === col ? (sortDir === 'desc' ? ' ▼' : ' ▲') : ''
 
   const s = data?.summary
 
@@ -225,9 +242,22 @@ export default function GripSalesPage() {
           </div>
 
           {/* By Store */}
-          <h2 style={{ fontSize: 14, fontWeight: 700, color: '#555', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 10 }}>
-            By Store
-          </h2>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 16, marginBottom: 10 }}>
+            <h2 style={{ fontSize: 14, fontWeight: 700, color: '#555', textTransform: 'uppercase', letterSpacing: '0.05em', margin: 0 }}>
+              By Store
+            </h2>
+            <span style={{ fontSize: 12, color: '#888', fontStyle: 'italic' }}>
+              (this section considers 7 grips on a 7-club set as 100%, not 700%)
+            </span>
+            <select
+              value={storeFilter}
+              onChange={e => setStoreFilter(e.target.value)}
+              style={{ marginLeft: 'auto', fontSize: 13, padding: '4px 8px', borderRadius: 4, border: '1px solid #ddd' }}
+            >
+              <option value="all">All Stores</option>
+              {data.byStore.map(r => <option key={r.store} value={r.store}>{r.store}</option>)}
+            </select>
+          </div>
           <div className="table-wrap" style={{ marginBottom: 28 }}>
             <table>
               <thead>
@@ -242,7 +272,7 @@ export default function GripSalesPage() {
                 </tr>
               </thead>
               <tbody>
-                {data.byStore.map(row => (
+                {filteredStores.map(row => (
                   <tr key={row.store}>
                     <td>{row.store}</td>
                     <td style={{ textAlign: 'right', fontWeight: 600 }}>{row.gripQty}</td>
@@ -253,15 +283,17 @@ export default function GripSalesPage() {
                     <td style={{ textAlign: 'right', fontWeight: 600, color: row.pctRevenue >= 5 ? '#005F2C' : '#333' }}>{row.pctRevenue}%</td>
                   </tr>
                 ))}
-                <tr style={{ fontWeight: 700, borderTop: '2px solid #e4e4e4', background: '#f7f8fa' }}>
-                  <td>Total</td>
-                  <td style={{ textAlign: 'right' }}>{s.totalGripQty}</td>
-                  <td style={{ textAlign: 'right' }}>{fmtGbp(s.totalGripRevenue)}</td>
-                  <td style={{ textAlign: 'right' }}>{s.totalPosQty}</td>
-                  <td style={{ textAlign: 'right' }}>{fmtGbp(s.totalPosRevenue)}</td>
-                  <td style={{ textAlign: 'right', color: '#005F2C' }}>{s.pctQty}%</td>
-                  <td style={{ textAlign: 'right', color: '#005F2C' }}>{s.pctRevenue}%</td>
-                </tr>
+                {storeFilter === 'all' && (
+                  <tr style={{ fontWeight: 700, borderTop: '2px solid #e4e4e4', background: '#f7f8fa' }}>
+                    <td>Total</td>
+                    <td style={{ textAlign: 'right' }}>{s.totalGripQty}</td>
+                    <td style={{ textAlign: 'right' }}>{fmtGbp(s.totalGripRevenue)}</td>
+                    <td style={{ textAlign: 'right' }}>{s.totalPosQty}</td>
+                    <td style={{ textAlign: 'right' }}>{fmtGbp(s.totalPosRevenue)}</td>
+                    <td style={{ textAlign: 'right', color: '#005F2C' }}>{s.pctQty}%</td>
+                    <td style={{ textAlign: 'right', color: '#005F2C' }}>{s.pctRevenue}%</td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
@@ -281,15 +313,25 @@ export default function GripSalesPage() {
                   <tr>
                     <th>Colleague</th>
                     <th>Store</th>
-                    <th style={{ textAlign: 'right' }}>Grip Orders</th>
-                    <th style={{ textAlign: 'right' }}>Total Orders</th>
-                    <th style={{ textAlign: 'right' }}>Order Ratio</th>
-                    <th style={{ textAlign: 'right' }}>Grip Units</th>
-                    <th style={{ textAlign: 'right' }}>Grip Revenue</th>
+                    {[
+                      ['gripOrders', 'Grip Orders'],
+                      ['totalOrders', 'Total Orders'],
+                      ['ratio', 'Order Ratio'],
+                      ['gripQty', 'Grip Units'],
+                      ['gripRevenue', 'Grip Revenue'],
+                    ].map(([col, label]) => (
+                      <th
+                        key={col}
+                        style={{ textAlign: 'right', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}
+                        onClick={() => toggleSort(col)}
+                      >
+                        {label}{sortIcon(col)}
+                      </th>
+                    ))}
                   </tr>
                 </thead>
                 <tbody>
-                  {data.byColleague.map(c => (
+                  {sortedColleagues.map(c => (
                     <tr key={c.name}>
                       <td style={{ fontWeight: 500 }}>{c.name}</td>
                       <td style={{ color: '#555', fontSize: 13 }}>{c.store || '—'}</td>
