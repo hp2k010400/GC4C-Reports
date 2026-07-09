@@ -5,7 +5,7 @@ export default async function handler(req, res) {
     return res.status(401).json({ error: 'Unauthorized' })
   }
   try {
-    await run({ testRecipient: 'harry.phillips@golfclubs4cash.co.uk' })
+    await run()
     res.json({ ok: true, message: 'Grip email sent to you only — check your inbox' })
   } catch (err) {
     res.status(500).json({ error: err.message })
