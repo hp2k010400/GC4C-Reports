@@ -3,22 +3,13 @@ import { shopifyFetchPage } from '../../lib/shopify.js'
 // Fetch 7 Shopify pages per Netlify call (7 × 250 = 1750 orders).
 // Each Shopify call ~500-700ms so 7 pages ≈ 4-5s, safely within Netlify's 10s limit.
 // Reduces client↔server round trips ~7x vs fetching one page at a time.
+//
+// No in-function retry here on purpose: retrying with backoff *inside* one
+// invocation risks the sleep time alone pushing past Netlify's 10s limit,
+// which caused hard-to-reproduce failures deep into long runs. Instead this
+// throws immediately on a transient error and the client (deletion-candidates.js)
+// retries the same page as a fresh function call with its own full time budget.
 const PAGES_PER_CALL = 7
-
-async function fetchWithRetry(params, retries = 3) {
-  for (let i = 0; i < retries; i++) {
-    try {
-      return await shopifyFetchPage('orders.json', 'orders', params)
-    } catch (err) {
-      const transient = /502|503|504|rate|throttl/i.test(err.message)
-      if (transient && i < retries - 1) {
-        await new Promise(r => setTimeout(r, 1500 * (i + 1)))
-        continue
-      }
-      throw err
-    }
-  }
-}
 
 export default async function handler(req, res) {
   const { page_info, startDate, endDate } = req.query
@@ -40,7 +31,7 @@ export default async function handler(req, res) {
             limit: 250,
           }
 
-      const { items, nextPageInfo: next } = await fetchWithRetry(params)
+      const { items, nextPageInfo: next } = await shopifyFetchPage('orders.json', 'orders', params)
 
       for (const order of items) {
         for (const item of order.line_items || []) {

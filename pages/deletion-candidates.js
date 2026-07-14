@@ -145,6 +145,29 @@ export default function DeletionCandidatesPage() {
     return { rows, fromCache: false }
   }
 
+  // Retries the *same* page as a fresh Netlify function call (its own full
+  // 10s budget) rather than retrying inside the function, which previously
+  // risked the backoff sleep alone blowing the function's own timeout.
+  async function fetchOrdersPageWithRetry(params, retries = 3) {
+    for (let i = 0; i < retries; i++) {
+      try {
+        const res = await fetch(`/api/orders-skus?${params}`)
+        let json
+        try { json = await res.json() } catch {
+          throw new Error('Orders took too long to load')
+        }
+        if (!res.ok) throw new Error(json.error)
+        return json
+      } catch (err) {
+        if (i < retries - 1) {
+          await new Promise(r => setTimeout(r, 1500 * (i + 1)))
+          continue
+        }
+        throw err
+      }
+    }
+  }
+
   async function fetchSoldSkus() {
     try {
       const cacheRes = await fetch('/api/sold-skus-cache')
@@ -168,12 +191,7 @@ export default function DeletionCandidatesPage() {
         params.set('startDate', startDate)
         params.set('endDate', endDate)
       }
-      const res = await fetch(`/api/orders-skus?${params}`)
-      let json
-      try { json = await res.json() } catch {
-        throw new Error('Orders took too long to load')
-      }
-      if (!res.ok) throw new Error(json.error)
+      const json = await fetchOrdersPageWithRetry(params)
       for (const sku of json.skus || []) {
         soldSkus.add(sku)
       }
