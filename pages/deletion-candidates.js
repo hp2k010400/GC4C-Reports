@@ -87,10 +87,23 @@ export default function DeletionCandidatesPage() {
   const [activePreset, setActivePreset] = useState('older1year')
 
   useEffect(() => {
-    fetch('/api/vendors')
-      .then(r => r.json())
-      .then(d => setLiveVendors(d.vendors || []))
-      .catch(() => {})
+    async function fetchVendors() {
+      const vendors = new Set()
+      let pageInfo = null
+      try {
+        do {
+          const params = new URLSearchParams()
+          if (pageInfo) params.set('page_info', pageInfo)
+          const res = await fetch(`/api/vendors?${params}`)
+          const d = await res.json()
+          if (!res.ok) throw new Error(d.error)
+          for (const v of d.vendors || []) vendors.add(v)
+          pageInfo = d.nextPageInfo
+          setLiveVendors([...vendors].sort((a, b) => a.localeCompare(b)))
+        } while (pageInfo)
+      } catch {}
+    }
+    fetchVendors()
   }, [])
 
   async function fetchAllProducts() {
