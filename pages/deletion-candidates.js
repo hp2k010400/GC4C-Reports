@@ -196,7 +196,13 @@ export default function DeletionCandidatesPage() {
     try {
       setPhase('products')
       const { rows: productRows, fromCache } = await fetchAllProducts()
-      if (!fromCache) writeProductsCache(productRows).catch(() => {})
+      if (!fromCache) {
+        writeProductsCache(productRows).catch(() => {})
+        // Live product fetch just drained Shopify's rate-limit bucket — give it
+        // a moment to refill before hammering the orders API, or the first
+        // orders-skus call gets throttled, retries, and blows Netlify's 10s limit.
+        await new Promise(r => setTimeout(r, 2000))
+      }
 
       setPhase('orders')
       const soldSkus = await fetchSoldSkus()
