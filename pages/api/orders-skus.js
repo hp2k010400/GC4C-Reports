@@ -1,4 +1,4 @@
-import { shopifyFetchPage } from '../../lib/shopify.js'
+import { fetchSoldSkusPage, buildSoldSkusParams } from '../../lib/reports/sold-skus.js'
 
 // Fetch 7 Shopify pages per Netlify call (7 × 250 = 1750 orders).
 // Each Shopify call ~500-700ms so 7 pages ≈ 4-5s, safely within Netlify's 10s limit.
@@ -21,23 +21,10 @@ export default async function handler(req, res) {
     let pagesCount = 0
 
     do {
-      const params = currentPageInfo
-        ? { page_info: currentPageInfo }
-        : {
-            status: 'any',
-            fields: 'id,line_items',
-            created_at_min: new Date(startDate).toISOString(),
-            created_at_max: new Date(endDate + 'T23:59:59').toISOString(),
-            limit: 250,
-          }
+      const params = buildSoldSkusParams({ pageInfo: currentPageInfo, startDate, endDate })
+      const { skus: pageSkus, nextPageInfo: next } = await fetchSoldSkusPage(params)
 
-      const { items, nextPageInfo: next } = await shopifyFetchPage('orders.json', 'orders', params)
-
-      for (const order of items) {
-        for (const item of order.line_items || []) {
-          if (item.sku) skus.push(String(item.sku).trim())
-        }
-      }
+      skus.push(...pageSkus)
 
       currentPageInfo = next
       nextPageInfo = next
