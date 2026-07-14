@@ -22,6 +22,30 @@ function toCSV(rows, weeksCover) {
     .join('\n')
 }
 
+// Retries the same page as a fresh Netlify function call (own full time
+// budget) instead of failing outright — needed because all store locations
+// fetch orders concurrently and share Shopify's rate-limit bucket, so any
+// one of them can get transiently throttled.
+async function fetchWithRetry(url, locName, retries = 3) {
+  for (let i = 0; i < retries; i++) {
+    try {
+      const res = await fetch(url)
+      let json
+      try { json = await res.json() } catch {
+        throw new Error(`Orders request timed out for ${locName}`)
+      }
+      if (!res.ok) throw new Error(json.error)
+      return json
+    } catch (err) {
+      if (i < retries - 1) {
+        await new Promise(r => setTimeout(r, 1500 * (i + 1)))
+        continue
+      }
+      throw err
+    }
+  }
+}
+
 function downloadCSV(rows, weeksCover) {
   const blob = new Blob([toCSV(rows, weeksCover)], { type: 'text/csv' })
   const url = URL.createObjectURL(blob)
@@ -94,10 +118,7 @@ export default function TransferForecastPage() {
         do {
           const params = new URLSearchParams({ startDate, endDate, location_id: loc.id })
           if (pageInfo) params.set('page_info', pageInfo)
-          const res = await fetch(`/api/transfer-forecast-orders?${params}`)
-          let json
-          try { json = await res.json() } catch { throw new Error(`Orders request timed out for ${loc.name}`) }
-          if (!res.ok) throw new Error(json.error)
+          const json = await fetchWithRetry(`/api/transfer-forecast-orders?${params}`, loc.name)
 
           for (const row of json.rows) {
             salesAgg[locId][row.sku] = (salesAgg[locId][row.sku] || 0) + row.qty
