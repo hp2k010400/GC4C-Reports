@@ -6,7 +6,7 @@ const DEFAULTS = [
   { label: 'Damaged',                   shopifyCode: 'damaged' },
   { label: 'Found — count correction',  shopifyCode: 'correction' },
   { label: 'Missing — count correction',shopifyCode: 'correction' },
-  { label: 'Theft',                     shopifyCode: 'theft_or_loss' },
+  { label: 'Theft',                     shopifyCode: 'shrinkage' },
   { label: 'Sample / Demo',             shopifyCode: 'promotion' },
   { label: 'Sent for Repair',           shopifyCode: 'quality_control' },
   { label: 'Returned to Stock',         shopifyCode: 'received' },
@@ -15,7 +15,7 @@ const DEFAULTS = [
 
 async function getCodes() {
   try {
-    const store = getStore('gc4c-settings')
+    const store = getStore({ name: 'gc4c-settings', consistency: 'strong' })
     const data = await store.get(STORE_KEY, { type: 'json' })
     return Array.isArray(data) ? data : DEFAULTS
   } catch {
@@ -24,7 +24,7 @@ async function getCodes() {
 }
 
 async function saveCodes(codes) {
-  const store = getStore('gc4c-settings')
+  const store = getStore({ name: 'gc4c-settings', consistency: 'strong' })
   await store.set(STORE_KEY, JSON.stringify(codes))
 }
 
