@@ -63,7 +63,7 @@ export default function AdjustmentsPage() {
 
   useEffect(() => {
     fetch('/api/reason-codes').then(r => r.json())
-      .then(d => { if (d.codes?.length) setReasons(d.codes.map(c => c.label).sort((a, b) => a.localeCompare(b))) })
+      .then(d => { if (d.codes?.length) setReasons(d.codes.map(c => c.label)) })
       .catch(() => {})
   }, [])
 

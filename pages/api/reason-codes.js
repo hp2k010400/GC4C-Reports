@@ -63,6 +63,17 @@ export default async function handler(req, res) {
     return res.status(200).json({ codes })
   }
 
+  if (req.method === 'PATCH') {
+    const { order } = req.body
+    if (!Array.isArray(order)) return res.status(400).json({ error: 'order array required' })
+    const codes = await getCodes()
+    const byLabel = new Map(codes.map(c => [c.label, c]))
+    const reordered = order.map(label => byLabel.get(label)).filter(Boolean)
+    for (const c of codes) if (!order.includes(c.label)) reordered.push(c)
+    await saveCodes(reordered)
+    return res.status(200).json({ codes: reordered })
+  }
+
   if (req.method === 'DELETE') {
     const { label } = req.query
     if (!label) return res.status(400).json({ error: 'label required' })
