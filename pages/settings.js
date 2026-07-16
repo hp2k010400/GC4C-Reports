@@ -127,7 +127,7 @@ export default function Settings() {
         <div className="settings-row">
           <div>
             <div className="settings-label">Hosted on</div>
-            <div className="settings-value">Netlify — auto-deploys from GitHub (hp2k010400/GC4C-Reports)</div>
+            <div className="settings-value">Netlify — auto-deploys from GitHub</div>
           </div>
         </div>
       </div>
@@ -216,22 +216,6 @@ export default function Settings() {
           </button>
         </div>
         {reasonError && <div style={{ color: '#c0392b', fontSize: 13, marginTop: 8 }}>{reasonError}</div>}
-      </div>
-
-      <div className="settings-section">
-        <h3 className="settings-section-title">About</h3>
-        <div className="settings-row">
-          <div>
-            <div className="settings-label">Purpose</div>
-            <div className="settings-value">Internal reporting tool — replaces Data Export &amp; Ablestar apps</div>
-          </div>
-        </div>
-        <div className="settings-row">
-          <div>
-            <div className="settings-label">Data source</div>
-            <div className="settings-value">Direct Shopify API — no sync delay, no missing SKUs</div>
-          </div>
-        </div>
       </div>
     </div>
   )
