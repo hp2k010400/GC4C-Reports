@@ -1,0 +1,14 @@
+name: Weekly Grip Email
+
+on:
+  schedule:
+    - cron: '0 5 * * 1'  # 6am BST (5am UTC) every Monday
+  workflow_dispatch:      # allow manual trigger from GitHub UI
+
+jobs:
+  send:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send grip email
+        run: |
+          curl -f "https://gc4creportsandstock.netlify.app/api/test-grip-email?secret=${{ secrets.ACTION_SECRET }}"
