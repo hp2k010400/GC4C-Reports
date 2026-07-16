@@ -5,7 +5,7 @@ const FALLBACK_REASON_MAP = {
   'Damaged':                   'damaged',
   'Found — count correction':  'correction',
   'Missing — count correction':'correction',
-  'Theft':                     'theft_or_loss',
+  'Theft':                     'shrinkage',
   'Sample / Demo':             'promotion',
   'Sent for Repair':           'quality_control',
   'Returned to Stock':         'received',

@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 const SHOPIFY_CODES = [
   { value: 'correction',     label: 'Correction' },
   { value: 'damaged',        label: 'Damaged' },
-  { value: 'theft_or_loss',  label: 'Theft or Loss' },
+  { value: 'shrinkage',      label: 'Theft or Loss' },
   { value: 'promotion',      label: 'Promotion / Sample' },
   { value: 'quality_control',label: 'Quality Control' },
   { value: 'received',       label: 'Received' },
