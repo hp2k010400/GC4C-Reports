@@ -11,4 +11,4 @@ jobs:
     steps:
       - name: Send POS email
         run: |
-          curl -f "https://gc4creportsandstock.netlify.app/api/test-pos-email?secret=${{ secrets.ACTION_SECRET }}"
+          curl -f "https://gc4creportsandstock.netlify.app/api/test-pos-email?secret=gc4c-test-2026"
