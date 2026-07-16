@@ -63,7 +63,16 @@ export default function AdjustmentsPage() {
 
   useEffect(() => {
     fetch('/api/reason-codes').then(r => r.json())
-      .then(d => { if (d.codes?.length) setReasons(d.codes.map(c => c.label)) })
+      .then(d => {
+        if (!d.codes?.length) return
+        const labels = d.codes.map(c => c.label)
+        setReasons(labels)
+        // The dropdown starts on a hardcoded fallback before this list loads —
+        // if that fallback (or a since-renamed/deleted reason) isn't a real
+        // option anymore, silently switching to it would submit a reason that
+        // no longer maps to a valid Shopify code.
+        setReason(prev => labels.includes(prev) ? prev : labels[0])
+      })
       .catch(() => {})
   }, [])
 
