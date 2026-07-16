@@ -35,6 +35,7 @@ const NAV = [
     ],
   },
   { label: 'Reports', href: '/' },
+  { label: 'Settings', href: '/settings' },
 ]
 
 function isActive(href, pathname) {
