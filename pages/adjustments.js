@@ -262,10 +262,17 @@ export default function AdjustmentsPage() {
             <label className="form-label">Employee</label>
             <input className="form-input" type="text" placeholder="Your name" value={employee} onChange={e => setEmployee(e.target.value)} />
           </div>
-          <div>
-            <label className="form-label">Notes (optional)</label>
-            <input className="form-input" type="text" placeholder="Any additional context…" value={notes} onChange={e => setNotes(e.target.value)} />
-          </div>
+        </div>
+        <div style={{ marginTop: 16 }}>
+          <label className="form-label">Notes (optional)</label>
+          <textarea
+            className="form-input"
+            rows={3}
+            style={{ width: '100%', resize: 'vertical', fontFamily: 'inherit' }}
+            placeholder="Any additional context…"
+            value={notes}
+            onChange={e => setNotes(e.target.value)}
+          />
         </div>
       </div>
 
