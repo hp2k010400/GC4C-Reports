@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 
-const DEFAULT_reasons = ['Damaged', 'Found — count correction', 'Missing — count correction', 'Theft', 'Sample / Demo', 'Sent for Repair', 'Returned to Stock', 'Other']
+const DEFAULT_reasons = ['Damaged', 'Found — count correction', 'Missing — count correction', 'Theft', 'Sample / Demo', 'Sent for Repair', 'Returned to Stock', 'Other'].sort((a, b) => a.localeCompare(b))
 
 function newLine() {
   return { id: Date.now() + Math.random(), sku: '', product: null, matches: null, qty: '', looking: false, error: null }
@@ -63,7 +63,7 @@ export default function AdjustmentsPage() {
 
   useEffect(() => {
     fetch('/api/reason-codes').then(r => r.json())
-      .then(d => { if (d.codes?.length) setReasons(d.codes.map(c => c.label)) })
+      .then(d => { if (d.codes?.length) setReasons(d.codes.map(c => c.label).sort((a, b) => a.localeCompare(b))) })
       .catch(() => {})
   }, [])
 
