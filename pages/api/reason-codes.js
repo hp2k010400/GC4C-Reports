@@ -44,6 +44,25 @@ export default async function handler(req, res) {
     return res.status(200).json({ codes })
   }
 
+  if (req.method === 'PUT') {
+    const { originalLabel, label, shopifyCode } = req.body
+    if (!originalLabel || !label?.trim() || !shopifyCode) {
+      return res.status(400).json({ error: 'originalLabel, label and shopifyCode required' })
+    }
+    const codes = await getCodes()
+    const idx = codes.findIndex(c => c.label === originalLabel)
+    if (idx === -1) return res.status(404).json({ error: 'Reason not found' })
+
+    const trimmedLabel = label.trim()
+    if (trimmedLabel !== originalLabel && codes.some(c => c.label === trimmedLabel)) {
+      return res.status(400).json({ error: 'Reason already exists' })
+    }
+
+    codes[idx] = { label: trimmedLabel, shopifyCode }
+    await saveCodes(codes)
+    return res.status(200).json({ codes })
+  }
+
   if (req.method === 'DELETE') {
     const { label } = req.query
     if (!label) return res.status(400).json({ error: 'label required' })

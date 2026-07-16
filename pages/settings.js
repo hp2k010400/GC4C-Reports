@@ -18,6 +18,11 @@ export default function Settings() {
   const [newShopifyCode, setNewShopifyCode] = useState('correction')
   const [reasonSaving, setReasonSaving] = useState(false)
   const [reasonError, setReasonError] = useState(null)
+  const [editingLabel, setEditingLabel] = useState(null)
+  const [editLabel, setEditLabel] = useState('')
+  const [editShopifyCode, setEditShopifyCode] = useState('correction')
+  const [editSaving, setEditSaving] = useState(false)
+  const [editError, setEditError] = useState(null)
 
   useEffect(() => {
     try {
@@ -54,6 +59,39 @@ export default function Settings() {
   async function deleteReason(label) {
     const res = await fetch(`/api/reason-codes?label=${encodeURIComponent(label)}`, { method: 'DELETE' })
     if (res.ok) setReasonCodes(c => c.filter(r => r.label !== label))
+  }
+
+  function startEdit(c) {
+    setEditingLabel(c.label)
+    setEditLabel(c.label)
+    setEditShopifyCode(c.shopifyCode)
+    setEditError(null)
+  }
+
+  function cancelEdit() {
+    setEditingLabel(null)
+    setEditError(null)
+  }
+
+  async function saveEdit() {
+    if (!editLabel.trim()) return
+    setEditSaving(true)
+    setEditError(null)
+    try {
+      const res = await fetch('/api/reason-codes', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ originalLabel: editingLabel, label: editLabel.trim(), shopifyCode: editShopifyCode }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error)
+      setReasonCodes(data.codes)
+      setEditingLabel(null)
+    } catch (err) {
+      setEditError(err.message)
+    } finally {
+      setEditSaving(false)
+    }
   }
 
   function clearHistory() {
@@ -122,17 +160,44 @@ export default function Settings() {
           These appear in the Stock Adjustments reason dropdown and sync to Shopify with the mapped code.
         </p>
         {reasonCodes.map(c => (
-          <div key={c.label} className="settings-row">
-            <div>
-              <div className="settings-label">{c.label}</div>
-              <div className="settings-value" style={{ fontSize: 12, color: '#aaa' }}>
-                Shopify: {SHOPIFY_CODES.find(s => s.value === c.shopifyCode)?.label || c.shopifyCode}
+          editingLabel === c.label ? (
+            <div key={c.label} className="settings-row" style={{ flexWrap: 'wrap', gap: 8 }}>
+              <input
+                className="form-input"
+                style={{ flex: 1, minWidth: 180 }}
+                value={editLabel}
+                onChange={e => setEditLabel(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && saveEdit()}
+              />
+              <select className="form-select" style={{ width: 'auto' }} value={editShopifyCode} onChange={e => setEditShopifyCode(e.target.value)}>
+                {SHOPIFY_CODES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+              </select>
+              <button className="btn btn-primary" style={{ fontSize: 12 }} onClick={saveEdit} disabled={editSaving || !editLabel.trim()}>
+                {editSaving ? 'Saving…' : 'Save'}
+              </button>
+              <button className="btn btn-secondary" style={{ fontSize: 12 }} onClick={cancelEdit} disabled={editSaving}>
+                Cancel
+              </button>
+              {editError && <div style={{ color: '#c0392b', fontSize: 13, flexBasis: '100%' }}>{editError}</div>}
+            </div>
+          ) : (
+            <div key={c.label} className="settings-row">
+              <div>
+                <div className="settings-label">{c.label}</div>
+                <div className="settings-value" style={{ fontSize: 12, color: '#aaa' }}>
+                  Shopify: {SHOPIFY_CODES.find(s => s.value === c.shopifyCode)?.label || c.shopifyCode}
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button className="btn btn-secondary" style={{ fontSize: 12 }} onClick={() => startEdit(c)}>
+                  Edit
+                </button>
+                <button className="btn btn-secondary" style={{ fontSize: 12 }} onClick={() => deleteReason(c.label)}>
+                  Delete
+                </button>
               </div>
             </div>
-            <button className="btn btn-secondary" style={{ fontSize: 12 }} onClick={() => deleteReason(c.label)}>
-              Delete
-            </button>
-          </div>
+          )
         ))}
         <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
           <input
