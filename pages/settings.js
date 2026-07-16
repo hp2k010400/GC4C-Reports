@@ -159,7 +159,7 @@ export default function Settings() {
         <p style={{ fontSize: 13, color: '#888', marginBottom: 12 }}>
           These appear in the Stock Adjustments reason dropdown and sync to Shopify with the mapped code.
         </p>
-        {reasonCodes.map(c => (
+        {[...reasonCodes].sort((a, b) => a.label.localeCompare(b.label)).map(c => (
           editingLabel === c.label ? (
             <div key={c.label} className="settings-row" style={{ flexWrap: 'wrap', gap: 8 }}>
               <input
