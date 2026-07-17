@@ -3,7 +3,10 @@ name: Daily POS Email
 on:
   schedule:
     - cron: '0 18 * * *'  # 7pm BST (6pm UTC) every day
-  workflow_dispatch:       # allow manual trigger from GitHub UI
+
+concurrency:
+  group: daily-pos-email
+  cancel-in-progress: false
 
 jobs:
   send:
@@ -11,4 +14,4 @@ jobs:
     steps:
       - name: Send POS email
         run: |
-          curl -f "https://gc4creportsandstock.netlify.app/api/test-pos-email?secret=gc4c-test-2026"
+          curl -f "https://gc4creportsandstock.netlify.app/.netlify/functions/trigger-pos-email-background?secret=gc4c-test-2026"
