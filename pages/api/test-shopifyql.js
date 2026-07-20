@@ -6,12 +6,8 @@ export default async function handler(req, res) {
   }
   try {
     const data = await shopifyGraphQL(`{
-      shopifyqlQuery(query: "FROM sales SHOW total_sales GROUPED BY pos_location_name WHERE is_pos_sale = true SINCE 2026-07-13 UNTIL 2026-07-19") {
-        tableData {
-          columns { name displayName dataType }
-          rowData
-        }
-        parseErrors { code message }
+      __type(name: "ShopifyqlTableData") {
+        fields { name type { name kind ofType { name kind } } }
       }
     }`)
     res.json({ ok: true, data })
