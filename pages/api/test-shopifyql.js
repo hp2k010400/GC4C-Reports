@@ -11,7 +11,7 @@ export default async function handler(req, res) {
           columns { name displayName dataType }
           rows
         }
-        parseErrors { code message }
+        parseErrors
       }
     }`)
     res.json({ ok: true, data })
