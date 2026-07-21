@@ -1,7 +1,6 @@
 import React, { useState } from 'react'
 
 const fmtGbp = n => `£${(n || 0).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-const fmtPct = n => `${(n || 0).toFixed(1)}%`
 
 function getLastWeekDates() {
   const now = new Date()
@@ -14,6 +13,9 @@ function getLastWeekDates() {
     to:   lastSunday.toISOString().slice(0, 10),
   }
 }
+
+function today() { return new Date().toISOString().slice(0, 10) }
+function daysAgo(n) { return new Date(Date.now() - n * 86400000).toISOString().slice(0, 10) }
 
 function vsLY(current, ly) {
   if (!ly) return <span style={{ color: '#aaa' }}>N/A</span>
@@ -32,11 +34,11 @@ function fmtDate(s) {
 
 export default function POSReportPage() {
   const defaults = getLastWeekDates()
-  const [from, setFrom]     = useState(defaults.from)
-  const [to, setTo]         = useState(defaults.to)
-  const [data, setData]     = useState(null)
-  const [loading, setLoading] = useState(false)
-  const [error, setError]   = useState(null)
+  const [from, setFrom]         = useState(defaults.from)
+  const [to, setTo]             = useState(defaults.to)
+  const [data, setData]         = useState(null)
+  const [loading, setLoading]   = useState(false)
+  const [error, setError]       = useState(null)
   const [emailing, setEmailing] = useState(false)
   const [emailSent, setEmailSent] = useState(false)
 
@@ -60,7 +62,7 @@ export default function POSReportPage() {
   async function sendEmail() {
     setEmailing(true)
     try {
-      await fetch(`/api/test-pos-email?secret=${process.env.NEXT_PUBLIC_ACTION_SECRET || 'gc4c-test-2026'}&from=${from}&to=${to}&solo=1`)
+      await fetch(`/api/test-pos-email?secret=gc4c-test-2026&from=${from}&to=${to}&solo=1`)
       setEmailSent(true)
     } catch (e) {
       // silently fail
@@ -69,89 +71,114 @@ export default function POSReportPage() {
     }
   }
 
-  const th = { padding: '9px 14px', background: '#f8f9fa', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#555', borderBottom: '2px solid #e4e4e4', textAlign: 'right', whiteSpace: 'nowrap' }
-  const thL = { ...th, textAlign: 'left' }
-  const td = { padding: '10px 14px', borderBottom: '1px solid #eee', fontSize: 13, textAlign: 'right', whiteSpace: 'nowrap' }
-  const tdL = { ...td, textAlign: 'left', fontWeight: 600 }
-  const tdT = { ...td, fontWeight: 700, background: '#f7f8fa', borderTop: '2px solid #e4e4e4', borderBottom: 'none' }
-  const tdTL = { ...tdT, textAlign: 'left' }
+  function quickDate(preset) {
+    const d = new Date()
+    if (preset === 'today') {
+      setFrom(today()); setTo(today())
+    } else if (preset === 'week') {
+      const dow = d.getDay() === 0 ? 6 : d.getDay() - 1
+      setFrom(new Date(d - dow * 86400000).toISOString().slice(0, 10)); setTo(today())
+    } else if (preset === 'month') {
+      setFrom(new Date(d.getFullYear(), d.getMonth(), 1).toISOString().slice(0, 10)); setTo(today())
+    } else if (preset === 'lastweek') {
+      const dow = d.getDay() === 0 ? 6 : d.getDay() - 1
+      const thisMonday = new Date(d.getTime() - dow * 86400000)
+      setFrom(new Date(thisMonday.getTime() - 7 * 86400000).toISOString().slice(0, 10))
+      setTo(new Date(thisMonday.getTime() - 86400000).toISOString().slice(0, 10))
+    } else {
+      setFrom(daysAgo(29)); setTo(today())
+    }
+  }
+
+  // Calculate totals client-side from store rows
+  const totals = data?.stores?.reduce((acc, s) => ({
+    totalSales: acc.totalSales + (s.totalSales || 0),
+    grossSales: acc.grossSales + (s.grossSales || 0),
+    discounts:  acc.discounts  + (s.discounts  || 0),
+    netSales:   acc.netSales   + (s.netSales   || 0),
+    taxes:      acc.taxes      + (s.taxes      || 0),
+  }), { totalSales: 0, grossSales: 0, discounts: 0, netSales: 0, taxes: 0 })
 
   return (
-    <div style={{ padding: '28px 32px', maxWidth: 900 }}>
-      <h1 style={{ fontSize: 20, fontWeight: 700, marginBottom: 6 }}>POS Sales Report</h1>
-      <p style={{ color: '#666', fontSize: 13, marginBottom: 24 }}>
-        Generate a store performance report for any date range. Numbers pull directly from Shopify Analytics.
-      </p>
-
-      {/* Date picker */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 28, flexWrap: 'wrap' }}>
-        <label style={{ fontSize: 13, fontWeight: 600, color: '#444' }}>From</label>
-        <input
-          type="date"
-          value={from}
-          onChange={e => setFrom(e.target.value)}
-          style={{ border: '1px solid #d1d5db', borderRadius: 6, padding: '7px 10px', fontSize: 13 }}
-        />
-        <label style={{ fontSize: 13, fontWeight: 600, color: '#444' }}>To</label>
-        <input
-          type="date"
-          value={to}
-          onChange={e => setTo(e.target.value)}
-          style={{ border: '1px solid #d1d5db', borderRadius: 6, padding: '7px 10px', fontSize: 13 }}
-        />
-        <button
-          onClick={loadData}
-          disabled={loading}
-          style={{ background: '#005F2C', color: 'white', border: 'none', borderRadius: 6, padding: '8px 18px', fontSize: 13, fontWeight: 600, cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.7 : 1 }}
-        >
-          {loading ? 'Loading…' : 'Generate Report'}
-        </button>
+    <div className="container">
+      <div className="page-header">
+        <div>
+          <h1 className="page-title">POS Sales Report</h1>
+          <p className="page-sub">Generate a store performance report for any date range. Numbers pull directly from Shopify Analytics.</p>
+        </div>
       </div>
 
-      {error && <p style={{ color: '#dc2626', fontSize: 13, marginBottom: 16 }}>Error: {error}</p>}
+      <div className="controls">
+        <div className="field">
+          <label>From</label>
+          <input type="date" value={from} onChange={e => setFrom(e.target.value)} />
+        </div>
+        <div className="field">
+          <label>To</label>
+          <input type="date" value={to} onChange={e => setTo(e.target.value)} />
+        </div>
+        <button className="btn btn-primary" onClick={loadData} disabled={loading}>
+          {loading ? 'Loading…' : 'Generate Report'}
+        </button>
+        <div className="date-presets" style={{ marginBottom: 0 }}>
+          {[['Today', 'today'], ['This Week', 'week'], ['This Month', 'month'], ['Last Week', 'lastweek'], ['Last 30d', '30d']].map(([label, preset]) => (
+            <button key={preset} className="preset-btn" onClick={() => quickDate(preset)}>{label}</button>
+          ))}
+        </div>
+      </div>
+
+      {error && <div className="state-box error" style={{ marginBottom: 20 }}>{error}</div>}
+
+      {loading && (
+        <div className="state-box">
+          <div className="spinner" />
+          <div>Loading report data…</div>
+        </div>
+      )}
 
       {data && (
         <>
-          <div style={{ background: '#005F2C', borderRadius: '8px 8px 0 0', padding: '14px 20px', marginBottom: 0 }}>
+          <div style={{ background: '#005F2C', borderRadius: '8px 8px 0 0', padding: '14px 20px' }}>
             <div style={{ color: 'white', fontWeight: 700, fontSize: 15 }}>GC4C POS Performance</div>
             <div style={{ color: 'rgba(255,255,255,0.75)', fontSize: 12, marginTop: 2 }}>
               {fmtDate(from)} — {fmtDate(to)}
             </div>
           </div>
-          <div style={{ background: 'white', borderRadius: '0 0 8px 8px', boxShadow: '0 1px 4px rgba(0,0,0,0.08)', marginBottom: 24, overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+
+          <div className="table-wrap" style={{ borderRadius: '0 0 8px 8px', marginBottom: 20 }}>
+            <table>
               <thead>
                 <tr>
-                  <th style={thL}>Store</th>
-                  <th style={th}>Total Sales</th>
-                  <th style={th}>vs LY</th>
-                  <th style={th}>Gross Sales</th>
-                  <th style={th}>Discounts</th>
-                  <th style={th}>Net Sales</th>
-                  <th style={th}>Taxes</th>
+                  <th style={{ textAlign: 'left' }}>Store</th>
+                  <th>Total Sales</th>
+                  <th>vs LY</th>
+                  <th>Gross Sales</th>
+                  <th style={{ color: '#dc2626' }}>Discounts</th>
+                  <th>Net Sales</th>
+                  <th>Taxes</th>
                 </tr>
               </thead>
               <tbody>
                 {data.stores.map(s => (
                   <tr key={s.name}>
-                    <td style={tdL}>{s.name}</td>
-                    <td style={td}>{fmtGbp(s.totalSales)}</td>
-                    <td style={td}>{vsLY(s.totalSales, s.totalSalesLY)}</td>
-                    <td style={td}>{fmtGbp(s.grossSales)}</td>
-                    <td style={{ ...td, color: '#dc2626' }}>{fmtGbp(s.discounts)}</td>
-                    <td style={td}>{fmtGbp(s.netSales)}</td>
-                    <td style={td}>{fmtGbp(s.taxes)}</td>
+                    <td style={{ fontWeight: 600 }}>{s.name}</td>
+                    <td style={{ textAlign: 'right' }}>{fmtGbp(s.totalSales)}</td>
+                    <td style={{ textAlign: 'right' }}>{vsLY(s.totalSales, s.totalSalesLY)}</td>
+                    <td style={{ textAlign: 'right' }}>{fmtGbp(s.grossSales)}</td>
+                    <td style={{ textAlign: 'right', color: '#dc2626' }}>{fmtGbp(s.discounts)}</td>
+                    <td style={{ textAlign: 'right' }}>{fmtGbp(s.netSales)}</td>
+                    <td style={{ textAlign: 'right' }}>{fmtGbp(s.taxes)}</td>
                   </tr>
                 ))}
-                {data.totals && (
-                  <tr>
-                    <td style={tdTL}>Total</td>
-                    <td style={tdT}>{fmtGbp(data.totals.totalSales)}</td>
-                    <td style={tdT}></td>
-                    <td style={tdT}>{fmtGbp(data.totals.grossSales)}</td>
-                    <td style={{ ...tdT, color: '#dc2626' }}>{fmtGbp(data.totals.discounts)}</td>
-                    <td style={tdT}>{fmtGbp(data.totals.netSales)}</td>
-                    <td style={tdT}>{fmtGbp(data.totals.taxes)}</td>
+                {totals && (
+                  <tr style={{ fontWeight: 700, background: '#f7f8fa', borderTop: '2px solid #e4e4e4' }}>
+                    <td>Total</td>
+                    <td style={{ textAlign: 'right' }}>{fmtGbp(totals.totalSales)}</td>
+                    <td></td>
+                    <td style={{ textAlign: 'right' }}>{fmtGbp(totals.grossSales)}</td>
+                    <td style={{ textAlign: 'right', color: '#dc2626' }}>{fmtGbp(totals.discounts)}</td>
+                    <td style={{ textAlign: 'right' }}>{fmtGbp(totals.netSales)}</td>
+                    <td style={{ textAlign: 'right' }}>{fmtGbp(totals.taxes)}</td>
                   </tr>
                 )}
               </tbody>
@@ -162,7 +189,8 @@ export default function POSReportPage() {
             <button
               onClick={sendEmail}
               disabled={emailing || emailSent}
-              style={{ background: emailSent ? '#005F2C' : '#1d4ed8', color: 'white', border: 'none', borderRadius: 6, padding: '8px 18px', fontSize: 13, fontWeight: 600, cursor: (emailing || emailSent) ? 'not-allowed' : 'pointer', opacity: (emailing || emailSent) ? 0.8 : 1 }}
+              className="btn"
+              style={{ background: emailSent ? '#005F2C' : '#1d4ed8', color: 'white', opacity: (emailing || emailSent) ? 0.8 : 1 }}
             >
               {emailSent ? '✓ Email sent to you' : emailing ? 'Sending…' : 'Email me this report'}
             </button>
