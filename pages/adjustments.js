@@ -52,6 +52,9 @@ export default function AdjustmentsPage() {
   const [logLoading, setLogLoading] = useState(true)
   const fileRef = useRef()
   const months = monthOptions()
+  const logTableRef = useRef(null)
+  const logScrollTopRef = useRef(null)
+  const [logTableWidth, setLogTableWidth] = useState(0)
 
   useEffect(() => {
     fetch('/api/locations').then(r => r.json()).then(d => {
@@ -159,16 +162,22 @@ export default function AdjustmentsPage() {
     setSubmitResult(null)
     try {
       const selectedLoc = locations.find(l => String(l.id) === locationId)
-      const items = validLines.map(line => ({
-        inventoryItemId: line.product.inventoryItemId,
-        locationId: parseInt(locationId),
-        adjustment: parseInt(line.qty),
-        sku: line.product.sku,
-        productTitle: line.product.productTitle,
-        variantTitle: line.product.variantTitle || '',
-        locationName: selectedLoc?.name || locationId,
-        cost: line.product.cost ?? '',
-      }))
+      const items = validLines.map(line => {
+        const locStock = line.product?.inventory?.find(l => String(l.locationId) === locationId)
+        return {
+          inventoryItemId: line.product.inventoryItemId,
+          locationId: parseInt(locationId),
+          adjustment: parseInt(line.qty),
+          sku: line.product.sku,
+          productTitle: line.product.productTitle,
+          variantTitle: line.product.variantTitle || '',
+          locationName: selectedLoc?.name || locationId,
+          cost: line.product.cost ?? '',
+          // Computed the same way the on-screen "Stock: X → Y" preview is —
+          // more reliable than parsing it back out of Shopify's mutation response.
+          expectedNewQuantity: locStock ? locStock.available + parseInt(line.qty) : null,
+        }
+      })
 
       const res = await fetch('/api/inventory-adjust', {
         method: 'POST',
@@ -228,12 +237,31 @@ export default function AdjustmentsPage() {
   }
 
   const [logSearch, setLogSearch] = useState('')
-  const filteredLog = logSearch.trim()
-    ? logEntries.filter(e => e.sku?.toLowerCase().includes(logSearch.trim().toLowerCase()))
-    : logEntries
+  const [logReasonFilter, setLogReasonFilter] = useState('')
+  const logReasons = [...new Set(logEntries.map(e => e.reason).filter(Boolean))].sort((a, b) => a.localeCompare(b))
+  const filteredLog = logEntries
+    .filter(e => !logSearch.trim() || e.sku?.toLowerCase().includes(logSearch.trim().toLowerCase()))
+    .filter(e => !logReasonFilter || e.reason === logReasonFilter)
 
   const validCount = lines.filter(l => l.product && l.qty && parseInt(l.qty) !== 0 && !isNaN(parseInt(l.qty))).length
   const canSubmit = validCount > 0 && locationId && employee.trim() && !submitting
+
+  // Mirrors a slim scrollbar above the table so it's visible without scrolling
+  // down past the whole log first — synced to the real table's scroll position.
+  useEffect(() => {
+    if (logTableRef.current) setLogTableWidth(logTableRef.current.scrollWidth)
+  }, [filteredLog])
+
+  function syncLogScrollFromTop() {
+    if (logTableRef.current && logScrollTopRef.current) {
+      logTableRef.current.scrollLeft = logScrollTopRef.current.scrollLeft
+    }
+  }
+  function syncLogScrollFromBottom() {
+    if (logTableRef.current && logScrollTopRef.current) {
+      logScrollTopRef.current.scrollLeft = logTableRef.current.scrollLeft
+    }
+  }
 
   return (
     <div className="container">
@@ -401,7 +429,7 @@ export default function AdjustmentsPage() {
         </div>
       </div>
 
-      <div style={{ marginBottom: 14 }}>
+      <div style={{ marginBottom: 14, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
         <input
           className="form-input"
           type="text"
@@ -410,20 +438,32 @@ export default function AdjustmentsPage() {
           onChange={e => setLogSearch(e.target.value)}
           style={{ maxWidth: 280 }}
         />
-        {logSearch && filteredLog.length === 0 && (
-          <span style={{ marginLeft: 12, fontSize: 13, color: '#888' }}>No adjustments found for "{logSearch}"</span>
+        <select className="form-select" style={{ width: 'auto' }} value={logReasonFilter} onChange={e => setLogReasonFilter(e.target.value)}>
+          <option value="">All reasons</option>
+          {logReasons.map(r => <option key={r} value={r}>{r}</option>)}
+        </select>
+        {(logSearch || logReasonFilter) && filteredLog.length === 0 && (
+          <span style={{ fontSize: 13, color: '#888' }}>No adjustments match</span>
         )}
-        {logSearch && filteredLog.length > 0 && (
-          <span style={{ marginLeft: 12, fontSize: 13, color: '#888' }}>{filteredLog.length} result{filteredLog.length !== 1 ? 's' : ''}</span>
+        {(logSearch || logReasonFilter) && filteredLog.length > 0 && (
+          <span style={{ fontSize: 13, color: '#888' }}>{filteredLog.length} result{filteredLog.length !== 1 ? 's' : ''}</span>
         )}
       </div>
 
       {logLoading ? (
         <div className="state-box"><div className="spinner" /></div>
-      ) : filteredLog.length === 0 && !logSearch ? (
+      ) : filteredLog.length === 0 && !logSearch && !logReasonFilter ? (
         <div className="state-box">No adjustments recorded for {monthLabel(logMonth)}.</div>
       ) : filteredLog.length === 0 ? null : (
-        <div className="table-wrap">
+        <>
+          <div
+            ref={logScrollTopRef}
+            onScroll={syncLogScrollFromTop}
+            style={{ overflowX: 'auto', overflowY: 'hidden', height: 16, marginBottom: 2 }}
+          >
+            <div style={{ width: logTableWidth, height: 1 }} />
+          </div>
+          <div className="table-wrap" ref={logTableRef} onScroll={syncLogScrollFromBottom}>
           <table>
             <thead>
               <tr>
@@ -471,7 +511,8 @@ export default function AdjustmentsPage() {
               ))}
             </tbody>
           </table>
-        </div>
+          </div>
+        </>
       )}
     </div>
   )
