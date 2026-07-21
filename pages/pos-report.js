@@ -34,19 +34,16 @@ function fmtDate(s) {
 
 export default function POSReportPage() {
   const defaults = getLastWeekDates()
-  const [from, setFrom]         = useState(defaults.from)
-  const [to, setTo]             = useState(defaults.to)
-  const [data, setData]         = useState(null)
-  const [loading, setLoading]   = useState(false)
-  const [error, setError]       = useState(null)
-  const [emailing, setEmailing] = useState(false)
-  const [emailSent, setEmailSent] = useState(false)
+  const [from, setFrom]       = useState(defaults.from)
+  const [to, setTo]           = useState(defaults.to)
+  const [data, setData]       = useState(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError]     = useState(null)
 
   async function loadData() {
     setLoading(true)
     setError(null)
     setData(null)
-    setEmailSent(false)
     try {
       const res = await fetch(`/api/pos-report-data?from=${from}&to=${to}`)
       const json = await res.json()
@@ -56,18 +53,6 @@ export default function POSReportPage() {
       setError(e.message)
     } finally {
       setLoading(false)
-    }
-  }
-
-  async function sendEmail() {
-    setEmailing(true)
-    try {
-      await fetch(`/api/test-pos-email?secret=gc4c-test-2026&from=${from}&to=${to}&solo=1`)
-      setEmailSent(true)
-    } catch (e) {
-      // silently fail
-    } finally {
-      setEmailing(false)
     }
   }
 
@@ -90,7 +75,6 @@ export default function POSReportPage() {
     }
   }
 
-  // Calculate totals client-side from store rows
   const totals = data?.stores?.reduce((acc, s) => ({
     totalSales: acc.totalSales + (s.totalSales || 0),
     grossSales: acc.grossSales + (s.grossSales || 0),
@@ -138,14 +122,14 @@ export default function POSReportPage() {
 
       {data && (
         <>
-          <div style={{ background: '#005F2C', borderRadius: '8px 8px 0 0', padding: '14px 20px' }}>
-            <div style={{ color: 'white', fontWeight: 700, fontSize: 15 }}>GC4C POS Performance</div>
-            <div style={{ color: 'rgba(255,255,255,0.75)', fontSize: 12, marginTop: 2 }}>
-              {fmtDate(from)} — {fmtDate(to)}
-            </div>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, marginBottom: 10 }}>
+            <h2 style={{ fontSize: 14, fontWeight: 700, color: '#555', textTransform: 'uppercase', letterSpacing: '0.05em', margin: 0 }}>
+              By Store
+            </h2>
+            <span style={{ fontSize: 12, color: '#888' }}>{fmtDate(from)} — {fmtDate(to)}</span>
           </div>
 
-          <div className="table-wrap" style={{ borderRadius: '0 0 8px 8px', marginBottom: 20 }}>
+          <div className="table-wrap">
             <table>
               <thead>
                 <tr>
@@ -156,6 +140,7 @@ export default function POSReportPage() {
                   <th style={{ color: '#dc2626' }}>Discounts</th>
                   <th>Net Sales</th>
                   <th>Taxes</th>
+                  <th>Margin %</th>
                 </tr>
               </thead>
               <tbody>
@@ -168,6 +153,9 @@ export default function POSReportPage() {
                     <td style={{ textAlign: 'right', color: '#dc2626' }}>{fmtGbp(s.discounts)}</td>
                     <td style={{ textAlign: 'right' }}>{fmtGbp(s.netSales)}</td>
                     <td style={{ textAlign: 'right' }}>{fmtGbp(s.taxes)}</td>
+                    <td style={{ textAlign: 'right', color: s.grossMargin > 0 ? '#005F2C' : '#aaa' }}>
+                      {s.grossMargin > 0 ? `${(s.grossMargin * 100).toFixed(1)}%` : '—'}
+                    </td>
                   </tr>
                 ))}
                 {totals && (
@@ -179,12 +167,12 @@ export default function POSReportPage() {
                     <td style={{ textAlign: 'right', color: '#dc2626' }}>{fmtGbp(totals.discounts)}</td>
                     <td style={{ textAlign: 'right' }}>{fmtGbp(totals.netSales)}</td>
                     <td style={{ textAlign: 'right' }}>{fmtGbp(totals.taxes)}</td>
+                    <td></td>
                   </tr>
                 )}
               </tbody>
             </table>
           </div>
-
         </>
       )}
     </div>
