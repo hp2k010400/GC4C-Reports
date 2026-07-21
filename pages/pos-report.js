@@ -185,17 +185,6 @@ export default function POSReportPage() {
             </table>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <button
-              onClick={sendEmail}
-              disabled={emailing || emailSent}
-              className="btn"
-              style={{ background: emailSent ? '#005F2C' : '#1d4ed8', color: 'white', opacity: (emailing || emailSent) ? 0.8 : 1 }}
-            >
-              {emailSent ? '✓ Email sent to you' : emailing ? 'Sending…' : 'Email me this report'}
-            </button>
-            <span style={{ fontSize: 12, color: '#888' }}>Sends full POS email to you only</span>
-          </div>
         </>
       )}
     </div>
