@@ -25,6 +25,7 @@ const NAV = [
     label: 'POS',
     items: [
       { label: 'Grip Sales', href: '/grip-sales' },
+      { label: 'POS Report', href: '/pos-report' },
     ],
   },
   {
