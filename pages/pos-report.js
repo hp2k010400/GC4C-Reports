@@ -224,8 +224,8 @@ export default function POSReportPage() {
               </thead>
               <tbody>
                 {data.stores.map(s => {
-                  const avgTxn  = s.ordersCount > 0 ? s.totalSales / s.ordersCount : 0
-                  const discPct = s.grossSales  > 0 ? Math.abs(s.discounts) / s.grossSales * 100 : 0
+                  const avgTxn  = s.avgOrderValue || (s.ordersCount > 0 ? s.totalSales / s.ordersCount : 0)
+                  const discPct = s.grossSales > 0 ? Math.abs(s.discounts) / s.grossSales * 100 : 0
                   return (
                     <tr key={s.name}>
                       <td style={{ fontWeight: 600 }}>{s.name}</td>
