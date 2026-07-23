@@ -111,7 +111,7 @@ export default function POSReportPage() {
   }), { totalSales: 0, totalSalesLY: 0, grossSales: 0, discounts: 0, netSales: 0, ordersCount: 0, grossProfit: 0 })
 
   const totalMargin  = totals?.netSales > 0 ? parseFloat((totals.grossProfit / totals.netSales * 100).toFixed(1)) : 0
-  const totalAvgTxn  = totals?.ordersCount > 0 ? parseFloat((totals.totalSales / totals.ordersCount).toFixed(2)) : 0
+  const totalAvgTxn  = data?.summaryAov || (totals?.ordersCount > 0 ? parseFloat((totals.totalSales / totals.ordersCount).toFixed(2)) : 0)
   const totalDiscPct = totals?.grossSales > 0 ? parseFloat((Math.abs(totals.discounts) / totals.grossSales * 100).toFixed(1)) : 0
 
   const activeMetric = CHART_METRICS.find(m => m.key === chartMetric)

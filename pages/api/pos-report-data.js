@@ -2,6 +2,15 @@ import { shopifyGraphQL } from '../../lib/shopify.js'
 
 const STORE_ORDER = ['Edinburgh', 'Milton Keynes', 'Southampton', 'Warrington']
 
+async function fetchSummaryAov(since, until) {
+  const q = `FROM sales SHOW average_order_value WHERE is_pos_sale = true SINCE ${since} UNTIL ${until}`
+  const data = await shopifyGraphQL(`{ shopifyqlQuery(query: ${JSON.stringify(q)}) { tableData { rows } } }`)
+  const rows = data.shopifyqlQuery?.tableData?.rows
+  if (!rows) return 0
+  const parsed = Array.isArray(rows) ? rows : JSON.parse(rows)
+  return parseFloat(parsed[0]?.average_order_value || 0)
+}
+
 async function fetchAovData(since, until) {
   const q = `FROM sales SHOW orders, average_order_value WHERE is_pos_sale = true GROUP BY pos_location_name SINCE ${since} UNTIL ${until} LIMIT 100`
   const data = await shopifyGraphQL(`{ shopifyqlQuery(query: ${JSON.stringify(q)}) { tableData { rows } parseErrors } }`)
@@ -65,9 +74,10 @@ export default async function handler(req, res) {
 
     const lyFrom = new Date(new Date(from).getTime() - 364 * 86400000).toISOString().slice(0, 10)
     const lyTo   = new Date(new Date(to).getTime()   - 364 * 86400000).toISOString().slice(0, 10)
-    const [aovCurrent, aovLY] = await Promise.all([
+    const [aovCurrent, aovLY, summaryAov] = await Promise.all([
       fetchAovData(from, to).catch(() => ({})),
       fetchAovData(lyFrom, lyTo).catch(() => ({})),
+      fetchSummaryAov(from, to).catch(() => 0),
     ])
 
     const stores = STORE_ORDER
@@ -84,7 +94,7 @@ export default async function handler(req, res) {
       }))
       .filter(s => s.totalSales > 0)
 
-    res.json({ stores })
+    res.json({ stores, summaryAov })
   } catch (err) {
     res.status(500).json({ error: err.message })
   }
