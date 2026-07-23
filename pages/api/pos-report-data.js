@@ -2,8 +2,21 @@ import { shopifyGraphQL } from '../../lib/shopify.js'
 
 const STORE_ORDER = ['Edinburgh', 'Milton Keynes', 'Southampton', 'Warrington']
 
+async function fetchAovData(since, until) {
+  const q = `FROM sales SHOW orders, average_order_value WHERE is_pos_sale = true GROUP BY pos_location_name SINCE ${since} UNTIL ${until} LIMIT 100`
+  const data = await shopifyGraphQL(`{ shopifyqlQuery(query: ${JSON.stringify(q)}) { tableData { rows } parseErrors } }`)
+  const rows = data.shopifyqlQuery?.tableData?.rows
+  if (!rows) return {}
+  const parsed = Array.isArray(rows) ? rows : JSON.parse(rows)
+  const map = {}
+  for (const row of parsed) {
+    if (row.pos_location_name) map[row.pos_location_name] = parseFloat(row.average_order_value || 0)
+  }
+  return map
+}
+
 async function fetchPOSData(since, until) {
-  const query = `FROM sales SHOW gross_sales, discounts, net_sales, shipping_charges, taxes, total_sales, gross_margin, orders, average_order_value WHERE is_pos_sale = true GROUP BY pos_location_name WITH TOTALS SINCE ${since} UNTIL ${until} ORDER BY total_sales DESC LIMIT 1000`
+  const query = `FROM sales SHOW gross_sales, discounts, net_sales, shipping_charges, taxes, total_sales, gross_margin, orders WHERE is_pos_sale = true GROUP BY pos_location_name WITH TOTALS SINCE ${since} UNTIL ${until} ORDER BY total_sales DESC LIMIT 1000`
   const data = await shopifyGraphQL(`{
     shopifyqlQuery(query: ${JSON.stringify(query)}) {
       tableData {
@@ -29,8 +42,7 @@ async function fetchPOSData(since, until) {
       taxes:       parseFloat(row.taxes        || 0),
       totalSales:  parseFloat(row.total_sales  || 0),
       grossMargin: parseFloat(row.gross_margin || 0),
-      ordersCount:   parseInt(row.orders || row.orders_count || 0, 10),
-      avgOrderValue: parseFloat(row.average_order_value || 0),
+      ordersCount: parseInt(row.orders || row.orders_count || 0, 10),
     }
   }
   return { stores }
@@ -51,11 +63,20 @@ export default async function handler(req, res) {
 
     if (!current) return res.json({ stores: [] })
 
+    const lyFrom = new Date(new Date(from).getTime() - 364 * 86400000).toISOString().slice(0, 10)
+    const lyTo   = new Date(new Date(to).getTime()   - 364 * 86400000).toISOString().slice(0, 10)
+    const [aovCurrent, aovLY] = await Promise.all([
+      fetchAovData(from, to).catch(() => ({})),
+      fetchAovData(lyFrom, lyTo).catch(() => ({})),
+    ])
+
     const stores = STORE_ORDER
       .map(name => ({
         ...current.stores[name],
         name,
-        totalSalesLY:  ly?.stores[name]?.totalSales  || 0,
+        avgOrderValue:   aovCurrent[name] || 0,
+        avgOrderValueLY: aovLY[name]     || 0,
+        totalSalesLY:    ly?.stores[name]?.totalSales  || 0,
         grossMarginLY: ly?.stores[name]?.grossMargin || 0,
         ordersCountLY: ly?.stores[name]?.ordersCount || 0,
         grossSalesLY:  ly?.stores[name]?.grossSales  || 0,

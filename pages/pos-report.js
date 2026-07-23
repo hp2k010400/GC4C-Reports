@@ -117,8 +117,8 @@ export default function POSReportPage() {
   const activeMetric = CHART_METRICS.find(m => m.key === chartMetric)
 
   const chartData = data?.stores?.map(s => {
-    const avgTxn    = s.ordersCount  > 0 ? s.totalSales   / s.ordersCount  : 0
-    const avgTxnLY  = s.ordersCountLY > 0 ? s.totalSalesLY / s.ordersCountLY : 0
+    const avgTxn    = s.avgOrderValue   || (s.ordersCount   > 0 ? s.totalSales   / s.ordersCount   : 0)
+    const avgTxnLY  = s.avgOrderValueLY || (s.ordersCountLY > 0 ? s.totalSalesLY / s.ordersCountLY : 0)
     const discPct   = s.grossSales   > 0 ? Math.abs(s.discounts)   / s.grossSales   * 100 : 0
     const discPctLY = s.grossSalesLY > 0 ? Math.abs(s.discountsLY) / s.grossSalesLY * 100 : 0
     const vals = {
