@@ -2,7 +2,14 @@ import React, { useState } from 'react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 
 const fmtGbp = n => `£${(n || 0).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-const fmtK = n => n >= 1000 ? `£${(n / 1000).toFixed(0)}k` : `£${Math.round(n)}`
+const fmtK   = n => n >= 1000 ? `£${(n / 1000).toFixed(0)}k` : `£${Math.round(n)}`
+
+const CHART_METRICS = [
+  { key: 'sales',    label: 'Total Sales', fmt: fmtGbp,                  yFmt: fmtK,                       unit: '£' },
+  { key: 'margin',   label: 'Margin %',    fmt: v => `${v.toFixed(1)}%`, yFmt: v => `${v.toFixed(0)}%`,    unit: '%' },
+  { key: 'avgtxn',  label: 'Avg Txn',     fmt: fmtGbp,                  yFmt: fmtK,                       unit: '£' },
+  { key: 'discount', label: 'Discount %',  fmt: v => `${v.toFixed(1)}%`, yFmt: v => `${v.toFixed(0)}%`,    unit: '%' },
+]
 
 function getLastWeekDates() {
   const now = new Date()
@@ -34,7 +41,7 @@ function fmtDate(s) {
   return new Date(s).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
 }
 
-function ChartTooltip({ active, payload, label }) {
+function ChartTooltip({ active, payload, label, valueFmt }) {
   if (!active || !payload?.length) return null
   return (
     <div style={{ background: '#fff', border: '1px solid #e4e4e4', borderRadius: 6, padding: '8px 12px', fontSize: 13 }}>
@@ -42,7 +49,7 @@ function ChartTooltip({ active, payload, label }) {
       {payload.map(p => (
         <div key={p.name} style={{ color: p.color, display: 'flex', gap: 16, justifyContent: 'space-between' }}>
           <span>{p.name}:</span>
-          <span style={{ fontWeight: 600 }}>{fmtGbp(p.value)}</span>
+          <span style={{ fontWeight: 600 }}>{valueFmt ? valueFmt(p.value) : p.value}</span>
         </div>
       ))}
     </div>
@@ -53,9 +60,10 @@ export default function POSReportPage() {
   const defaults = getLastWeekDates()
   const [from, setFrom]       = useState(defaults.from)
   const [to, setTo]           = useState(defaults.to)
-  const [data, setData]       = useState(null)
-  const [loading, setLoading] = useState(false)
-  const [error, setError]     = useState(null)
+  const [data, setData]         = useState(null)
+  const [loading, setLoading]   = useState(false)
+  const [error, setError]       = useState(null)
+  const [chartMetric, setChartMetric] = useState('sales')
 
   async function loadData() {
     setLoading(true)
@@ -106,11 +114,25 @@ export default function POSReportPage() {
     ? parseFloat((totals.grossProfit / totals.netSales * 100).toFixed(1))
     : 0
 
-  const chartData = data?.stores?.map(s => ({
-    name:          s.name === 'Milton Keynes' ? 'MK' : s.name,
-    'This Period': parseFloat((s.totalSales || 0).toFixed(2)),
-    'Last Year':   parseFloat((s.totalSalesLY || 0).toFixed(2)),
-  }))
+  const activeMetric = CHART_METRICS.find(m => m.key === chartMetric)
+
+  const chartData = data?.stores?.map(s => {
+    const avgTxn    = s.ordersCount  > 0 ? s.totalSales   / s.ordersCount  : 0
+    const avgTxnLY  = s.ordersCountLY > 0 ? s.totalSalesLY / s.ordersCountLY : 0
+    const discPct   = s.grossSales   > 0 ? Math.abs(s.discounts)   / s.grossSales   * 100 : 0
+    const discPctLY = s.grossSalesLY > 0 ? Math.abs(s.discountsLY) / s.grossSalesLY * 100 : 0
+    const vals = {
+      sales:    { cur: s.totalSales || 0,        ly: s.totalSalesLY || 0 },
+      margin:   { cur: (s.grossMargin  || 0) * 100, ly: (s.grossMarginLY || 0) * 100 },
+      avgtxn:   { cur: avgTxn,                   ly: avgTxnLY },
+      discount: { cur: discPct,                  ly: discPctLY },
+    }
+    return {
+      name:          s.name === 'Milton Keynes' ? 'MK' : s.name,
+      'This Period': parseFloat(vals[chartMetric].cur.toFixed(2)),
+      'Last Year':   parseFloat(vals[chartMetric].ly.toFixed(2)),
+    }
+  })
 
   return (
     <div className="container">
@@ -159,15 +181,28 @@ export default function POSReportPage() {
           </div>
 
           <div style={{ background: '#fff', border: '1px solid #e4e4e4', borderRadius: 8, padding: '16px 12px 8px', marginBottom: 20 }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: '#888', textTransform: 'uppercase', letterSpacing: '0.06em', marginLeft: 4, marginBottom: 10 }}>
-              Total Sales vs Last Year
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 4, marginBottom: 12 }}>
+              {CHART_METRICS.map(m => (
+                <button
+                  key={m.key}
+                  onClick={() => setChartMetric(m.key)}
+                  style={{
+                    fontSize: 12, fontWeight: 600, padding: '4px 10px', borderRadius: 4, cursor: 'pointer',
+                    border: chartMetric === m.key ? '1.5px solid #005F2C' : '1.5px solid #e4e4e4',
+                    background: chartMetric === m.key ? '#005F2C' : '#fff',
+                    color: chartMetric === m.key ? '#fff' : '#555',
+                  }}
+                >
+                  {m.label}
+                </button>
+              ))}
             </div>
             <ResponsiveContainer width="100%" height={220}>
               <BarChart data={chartData} barCategoryGap="30%" barGap={3}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
                 <XAxis dataKey="name" tick={{ fontSize: 12, fill: '#555' }} axisLine={false} tickLine={false} />
-                <YAxis tickFormatter={fmtK} tick={{ fontSize: 11, fill: '#999' }} axisLine={false} tickLine={false} width={52} />
-                <Tooltip content={<ChartTooltip />} cursor={{ fill: '#f7f8fa' }} />
+                <YAxis tickFormatter={activeMetric.yFmt} tick={{ fontSize: 11, fill: '#999' }} axisLine={false} tickLine={false} width={52} />
+                <Tooltip content={<ChartTooltip valueFmt={activeMetric.fmt} />} cursor={{ fill: '#f7f8fa' }} />
                 <Legend iconType="square" iconSize={9} wrapperStyle={{ fontSize: 12, paddingTop: 4 }} />
                 <Bar dataKey="This Period" fill="#005F2C" radius={[3, 3, 0, 0]} />
                 <Bar dataKey="Last Year"   fill="#cbd5e1" radius={[3, 3, 0, 0]} />

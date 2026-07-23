@@ -3,7 +3,7 @@ import { shopifyGraphQL } from '../../lib/shopify.js'
 const STORE_ORDER = ['Edinburgh', 'Milton Keynes', 'Southampton', 'Warrington']
 
 async function fetchPOSData(since, until) {
-  const query = `FROM sales SHOW gross_sales, discounts, net_sales, shipping_charges, taxes, total_sales, gross_margin WHERE is_pos_sale = true GROUP BY pos_location_name WITH TOTALS SINCE ${since} UNTIL ${until} ORDER BY total_sales DESC LIMIT 1000`
+  const query = `FROM sales SHOW gross_sales, discounts, net_sales, shipping_charges, taxes, total_sales, gross_margin, orders_count WHERE is_pos_sale = true GROUP BY pos_location_name WITH TOTALS SINCE ${since} UNTIL ${until} ORDER BY total_sales DESC LIMIT 1000`
   const data = await shopifyGraphQL(`{
     shopifyqlQuery(query: ${JSON.stringify(query)}) {
       tableData {
@@ -29,6 +29,7 @@ async function fetchPOSData(since, until) {
       taxes:       parseFloat(row.taxes        || 0),
       totalSales:  parseFloat(row.total_sales  || 0),
       grossMargin: parseFloat(row.gross_margin || 0),
+      ordersCount: parseInt(row.orders_count   || 0, 10),
     }
   }
   return { stores }
@@ -50,7 +51,15 @@ export default async function handler(req, res) {
     if (!current) return res.json({ stores: [] })
 
     const stores = STORE_ORDER
-      .map(name => ({ ...current.stores[name], name, totalSalesLY: ly?.stores[name]?.totalSales || 0 }))
+      .map(name => ({
+        ...current.stores[name],
+        name,
+        totalSalesLY:  ly?.stores[name]?.totalSales  || 0,
+        grossMarginLY: ly?.stores[name]?.grossMargin || 0,
+        ordersCountLY: ly?.stores[name]?.ordersCount || 0,
+        grossSalesLY:  ly?.stores[name]?.grossSales  || 0,
+        discountsLY:   ly?.stores[name]?.discounts   || 0,
+      }))
       .filter(s => s.totalSales > 0)
 
     res.json({ stores })
