@@ -3,7 +3,7 @@ import { shopifyGraphQL } from '../../lib/shopify.js'
 const STORE_ORDER = ['Edinburgh', 'Milton Keynes', 'Southampton', 'Warrington']
 
 async function fetchPOSData(since, until) {
-  const query = `FROM sales SHOW gross_sales, discounts, net_sales, shipping_charges, taxes, total_sales, gross_margin, orders_count WHERE is_pos_sale = true GROUP BY pos_location_name WITH TOTALS SINCE ${since} UNTIL ${until} ORDER BY total_sales DESC LIMIT 1000`
+  const query = `FROM sales SHOW gross_sales, discounts, net_sales, shipping_charges, taxes, total_sales, gross_margin, orders WHERE is_pos_sale = true GROUP BY pos_location_name WITH TOTALS SINCE ${since} UNTIL ${until} ORDER BY total_sales DESC LIMIT 1000`
   const data = await shopifyGraphQL(`{
     shopifyqlQuery(query: ${JSON.stringify(query)}) {
       tableData {
@@ -29,7 +29,7 @@ async function fetchPOSData(since, until) {
       taxes:       parseFloat(row.taxes        || 0),
       totalSales:  parseFloat(row.total_sales  || 0),
       grossMargin: parseFloat(row.gross_margin || 0),
-      ordersCount: parseInt(row.orders_count   || 0, 10),
+      ordersCount: parseInt(row.orders || row.orders_count || 0, 10),
     }
   }
   return { stores }

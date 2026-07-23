@@ -106,13 +106,13 @@ export default function POSReportPage() {
     grossSales:   acc.grossSales   + (s.grossSales   || 0),
     discounts:    acc.discounts    + (s.discounts    || 0),
     netSales:     acc.netSales     + (s.netSales     || 0),
-    taxes:        acc.taxes        + (s.taxes        || 0),
+    ordersCount:  acc.ordersCount  + (s.ordersCount  || 0),
     grossProfit:  acc.grossProfit  + ((s.netSales || 0) * (s.grossMargin || 0)),
-  }), { totalSales: 0, totalSalesLY: 0, grossSales: 0, discounts: 0, netSales: 0, taxes: 0, grossProfit: 0 })
+  }), { totalSales: 0, totalSalesLY: 0, grossSales: 0, discounts: 0, netSales: 0, ordersCount: 0, grossProfit: 0 })
 
-  const totalMargin = totals?.netSales > 0
-    ? parseFloat((totals.grossProfit / totals.netSales * 100).toFixed(1))
-    : 0
+  const totalMargin  = totals?.netSales > 0 ? parseFloat((totals.grossProfit / totals.netSales * 100).toFixed(1)) : 0
+  const totalAvgTxn  = totals?.ordersCount > 0 ? parseFloat((totals.totalSales / totals.ordersCount).toFixed(2)) : 0
+  const totalDiscPct = totals?.grossSales > 0 ? parseFloat((Math.abs(totals.discounts) / totals.grossSales * 100).toFixed(1)) : 0
 
   const activeMetric = CHART_METRICS.find(m => m.key === chartMetric)
 
@@ -217,53 +217,41 @@ export default function POSReportPage() {
                   <th style={{ textAlign: 'left' }}>Store</th>
                   <th>Total Sales</th>
                   <th>vs LY</th>
-                  <th>Gross Sales</th>
-                  <th style={{ color: '#dc2626' }}>Discounts</th>
-                  <th>Net Sales</th>
-                  <th>Taxes</th>
                   <th>Margin %</th>
+                  <th>Avg Txn</th>
+                  <th>Discount %</th>
                 </tr>
               </thead>
               <tbody>
-                {data.stores.map(s => (
-                  <tr key={s.name}>
-                    <td style={{ fontWeight: 600 }}>{s.name}</td>
-                    <td style={{ textAlign: 'right' }}>{fmtGbp(s.totalSales)}</td>
-                    <td style={{ textAlign: 'right' }}>{vsLY(s.totalSales, s.totalSalesLY)}</td>
-                    <td style={{ textAlign: 'right' }}>{fmtGbp(s.grossSales)}</td>
-                    <td style={{ textAlign: 'right', color: '#dc2626' }}>
-                      {fmtGbp(s.discounts)}
-                      {s.grossSales > 0 && (
-                        <span style={{ color: '#aaa', fontSize: 11, marginLeft: 4 }}>
-                          ({(Math.abs(s.discounts) / s.grossSales * 100).toFixed(1)}%)
-                        </span>
-                      )}
-                    </td>
-                    <td style={{ textAlign: 'right' }}>{fmtGbp(s.netSales)}</td>
-                    <td style={{ textAlign: 'right' }}>{fmtGbp(s.taxes)}</td>
-                    <td style={{ textAlign: 'right', color: s.grossMargin > 0 ? '#005F2C' : '#aaa' }}>
-                      {s.grossMargin > 0 ? `${(s.grossMargin * 100).toFixed(1)}%` : '—'}
-                    </td>
-                  </tr>
-                ))}
+                {data.stores.map(s => {
+                  const avgTxn  = s.ordersCount > 0 ? s.totalSales / s.ordersCount : 0
+                  const discPct = s.grossSales  > 0 ? Math.abs(s.discounts) / s.grossSales * 100 : 0
+                  return (
+                    <tr key={s.name}>
+                      <td style={{ fontWeight: 600 }}>{s.name}</td>
+                      <td style={{ textAlign: 'right' }}>{fmtGbp(s.totalSales)}</td>
+                      <td style={{ textAlign: 'right' }}>{vsLY(s.totalSales, s.totalSalesLY)}</td>
+                      <td style={{ textAlign: 'right', color: s.grossMargin > 0 ? '#005F2C' : '#aaa' }}>
+                        {s.grossMargin > 0 ? `${(s.grossMargin * 100).toFixed(1)}%` : '—'}
+                      </td>
+                      <td style={{ textAlign: 'right' }}>{avgTxn > 0 ? fmtGbp(avgTxn) : '—'}</td>
+                      <td style={{ textAlign: 'right', color: discPct > 0 ? '#dc2626' : '#aaa' }}>
+                        {discPct > 0 ? `${discPct.toFixed(1)}%` : '—'}
+                      </td>
+                    </tr>
+                  )
+                })}
                 {totals && (
                   <tr style={{ fontWeight: 700, background: '#f7f8fa', borderTop: '2px solid #e4e4e4' }}>
                     <td>Total</td>
                     <td style={{ textAlign: 'right' }}>{fmtGbp(totals.totalSales)}</td>
-                    <td></td>
-                    <td style={{ textAlign: 'right' }}>{fmtGbp(totals.grossSales)}</td>
-                    <td style={{ textAlign: 'right', color: '#dc2626' }}>
-                      {fmtGbp(totals.discounts)}
-                      {totals.grossSales > 0 && (
-                        <span style={{ color: '#aaa', fontSize: 11, marginLeft: 4 }}>
-                          ({(Math.abs(totals.discounts) / totals.grossSales * 100).toFixed(1)}%)
-                        </span>
-                      )}
-                    </td>
-                    <td style={{ textAlign: 'right' }}>{fmtGbp(totals.netSales)}</td>
-                    <td style={{ textAlign: 'right' }}>{fmtGbp(totals.taxes)}</td>
+                    <td style={{ textAlign: 'right' }}>{vsLY(totals.totalSales, totals.totalSalesLY)}</td>
                     <td style={{ textAlign: 'right', color: totalMargin > 0 ? '#005F2C' : '#aaa' }}>
                       {totalMargin > 0 ? `${totalMargin.toFixed(1)}%` : '—'}
+                    </td>
+                    <td style={{ textAlign: 'right' }}>{totalAvgTxn > 0 ? fmtGbp(totalAvgTxn) : '—'}</td>
+                    <td style={{ textAlign: 'right', color: totalDiscPct > 0 ? '#dc2626' : '#aaa' }}>
+                      {totalDiscPct > 0 ? `${totalDiscPct.toFixed(1)}%` : '—'}
                     </td>
                   </tr>
                 )}
