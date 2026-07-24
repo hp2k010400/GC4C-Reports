@@ -113,6 +113,9 @@ export default function POSReportPage() {
   const totalMargin  = totals?.netSales > 0 ? parseFloat((totals.grossProfit / totals.netSales * 100).toFixed(1)) : 0
   const totalAvgTxn  = data?.summaryAov || (totals?.ordersCount > 0 ? parseFloat((totals.totalSales / totals.ordersCount).toFixed(2)) : 0)
   const totalDiscPct = totals?.grossSales > 0 ? parseFloat((Math.abs(totals.discounts) / totals.grossSales * 100).toFixed(1)) : 0
+  // LFL vs LY: only compare stores that have LY data (same as email)
+  const lflCurrent = data?.stores?.reduce((sum, s) => s.totalSalesLY > 0 ? sum + (s.totalSales || 0) : sum, 0) || 0
+  const lflLY      = data?.stores?.reduce((sum, s) => sum + (s.totalSalesLY || 0), 0) || 0
 
   const activeMetric = CHART_METRICS.find(m => m.key === chartMetric)
 
@@ -245,7 +248,7 @@ export default function POSReportPage() {
                   <tr style={{ fontWeight: 700, background: '#f7f8fa', borderTop: '2px solid #e4e4e4' }}>
                     <td>Total</td>
                     <td style={{ textAlign: 'right' }}>{fmtGbp(totals.totalSales)}</td>
-                    <td style={{ textAlign: 'right' }}>{vsLY(totals.totalSales, totals.totalSalesLY)}</td>
+                    <td style={{ textAlign: 'right' }}>{vsLY(lflCurrent, lflLY)}</td>
                     <td style={{ textAlign: 'right', color: totalMargin > 0 ? '#005F2C' : '#aaa' }}>
                       {totalMargin > 0 ? `${totalMargin.toFixed(1)}%` : '—'}
                     </td>
