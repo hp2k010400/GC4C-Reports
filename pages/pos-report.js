@@ -65,10 +65,6 @@ const STORE_COLORS = {
 
 function fmtTrendDate(dateStr, grain) {
   if (!dateStr) return ''
-  if (grain === 'week') {
-    const d = new Date(dateStr)
-    return `w/c ${d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`
-  }
   const d = new Date(dateStr)
   return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
 }
@@ -107,9 +103,9 @@ function TrendSection() {
     <div style={{ marginTop: 32 }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, marginBottom: 12 }}>
         <h2 style={{ fontSize: 14, fontWeight: 700, color: '#555', textTransform: 'uppercase', letterSpacing: '0.05em', margin: 0 }}>
-          Store Trend
+          Store Sales Trend
         </h2>
-        <span style={{ fontSize: 12, color: '#888' }}>Compare store performance over time</span>
+        <span style={{ fontSize: 12, color: '#888' }}>Total sales by store over time</span>
       </div>
       <div className="controls" style={{ marginBottom: 16 }}>
         <div className="field"><label>From</label><input type="date" value={from} onChange={e => setFrom(e.target.value)} /></div>
@@ -122,6 +118,9 @@ function TrendSection() {
       {loading && <div className="state-box"><div className="spinner" /><div>Loading trend data…</div></div>}
       {trendData && trendData.length > 0 && (
         <div style={{ background: '#fff', border: '1px solid #e4e4e4', borderRadius: 8, padding: '16px 12px 8px' }}>
+          <div style={{ fontSize: 12, color: '#888', marginLeft: 56, marginBottom: 4 }}>
+            {grain === 'week' ? 'Weekly total sales (£) — each point = one week' : 'Daily total sales (£) — each point = one day'}
+          </div>
           <ResponsiveContainer width="100%" height={280}>
             <LineChart data={trendData} margin={{ top: 4, right: 8, left: 0, bottom: 4 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
@@ -138,7 +137,8 @@ function TrendSection() {
                 tick={{ fontSize: 11, fill: '#999' }}
                 axisLine={false}
                 tickLine={false}
-                width={52}
+                width={56}
+                label={{ value: 'Sales (£)', angle: -90, position: 'insideLeft', offset: 12, dy: 36, fontSize: 11, fill: '#aaa' }}
               />
               <Tooltip
                 formatter={(v, name) => [fmtGbp(v), name]}
