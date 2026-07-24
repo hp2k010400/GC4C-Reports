@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
+import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 
 const fmtGbp = n => `£${(n || 0).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 const fmtK   = n => n >= 1000 ? `£${(n / 1000).toFixed(0)}k` : `£${Math.round(n)}`
@@ -52,6 +52,118 @@ function ChartTooltip({ active, payload, label, valueFmt }) {
           <span style={{ fontWeight: 600 }}>{valueFmt ? valueFmt(p.value) : p.value}</span>
         </div>
       ))}
+    </div>
+  )
+}
+
+const STORE_COLORS = {
+  'Edinburgh':    '#005F2C',
+  'Milton Keynes':'#1d4ed8',
+  'Southampton':  '#d97706',
+  'Warrington':   '#7c3aed',
+}
+
+function fmtTrendDate(dateStr, grain) {
+  if (!dateStr) return ''
+  if (grain === 'week') {
+    const d = new Date(dateStr)
+    return `w/c ${d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`
+  }
+  const d = new Date(dateStr)
+  return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
+}
+
+function TrendSection() {
+  const defaults = (() => {
+    const to = new Date().toISOString().slice(0, 10)
+    const from = new Date(Date.now() - 89 * 86400000).toISOString().slice(0, 10)
+    return { from, to }
+  })()
+  const [from, setFrom]     = useState(defaults.from)
+  const [to, setTo]         = useState(defaults.to)
+  const [trendData, setTrend] = useState(null)
+  const [grain, setGrain]   = useState('day')
+  const [loading, setLoading] = useState(false)
+  const [error, setError]   = useState(null)
+
+  async function loadTrend() {
+    setLoading(true); setError(null); setTrend(null)
+    try {
+      const res = await fetch(`/api/pos-store-trend?from=${from}&to=${to}`)
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error)
+      setTrend(json.data)
+      setGrain(json.grain)
+    } catch (e) {
+      setError(e.message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const stores = trendData ? [...new Set(trendData.flatMap(d => Object.keys(d).filter(k => k !== 'date')))] : []
+
+  return (
+    <div style={{ marginTop: 32 }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, marginBottom: 12 }}>
+        <h2 style={{ fontSize: 14, fontWeight: 700, color: '#555', textTransform: 'uppercase', letterSpacing: '0.05em', margin: 0 }}>
+          Store Trend
+        </h2>
+        <span style={{ fontSize: 12, color: '#888' }}>Compare store performance over time</span>
+      </div>
+      <div className="controls" style={{ marginBottom: 16 }}>
+        <div className="field"><label>From</label><input type="date" value={from} onChange={e => setFrom(e.target.value)} /></div>
+        <div className="field"><label>To</label><input type="date" value={to} onChange={e => setTo(e.target.value)} /></div>
+        <button className="btn btn-primary" onClick={loadTrend} disabled={loading}>
+          {loading ? 'Loading…' : 'Load Trend'}
+        </button>
+      </div>
+      {error && <div className="state-box error" style={{ marginBottom: 16 }}>{error}</div>}
+      {loading && <div className="state-box"><div className="spinner" /><div>Loading trend data…</div></div>}
+      {trendData && trendData.length > 0 && (
+        <div style={{ background: '#fff', border: '1px solid #e4e4e4', borderRadius: 8, padding: '16px 12px 8px' }}>
+          <ResponsiveContainer width="100%" height={280}>
+            <LineChart data={trendData} margin={{ top: 4, right: 8, left: 0, bottom: 4 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
+              <XAxis
+                dataKey="date"
+                tickFormatter={d => fmtTrendDate(d, grain)}
+                tick={{ fontSize: 11, fill: '#999' }}
+                axisLine={false}
+                tickLine={false}
+                interval="preserveStartEnd"
+              />
+              <YAxis
+                tickFormatter={fmtK}
+                tick={{ fontSize: 11, fill: '#999' }}
+                axisLine={false}
+                tickLine={false}
+                width={52}
+              />
+              <Tooltip
+                formatter={(v, name) => [fmtGbp(v), name]}
+                labelFormatter={d => fmtTrendDate(d, grain)}
+                contentStyle={{ fontSize: 12, borderRadius: 6, border: '1px solid #e4e4e4' }}
+              />
+              <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 12, paddingTop: 8 }} />
+              {stores.map(store => (
+                <Line
+                  key={store}
+                  type="monotone"
+                  dataKey={store}
+                  stroke={STORE_COLORS[store] || '#888'}
+                  strokeWidth={2}
+                  dot={false}
+                  connectNulls
+                />
+              ))}
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      )}
+      {trendData && trendData.length === 0 && (
+        <div className="state-box">No sales data for this period.</div>
+      )}
     </div>
   )
 }
@@ -263,6 +375,8 @@ export default function POSReportPage() {
           </div>
         </>
       )}
+
+      <TrendSection />
     </div>
   )
 }
