@@ -5,7 +5,7 @@ export default async function handler(req, res) {
     return res.status(401).json({ error: 'Unauthorized' })
   }
   try {
-    const recipient = req.query.solo === '1' ? 'harry.phillips@golfclubs4cash.co.uk' : undefined
+    const recipient = req.query.to || (req.query.solo === '1' ? 'harry.phillips@golfclubs4cash.co.uk' : undefined)
     const { from, to } = req.query
 
     if (from && to) {
