@@ -11,6 +11,13 @@ const SHOPIFY_CODES = [
 ]
 
 export default function Settings() {
+  // No persistence (no cookie/localStorage) — password required every time
+  // this page is opened, same pattern as the Stock Adjustments gate.
+  const [unlocked, setUnlocked] = useState(false)
+  const [gatePassword, setGatePassword] = useState('')
+  const [gateChecking, setGateChecking] = useState(false)
+  const [gateError, setGateError] = useState(null)
+
   const [historyCount, setHistoryCount] = useState(0)
   const [cleared, setCleared] = useState(false)
   const [reasonCodes, setReasonCodes] = useState([])
@@ -43,7 +50,7 @@ export default function Settings() {
       const res = await fetch('/api/reason-codes', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ label: newLabel.trim(), shopifyCode: newShopifyCode }),
+        body: JSON.stringify({ label: newLabel.trim(), shopifyCode: newShopifyCode, password: gatePassword }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
@@ -57,7 +64,7 @@ export default function Settings() {
   }
 
   async function deleteReason(label) {
-    const res = await fetch(`/api/reason-codes?label=${encodeURIComponent(label)}`, { method: 'DELETE' })
+    const res = await fetch(`/api/reason-codes?label=${encodeURIComponent(label)}&password=${encodeURIComponent(gatePassword)}`, { method: 'DELETE' })
     if (res.ok) setReasonCodes(c => c.filter(r => r.label !== label))
   }
 
@@ -81,7 +88,7 @@ export default function Settings() {
       const res = await fetch('/api/reason-codes', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ originalLabel: editingLabel, label: editLabel.trim(), shopifyCode: editShopifyCode }),
+        body: JSON.stringify({ originalLabel: editingLabel, label: editLabel.trim(), shopifyCode: editShopifyCode, password: gatePassword }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
@@ -99,6 +106,49 @@ export default function Settings() {
     localStorage.removeItem('gc4c_history')
     setHistoryCount(0)
     setCleared(true)
+  }
+
+  async function handleUnlock(e) {
+    e.preventDefault()
+    if (!gatePassword) return
+    setGateChecking(true)
+    setGateError(null)
+    try {
+      const res = await fetch('/api/settings-auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: gatePassword }),
+      })
+      if (!res.ok) throw new Error('Incorrect password')
+      setUnlocked(true)
+    } catch (err) {
+      setGateError(err.message)
+    } finally {
+      setGateChecking(false)
+    }
+  }
+
+  if (!unlocked) {
+    return (
+      <div className="container" style={{ maxWidth: 380 }}>
+        <div className="page-title">Settings</div>
+        <div className="page-sub">This section is restricted. Enter the password to continue.</div>
+        <form onSubmit={handleUnlock} style={{ marginTop: 20, display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <input
+            className="form-input"
+            type="password"
+            placeholder="Password"
+            value={gatePassword}
+            onChange={e => setGatePassword(e.target.value)}
+            autoFocus
+          />
+          <button className="btn btn-primary" type="submit" disabled={gateChecking || !gatePassword}>
+            {gateChecking ? 'Checking…' : 'Continue'}
+          </button>
+          {gateError && <div className="state-box error">{gateError}</div>}
+        </form>
+      </div>
+    )
   }
 
   return (

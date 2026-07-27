@@ -34,6 +34,13 @@ export default async function handler(req, res) {
     return res.status(200).json({ codes })
   }
 
+  // Adding/editing/deleting reason codes is Settings-gated — everything else
+  // (reading the list) stays open since Adjustments needs it too.
+  const password = req.method === 'DELETE' ? req.query.password : req.body?.password
+  if (!password || password !== process.env.SETTINGS_PASSWORD) {
+    return res.status(401).json({ error: 'Unauthorized' })
+  }
+
   if (req.method === 'POST') {
     const { label, shopifyCode } = req.body
     if (!label?.trim() || !shopifyCode) return res.status(400).json({ error: 'label and shopifyCode required' })
