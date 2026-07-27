@@ -38,6 +38,13 @@ function downloadCSV(rows, filename) {
 }
 
 export default function AdjustmentsPage() {
+  // No persistence at all (no cookie/localStorage) — a fresh password is
+  // required every time this page is opened or reloaded, per Neil's request.
+  const [unlocked, setUnlocked] = useState(false)
+  const [gatePassword, setGatePassword] = useState('')
+  const [gateChecking, setGateChecking] = useState(false)
+  const [gateError, setGateError] = useState(null)
+
   const [lines, setLines]           = useState([newLine()])
   const [locations, setLocations]   = useState([])
   const [locationId, setLocationId] = useState('')
@@ -182,7 +189,7 @@ export default function AdjustmentsPage() {
       const res = await fetch('/api/inventory-adjust', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ items, reason, notes, employee: employee.trim() }),
+        body: JSON.stringify({ items, reason, notes, employee: employee.trim(), password: gatePassword }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Adjustment failed')
@@ -261,6 +268,49 @@ export default function AdjustmentsPage() {
     if (logTableRef.current && logScrollTopRef.current) {
       logScrollTopRef.current.scrollLeft = logTableRef.current.scrollLeft
     }
+  }
+
+  async function handleUnlock(e) {
+    e.preventDefault()
+    if (!gatePassword) return
+    setGateChecking(true)
+    setGateError(null)
+    try {
+      const res = await fetch('/api/adjustments-auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: gatePassword }),
+      })
+      if (!res.ok) throw new Error('Incorrect password')
+      setUnlocked(true)
+    } catch (err) {
+      setGateError(err.message)
+    } finally {
+      setGateChecking(false)
+    }
+  }
+
+  if (!unlocked) {
+    return (
+      <div className="container" style={{ maxWidth: 380 }}>
+        <div className="page-title">Stock Adjustments</div>
+        <div className="page-sub">This section is restricted. Enter the password to continue.</div>
+        <form onSubmit={handleUnlock} style={{ marginTop: 20, display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <input
+            className="form-input"
+            type="password"
+            placeholder="Password"
+            value={gatePassword}
+            onChange={e => setGatePassword(e.target.value)}
+            autoFocus
+          />
+          <button className="btn btn-primary" type="submit" disabled={gateChecking || !gatePassword}>
+            {gateChecking ? 'Checking…' : 'Continue'}
+          </button>
+          {gateError && <div className="state-box error">{gateError}</div>}
+        </form>
+      </div>
+    )
   }
 
   return (

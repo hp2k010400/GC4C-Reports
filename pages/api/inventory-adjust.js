@@ -37,7 +37,11 @@ const ADJUST_MUTATION = `
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end()
 
-  const { items, reason, notes, employee } = req.body
+  const { items, reason, notes, employee, password } = req.body
+
+  if (!password || password !== process.env.ADJUSTMENTS_PASSWORD) {
+    return res.status(401).json({ error: 'Unauthorized' })
+  }
 
   if (!Array.isArray(items) || !items.length || !employee?.trim()) {
     return res.status(400).json({ error: 'Missing or invalid fields' })

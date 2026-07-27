@@ -6,7 +6,7 @@ export default function handler(req, res) {
     return res.status(401).json({ error: 'Incorrect password' })
   }
 
-  const maxAge = 60 * 60 * 24 * 60 // 60 days
-  res.setHeader('Set-Cookie', `adj_auth=${encodeURIComponent(password)}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${maxAge}`)
+  // No cookie/session set on purpose — this only verifies the password for
+  // the in-page gate, which resets on every page load (nothing persisted).
   res.status(200).json({ ok: true })
 }
