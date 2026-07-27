@@ -23,7 +23,6 @@ export default function Settings() {
   const [editShopifyCode, setEditShopifyCode] = useState('correction')
   const [editSaving, setEditSaving] = useState(false)
   const [editError, setEditError] = useState(null)
-  const [dragIndex, setDragIndex] = useState(null)
 
   useEffect(() => {
     try {
@@ -95,28 +94,6 @@ export default function Settings() {
     }
   }
 
-  async function persistOrder(codes) {
-    try {
-      await fetch('/api/reason-codes', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ order: codes.map(c => c.label) }),
-      })
-    } catch {}
-  }
-
-  function handleDrop(dropIndex) {
-    if (dragIndex === null || dragIndex === dropIndex) { setDragIndex(null); return }
-    setReasonCodes(prev => {
-      const next = [...prev]
-      const [moved] = next.splice(dragIndex, 1)
-      next.splice(dropIndex, 0, moved)
-      persistOrder(next)
-      return next
-    })
-    setDragIndex(null)
-  }
-
   function clearHistory() {
     if (!window.confirm('Clear all history? This only removes local records — it won\'t affect Shopify.')) return
     localStorage.removeItem('gc4c_history')
@@ -182,7 +159,7 @@ export default function Settings() {
         <p style={{ fontSize: 13, color: '#888', marginBottom: 12 }}>
           These appear in the Stock Adjustments reason dropdown and sync to Shopify with the mapped code.
         </p>
-        {reasonCodes.map((c, i) => (
+        {[...reasonCodes].sort((a, b) => a.label.localeCompare(b.label)).map(c => (
           editingLabel === c.label ? (
             <div key={c.label} className="settings-row" style={{ flexWrap: 'wrap', gap: 8 }}>
               <input
@@ -204,35 +181,11 @@ export default function Settings() {
               {editError && <div style={{ color: '#c0392b', fontSize: 13, flexBasis: '100%' }}>{editError}</div>}
             </div>
           ) : (
-            <div
-              key={c.label}
-              className="settings-row"
-              onDragOver={e => e.preventDefault()}
-              onDrop={() => handleDrop(i)}
-              style={{ opacity: dragIndex === i ? 0.4 : 1 }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <span
-                  draggable
-                  onDragStart={() => setDragIndex(i)}
-                  onDragEnd={() => setDragIndex(null)}
-                  title="Drag to reorder"
-                  style={{ cursor: 'grab', color: '#bbb', display: 'flex', touchAction: 'none' }}
-                >
-                  <svg width="10" height="16" viewBox="0 0 10 16" fill="currentColor">
-                    <circle cx="2.5" cy="2" r="1.5" />
-                    <circle cx="7.5" cy="2" r="1.5" />
-                    <circle cx="2.5" cy="8" r="1.5" />
-                    <circle cx="7.5" cy="8" r="1.5" />
-                    <circle cx="2.5" cy="14" r="1.5" />
-                    <circle cx="7.5" cy="14" r="1.5" />
-                  </svg>
-                </span>
-                <div>
-                  <div className="settings-label">{c.label}</div>
-                  <div className="settings-value" style={{ fontSize: 12, color: '#aaa' }}>
-                    Shopify: {SHOPIFY_CODES.find(s => s.value === c.shopifyCode)?.label || c.shopifyCode}
-                  </div>
+            <div key={c.label} className="settings-row">
+              <div>
+                <div className="settings-label">{c.label}</div>
+                <div className="settings-value" style={{ fontSize: 12, color: '#aaa' }}>
+                  Shopify: {SHOPIFY_CODES.find(s => s.value === c.shopifyCode)?.label || c.shopifyCode}
                 </div>
               </div>
               <div style={{ display: 'flex', gap: 8 }}>

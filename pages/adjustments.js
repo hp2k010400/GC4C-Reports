@@ -68,7 +68,7 @@ export default function AdjustmentsPage() {
     fetch('/api/reason-codes').then(r => r.json())
       .then(d => {
         if (!d.codes?.length) return
-        const labels = d.codes.map(c => c.label)
+        const labels = d.codes.map(c => c.label).sort((a, b) => a.localeCompare(b))
         setReasons(labels)
         // The dropdown starts on a hardcoded fallback before this list loads —
         // if that fallback (or a since-renamed/deleted reason) isn't a real
