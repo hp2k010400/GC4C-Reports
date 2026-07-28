@@ -1,85 +1,152 @@
 import { useState } from 'react'
 
-// Doc format (matches the labeled style Murray already uses for brand hubs):
-//   Suggested URL: https://www.golfclubs4cash.co.uk/pages/callaway-odyssey-brand-page
-//   Hero Heading: Callaway: A Golfing Powerhouse
-//   Hero Body: ...
-//   Hero CTA: Shop Callaway here!
-//   Hero CTA URL: /collections/callaway
-//   Why Choose Heading: Why Choose Callaway & Odyssey?
-//   Why Choose Body: ...
-//   Category: Shop all Callaway EPIC Drivers | callaway-epic-drivers
-//   Category: Shop all Odyssey Ten Putters | odyssey-ten
-//   FAQs Required
-//   Question line ending in ?
-//   Answer line(s)...
+// Real doc format (matches the actual TaylorMade Brand Hub doc), loose
+// prose under section headings rather than strict "Label: value" pairs:
+//   SEO Page Title: ...
+//   SEO Meta Description: ...
+//   Page Copy
+//     ...intro note...
+//     <H1 text> - H1
+//     <paragraph>
+//     <paragraph>
+//   FAQs Blocks
+//     Tier 1 - ...
+//     Q? - <question>
+//     A - <answer>
+//     CTA LINK - <label>
+//     ...
+//   Child collection links Required
+//     https://.../collections/...
+//     ...
+//   long-form descriptions
+//     <Why Brand heading>
+//     <paragraph>...
+//   Other Clubs suggestions
+//     https://.../collections/...
+//   Trade-Ins
+//     <paragraph>...
+//   Go to the clubhouse
+//     <paragraph>
+//     CTA LINK: <url>
+
+// CTA label -> real URL. Anything not matched here is left unlinked rather
+// than guessed, since a wrong link is worse than no link.
+function resolveCtaUrl(label, guidesUrl) {
+  const l = (label || '').toLowerCase()
+  if (l.includes('condition')) return '/pages/condition-rating-guide'
+  if (l.includes('bag') || l.includes('blog')) return guidesUrl || ''
+  if (l.includes('delivery')) return '/pages/delivery'
+  if (l.includes('brand hub')) return '/collections/all'
+  return '' // "MODELS", "fake drivers guide", etc. — no confirmed real URL, left blank on purpose
+}
+
+function sectionText(text, startLabel, endLabels) {
+  const startIdx = text.search(new RegExp('^' + startLabel + '\\s*$', 'm'))
+  if (startIdx === -1) return ''
+  const after = text.slice(startIdx + startLabel.length)
+  let endIdx = after.length
+  for (const end of endLabels) {
+    const idx = after.search(new RegExp('^' + end + '\\s*$', 'm'))
+    if (idx !== -1 && idx < endIdx) endIdx = idx
+  }
+  return after.slice(0, endIdx).trim()
+}
+
 function parseBrandHubDoc(text) {
   const get = (label) => {
     const m = text.match(new RegExp('^' + label + ':\\s*(.*)$', 'm'))
     return m ? m[1].trim() : ''
   }
-  const getAll = (label) => {
-    const re = new RegExp('^' + label + ':\\s*(.*)$', 'gm')
-    const out = []
-    let m
-    while ((m = re.exec(text)) !== null) out.push(m[1].trim())
-    return out
-  }
-  const categories = getAll('Category').map(c => {
-    const [label, handle] = c.split('|').map(s => (s || '').trim())
-    return { label, handle }
-  })
 
-  const faqSection = text.split(/^FAQs Required$/m)[1] || ''
-  const lines = faqSection.split('\n').map(l => l.trim()).filter(Boolean)
+  const pageTitle = get('SEO Page Title')
+  const metaDescription = get('SEO Meta Description')
+  const suggestedLine = (text.match(/^Suggested URL\(s?\):\s*([\s\S]*?)$/m) || [])[1] || ''
+  const firstUrl = (suggestedLine.match(/https?:\/\/\S+/) || [])[0] || ''
+  const handle = firstUrl.split('/').filter(Boolean).pop() || ''
+
+  const SECTION_MARKERS = [
+    'Page Copy', 'FAQs Blocks', 'Child collection links Required',
+    'Other brand hubs', 'long-form descriptions', 'Other Clubs suggestions',
+    'Trade-Ins', 'Why Choose Us', 'Go to the clubhouse',
+  ]
+
+  const pageCopy = sectionText(text, 'Page Copy', SECTION_MARKERS)
+  const pcLines = pageCopy.split('\n').map(l => l.trim()).filter(Boolean)
+  let h1 = ''
+  const heroParagraphs = []
+  for (const line of pcLines) {
+    if (/-\s*H1\s*$/.test(line)) {
+      h1 = line.replace(/-\s*H1\s*$/, '').trim()
+    } else if (!/^(meta titles|proposed page example)/i.test(line)) {
+      heroParagraphs.push(line)
+    }
+  }
+
+  const guidesUrlGlobal = (text.match(/Go to the clubhouse[\s\S]*?(https?:\/\/\S+)/) || [])[1] || ''
+
+  const faqBlock = sectionText(text, 'FAQs Blocks', SECTION_MARKERS)
+  const faqLines = faqBlock.split('\n').map(l => l.trim()).filter(Boolean)
   const faqs = []
+  let tier = ''
   let current = null
-  for (const line of lines) {
-    if (line.endsWith('?')) {
+  for (const line of faqLines) {
+    if (/^Tier \d/i.test(line)) {
+      tier = line.split('-')[0].trim()
+      continue
+    }
+    const qMatch = line.match(/^Q\??\s*[-:]?\s*(.+)$/)
+    const aMatch = line.match(/^A\s*[-:]\s*(.+)$/)
+    const ctaMatch = line.match(/^CTA LINK\s*[-:]?\s*(.+)$/i)
+    if (qMatch && !aMatch) {
       if (current) faqs.push(current)
-      current = { q: line, a: '' }
-    } else if (current) {
-      current.a = (current.a ? current.a + ' ' : '') + line
+      current = { tier, q: qMatch[1].trim(), a: '', ctaText: '', ctaUrl: '' }
+    } else if (aMatch && current) {
+      current.a = aMatch[1].trim()
+    } else if (ctaMatch && current) {
+      current.ctaText = ctaMatch[1].trim()
+      current.ctaUrl = resolveCtaUrl(ctaMatch[1].trim(), guidesUrlGlobal)
+    } else if (current && !current.a) {
+      current.q += ' ' + line
     }
   }
   if (current) faqs.push(current)
 
+  const extractUrls = (blockText) =>
+    (blockText.match(/https?:\/\/\S+/g) || [])
+
+  const mainCategoryUrls = extractUrls(sectionText(text, 'Child collection links Required', SECTION_MARKERS))
+  const otherCategoryUrls = extractUrls(sectionText(text, 'Other Clubs suggestions', SECTION_MARKERS))
+
+  const longForm = sectionText(text, 'long-form descriptions', SECTION_MARKERS)
+  const lfLines = longForm.split('\n').map(l => l.trim()).filter(Boolean)
+  const whyBrandHeading = lfLines[0] || ''
+  const whyBrandParagraphs = lfLines.slice(1)
+
+  const tradeInBlock = sectionText(text, 'Trade-Ins', SECTION_MARKERS)
+  const tradeInParagraphs = tradeInBlock.split('\n').map(l => l.trim()).filter(Boolean)
+
+  const clubhouseBlock = sectionText(text, 'Go to the clubhouse', [])
+  const clubhouseLines = clubhouseBlock.split('\n').map(l => l.trim()).filter(Boolean)
+  const guidesBody = clubhouseLines.filter(l => !/^CTA LINK/i.test(l)).join(' ')
+  const guidesUrl = guidesUrlGlobal
+
   return {
-    handle: get('Suggested URL').split('/').filter(Boolean).pop() || '',
-    brandName: get('Brand Name'),
-    heroHeading: get('Hero Heading'),
-    heroBody: get('Hero Body'),
-    heroCtaText: get('Hero CTA'),
-    heroCtaUrl: get('Hero CTA URL'),
-    whyHeading: get('Why Choose Heading'),
-    whyBody: get('Why Choose Body'),
-    categories,
-    faqs,
+    handle, pageTitle, metaDescription, h1, heroParagraphs,
+    whyBrandHeading, whyBrandParagraphs,
+    mainCategoryUrls, otherCategoryUrls,
+    faqs, tradeInParagraphs, guidesUrl, guidesBody,
   }
 }
 
-const SAMPLE_DOC = `Suggested URL: https://www.golfclubs4cash.co.uk/pages/callaway-odyssey-brand-page
-Brand Name: Callaway
-Hero Heading: Callaway: A Golfing Powerhouse
-Hero Body: Callaway continues to lead the golf industry with its innovative approach to club design. Known for its groundbreaking technology, such as Jailbreak and AI-designed faces, Callaway clubs offer improved distance, accuracy, and forgiveness.
-Hero CTA: Shop Callaway here!
-Hero CTA URL: /collections/callaway
-Why Choose Heading: Why Choose Callaway & Odyssey?
-Why Choose Body: Callaway's innovative technology, like Jailbreak and AI-designed faces, offers enhanced distance and forgiveness, making their clubs ideal for players looking for both performance and ease of use.
-Category: Shop all Callaway EPIC Drivers | callaway-epic-drivers
-Category: Shop all Odyssey Ten Putters | odyssey-ten
-Category: Shop all Callaway Rogue Iron Sets | callaway-rogue-iron-sets
-Category: Shop all Callaway Ai Smoke Hybrids | callaway-ai-smoke-hybrids
-FAQs Required
-Is Callaway a good golf brand?
-Yes, Callaway is highly regarded for its innovative technologies, consistently offering clubs that provide excellent performance, forgiveness, and distance.
-Do pros use Callaway?
-Yes, top players such as Jon Rahm and Phil Mickelson use Callaway clubs, endorsing the brand for its performance at the highest levels of golf.`
-
-const EMPTY = { handle: '', brandName: '', heroHeading: '', heroBody: '', heroCtaText: '', heroCtaUrl: '', whyHeading: '', whyBody: '', categories: [], faqs: [] }
+const EMPTY = {
+  handle: '', pageTitle: '', metaDescription: '', h1: '', heroParagraphs: [],
+  whyBrandHeading: '', whyBrandParagraphs: [], mainCategoryUrls: [], otherCategoryUrls: [],
+  faqs: [], tradeInParagraphs: [], guidesUrl: '', guidesBody: '',
+}
 
 export default function BrandHubTemplate() {
-  const [docText, setDocText] = useState(SAMPLE_DOC)
+  const [docText, setDocText] = useState('')
+  const [brandName, setBrandName] = useState('TaylorMade')
   const [parsed, setParsed] = useState(EMPTY)
   const [status, setStatus] = useState('')
   const [targetHandle, setTargetHandle] = useState('marketing-automation-test-page')
@@ -104,7 +171,7 @@ export default function BrandHubTemplate() {
       const res = await fetch('/api/marketing/brand-hub-push-live', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ handle: targetHandle.trim(), ...parsed }),
+        body: JSON.stringify({ handle: targetHandle.trim(), brandName, ...parsed }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
@@ -140,15 +207,20 @@ export default function BrandHubTemplate() {
     <div className="container">
       <div className="page-title">Brand Hub Template</div>
       <div className="page-sub">
-        One shared template for the ~16 Brand Hub pages, modelled on the real Callaway/Odyssey page Will called out as the reference.
-        Paste a doc below to preview and push it.
+        One shared template for the ~16 Brand Hub pages, matching the real doc structure: editorial H1, two GA4-ordered category tile rows,
+        3-tier FAQs with CTA links, brand trade-in copy, shared Why Choose Us, and a guides CTA.
       </div>
 
       <div className="settings-section">
         <h3 className="settings-section-title">1. Paste the copy doc</h3>
+        <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+          <label className="settings-label" style={{ alignSelf: 'center' }}>Brand name</label>
+          <input className="form-input" style={{ width: 200 }} value={brandName} onChange={e => setBrandName(e.target.value)} />
+        </div>
         <textarea
           className="form-input"
-          style={{ width: '100%', minHeight: 200, fontFamily: 'monospace', fontSize: 12.5 }}
+          style={{ width: '100%', minHeight: 220, fontFamily: 'monospace', fontSize: 12.5 }}
+          placeholder="Paste the full brand hub doc text here..."
           value={docText}
           onChange={e => setDocText(e.target.value)}
         />
@@ -182,10 +254,33 @@ export default function BrandHubTemplate() {
 
       <div className="settings-section">
         <h3 className="settings-section-title">Parsed fields</h3>
-        <div className="field-row" style={{ display: 'grid', gridTemplateColumns: '140px 1fr', gap: 8, fontSize: 13, padding: '4px 0' }}><span style={{ color: '#888' }}>Handle</span><span>{parsed.handle || '—'}</span></div>
-        <div className="field-row" style={{ display: 'grid', gridTemplateColumns: '140px 1fr', gap: 8, fontSize: 13, padding: '4px 0' }}><span style={{ color: '#888' }}>Hero heading</span><span>{parsed.heroHeading || '—'}</span></div>
-        <div className="field-row" style={{ display: 'grid', gridTemplateColumns: '140px 1fr', gap: 8, fontSize: 13, padding: '4px 0' }}><span style={{ color: '#888' }}>Categories</span><span>{parsed.categories.map(c => c.label).join(', ') || '—'}</span></div>
-        <div className="field-row" style={{ display: 'grid', gridTemplateColumns: '140px 1fr', gap: 8, fontSize: 13, padding: '4px 0' }}><span style={{ color: '#888' }}>FAQs</span><span>{parsed.faqs.length}</span></div>
+        {[
+          ['Handle', parsed.handle],
+          ['Page title', parsed.pageTitle],
+          ['H1', parsed.h1],
+          ['Hero paragraphs', parsed.heroParagraphs.length],
+          ['Why-brand heading', parsed.whyBrandHeading],
+          ['Why-brand paragraphs', parsed.whyBrandParagraphs.length],
+          ['Main categories', parsed.mainCategoryUrls.length],
+          ['Other categories', parsed.otherCategoryUrls.length],
+          ['FAQs', parsed.faqs.length],
+          ['Trade-in paragraphs', parsed.tradeInParagraphs.length],
+          ['Guides URL', parsed.guidesUrl],
+        ].map(([label, value]) => (
+          <div key={label} style={{ display: 'grid', gridTemplateColumns: '160px 1fr', gap: 8, fontSize: 13, padding: '4px 0' }}>
+            <span style={{ color: '#888' }}>{label}</span><span>{value || '—'}</span>
+          </div>
+        ))}
+        {parsed.faqs.length > 0 && (
+          <div style={{ marginTop: 10 }}>
+            <div style={{ fontSize: 12, color: '#888', marginBottom: 6 }}>FAQ CTA links resolved (blank = no confident match, left unlinked on purpose):</div>
+            {parsed.faqs.map((f, i) => (
+              <div key={i} style={{ fontSize: 12.5, padding: '3px 0' }}>
+                <strong>{f.q}</strong> {f.ctaText && <span style={{ color: f.ctaUrl ? '#1a7a2e' : '#c0392b' }}>[{f.ctaText} &rarr; {f.ctaUrl || 'unresolved'}]</span>}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   )

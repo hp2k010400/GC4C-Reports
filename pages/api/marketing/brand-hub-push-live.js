@@ -1,22 +1,39 @@
 import { shopifyGraphQL } from '../../../lib/shopify.js'
 
 // Writes to a Page's metafields + assigns the shared "brand-hub" template
-// (built once, reused for all ~16 brands). Category tile images/counts are
-// resolved here from the live public storefront JSON at push time (Liquid
-// can't make outbound calls), then baked into the metafield as JSON.
+// (built once, reused for all ~16 brands). Category tiles come in as plain
+// collection URLs (GA4-ordered) — label, image and count are all resolved
+// here from the live public storefront JSON at push time, since Liquid
+// can't make outbound calls and the doc doesn't give handles+labels together.
 const TEMPLATE_SUFFIX = 'brand-hub'
 const STORE_DOMAIN = 'www.golfclubs4cash.co.uk'
 
-async function resolveCategory(label, handle) {
+function handleFromUrl(url) {
+  return (url || '').split('/').filter(Boolean).pop() || ''
+}
+
+async function resolveCategory(url) {
+  const handle = handleFromUrl(url)
   try {
-    const res = await fetch(`https://${STORE_DOMAIN}/collections/${encodeURIComponent(handle)}/products.json?limit=1`, {
-      headers: { 'User-Agent': 'Mozilla/5.0' },
-    })
-    const data = await res.json()
-    const product = data.products?.[0]
-    return { label, handle, image: product?.images?.[0]?.src || null, count: null }
+    const [productsRes, collectionsRes] = await Promise.all([
+      fetch(`https://${STORE_DOMAIN}/collections/${encodeURIComponent(handle)}/products.json?limit=1`, { headers: { 'User-Agent': 'Mozilla/5.0' } }),
+      fetch(`https://${STORE_DOMAIN}/collections.json?limit=250`, { headers: { 'User-Agent': 'Mozilla/5.0' } }),
+    ])
+    const productsData = await productsRes.json()
+    const product = productsData.products?.[0]
+    let title = product ? `Shop all ${product.vendor} ${product.product_type}s` : handle
+    let count = null
+    try {
+      const collectionsData = await collectionsRes.json()
+      const match = collectionsData.collections?.find(c => c.handle === handle)
+      if (match) {
+        title = `Shop all ${match.title}`
+        count = match.products_count
+      }
+    } catch { /* fall back to product-derived title */ }
+    return { label: title, handle, image: product?.images?.[0]?.src || null, count }
   } catch {
-    return { label, handle, image: null, count: null }
+    return { label: handle, handle, image: null, count: null }
   }
 }
 
@@ -27,8 +44,9 @@ export default async function handler(req, res) {
   }
 
   const {
-    handle, brandName, heroHeading, heroBody, heroCtaText, heroCtaUrl, heroImage,
-    whyHeading, whyBody, categories, faqs,
+    handle, brandName, pageTitle, metaDescription, h1, heroParagraphs,
+    whyBrandHeading, whyBrandParagraphs, mainCategoryUrls, otherCategoryUrls,
+    faqs, tradeInParagraphs, guidesUrl, guidesBody,
   } = req.body
   if (!handle) return res.status(400).json({ error: 'handle is required' })
 
@@ -40,15 +58,16 @@ export default async function handler(req, res) {
             id
             templateSuffix
             mf_brand: metafield(namespace: "custom", key: "seo_brand_name") { value }
-            mf_hero_h: metafield(namespace: "custom", key: "seo_hero_heading") { value }
-            mf_hero_b: metafield(namespace: "custom", key: "seo_hero_body") { value }
-            mf_hero_cta_t: metafield(namespace: "custom", key: "seo_hero_cta_text") { value }
-            mf_hero_cta_u: metafield(namespace: "custom", key: "seo_hero_cta_url") { value }
-            mf_hero_img: metafield(namespace: "custom", key: "seo_hero_image") { value }
-            mf_why_h: metafield(namespace: "custom", key: "seo_why_heading") { value }
-            mf_why_b: metafield(namespace: "custom", key: "seo_why_body") { value }
-            mf_categories: metafield(namespace: "custom", key: "seo_categories") { value }
+            mf_h1: metafield(namespace: "custom", key: "seo_h1") { value }
+            mf_hero: metafield(namespace: "custom", key: "seo_hero_paragraphs") { value }
+            mf_why_h: metafield(namespace: "custom", key: "seo_why_brand_heading") { value }
+            mf_why_p: metafield(namespace: "custom", key: "seo_why_brand_paragraphs") { value }
+            mf_main_cats: metafield(namespace: "custom", key: "seo_main_categories") { value }
+            mf_other_cats: metafield(namespace: "custom", key: "seo_other_categories") { value }
             mf_faqs: metafield(namespace: "custom", key: "seo_faqs") { value }
+            mf_tradein: metafield(namespace: "custom", key: "seo_tradein_paragraphs") { value }
+            mf_guides_url: metafield(namespace: "custom", key: "seo_guides_url") { value }
+            mf_guides_body: metafield(namespace: "custom", key: "seo_guides_body") { value }
           }
         }
       }
@@ -60,21 +79,23 @@ export default async function handler(req, res) {
       templateSuffix: page.templateSuffix || '',
       metafields: {
         seo_brand_name: page.mf_brand?.value || '',
-        seo_hero_heading: page.mf_hero_h?.value || '',
-        seo_hero_body: page.mf_hero_b?.value || '',
-        seo_hero_cta_text: page.mf_hero_cta_t?.value || '',
-        seo_hero_cta_url: page.mf_hero_cta_u?.value || '',
-        seo_hero_image: page.mf_hero_img?.value || '',
-        seo_why_heading: page.mf_why_h?.value || '',
-        seo_why_body: page.mf_why_b?.value || '',
-        seo_categories: page.mf_categories?.value || '',
+        seo_h1: page.mf_h1?.value || '',
+        seo_hero_paragraphs: page.mf_hero?.value || '',
+        seo_why_brand_heading: page.mf_why_h?.value || '',
+        seo_why_brand_paragraphs: page.mf_why_p?.value || '',
+        seo_main_categories: page.mf_main_cats?.value || '',
+        seo_other_categories: page.mf_other_cats?.value || '',
         seo_faqs: page.mf_faqs?.value || '',
+        seo_tradein_paragraphs: page.mf_tradein?.value || '',
+        seo_guides_url: page.mf_guides_url?.value || '',
+        seo_guides_body: page.mf_guides_body?.value || '',
       },
     }
 
-    const resolvedCategories = await Promise.all(
-      (categories || []).map(c => resolveCategory(c.label, c.handle))
-    )
+    const [resolvedMain, resolvedOther] = await Promise.all([
+      Promise.all((mainCategoryUrls || []).map(resolveCategory)),
+      Promise.all((otherCategoryUrls || []).map(resolveCategory)),
+    ])
 
     const update = await shopifyGraphQL(`
       mutation($id: ID!, $page: PageUpdateInput!) {
@@ -86,18 +107,20 @@ export default async function handler(req, res) {
     `, {
       id: page.id,
       page: {
+        title: pageTitle || undefined,
         templateSuffix: TEMPLATE_SUFFIX,
         metafields: [
           { namespace: 'custom', key: 'seo_brand_name', type: 'single_line_text_field', value: brandName || '' },
-          { namespace: 'custom', key: 'seo_hero_heading', type: 'single_line_text_field', value: heroHeading || '' },
-          { namespace: 'custom', key: 'seo_hero_body', type: 'multi_line_text_field', value: heroBody || '' },
-          { namespace: 'custom', key: 'seo_hero_cta_text', type: 'single_line_text_field', value: heroCtaText || '' },
-          { namespace: 'custom', key: 'seo_hero_cta_url', type: 'single_line_text_field', value: heroCtaUrl || '' },
-          { namespace: 'custom', key: 'seo_hero_image', type: 'single_line_text_field', value: heroImage || '' },
-          { namespace: 'custom', key: 'seo_why_heading', type: 'single_line_text_field', value: whyHeading || '' },
-          { namespace: 'custom', key: 'seo_why_body', type: 'multi_line_text_field', value: whyBody || '' },
-          { namespace: 'custom', key: 'seo_categories', type: 'json', value: JSON.stringify(resolvedCategories) },
+          { namespace: 'custom', key: 'seo_h1', type: 'single_line_text_field', value: h1 || '' },
+          { namespace: 'custom', key: 'seo_hero_paragraphs', type: 'json', value: JSON.stringify(heroParagraphs || []) },
+          { namespace: 'custom', key: 'seo_why_brand_heading', type: 'single_line_text_field', value: whyBrandHeading || '' },
+          { namespace: 'custom', key: 'seo_why_brand_paragraphs', type: 'json', value: JSON.stringify(whyBrandParagraphs || []) },
+          { namespace: 'custom', key: 'seo_main_categories', type: 'json', value: JSON.stringify(resolvedMain) },
+          { namespace: 'custom', key: 'seo_other_categories', type: 'json', value: JSON.stringify(resolvedOther) },
           { namespace: 'custom', key: 'seo_faqs', type: 'json', value: JSON.stringify(faqs || []) },
+          { namespace: 'custom', key: 'seo_tradein_paragraphs', type: 'json', value: JSON.stringify(tradeInParagraphs || []) },
+          { namespace: 'custom', key: 'seo_guides_url', type: 'single_line_text_field', value: guidesUrl || '' },
+          { namespace: 'custom', key: 'seo_guides_body', type: 'multi_line_text_field', value: guidesBody || '' },
         ],
       },
     })
@@ -105,7 +128,10 @@ export default async function handler(req, res) {
     const errors = update.pageUpdate.userErrors
     if (errors?.length) throw new Error(errors.map(e => e.message).join('; '))
 
-    return res.status(200).json({ ok: true, original, resolvedCategories })
+    // seo / meta description on Pages goes through SEO fields, not part of PageUpdateInput's basic fields in this API version —
+    // set title (done above); meta description isn't natively supported the same way as Collection.seo, so it's tracked here for reference only.
+
+    return res.status(200).json({ ok: true, original, resolvedMain, resolvedOther })
   } catch (err) {
     return res.status(500).json({ error: err.message })
   }
