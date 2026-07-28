@@ -35,6 +35,12 @@ const NAV = [
       { label: 'Store Credit', href: '/store-credit' },
     ],
   },
+  {
+    label: 'Marketing',
+    items: [
+      { label: 'Model Collection Template', href: '/marketing/model-collection-template' },
+    ],
+  },
   { label: 'Reports', href: '/' },
   { label: 'Settings', href: '/settings' },
 ]
