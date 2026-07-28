@@ -34,24 +34,26 @@ export default async function handler(req, res) {
 
   try {
     const found = await shopifyGraphQL(`
-      query($handle: String!) {
-        pageByHandle(handle: $handle) {
-          id
-          templateSuffix
-          mf_brand: metafield(namespace: "custom", key: "seo_brand_name") { value }
-          mf_hero_h: metafield(namespace: "custom", key: "seo_hero_heading") { value }
-          mf_hero_b: metafield(namespace: "custom", key: "seo_hero_body") { value }
-          mf_hero_cta_t: metafield(namespace: "custom", key: "seo_hero_cta_text") { value }
-          mf_hero_cta_u: metafield(namespace: "custom", key: "seo_hero_cta_url") { value }
-          mf_hero_img: metafield(namespace: "custom", key: "seo_hero_image") { value }
-          mf_why_h: metafield(namespace: "custom", key: "seo_why_heading") { value }
-          mf_why_b: metafield(namespace: "custom", key: "seo_why_body") { value }
-          mf_categories: metafield(namespace: "custom", key: "seo_categories") { value }
-          mf_faqs: metafield(namespace: "custom", key: "seo_faqs") { value }
+      query($q: String!) {
+        pages(first: 1, query: $q) {
+          nodes {
+            id
+            templateSuffix
+            mf_brand: metafield(namespace: "custom", key: "seo_brand_name") { value }
+            mf_hero_h: metafield(namespace: "custom", key: "seo_hero_heading") { value }
+            mf_hero_b: metafield(namespace: "custom", key: "seo_hero_body") { value }
+            mf_hero_cta_t: metafield(namespace: "custom", key: "seo_hero_cta_text") { value }
+            mf_hero_cta_u: metafield(namespace: "custom", key: "seo_hero_cta_url") { value }
+            mf_hero_img: metafield(namespace: "custom", key: "seo_hero_image") { value }
+            mf_why_h: metafield(namespace: "custom", key: "seo_why_heading") { value }
+            mf_why_b: metafield(namespace: "custom", key: "seo_why_body") { value }
+            mf_categories: metafield(namespace: "custom", key: "seo_categories") { value }
+            mf_faqs: metafield(namespace: "custom", key: "seo_faqs") { value }
+          }
         }
       }
-    `, { handle })
-    const page = found.pageByHandle
+    `, { q: `handle:${handle}` })
+    const page = found.pages.nodes[0]
     if (!page) throw new Error(`No page found for handle "${handle}"`)
 
     const original = {

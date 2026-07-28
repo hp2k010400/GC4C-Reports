@@ -12,11 +12,11 @@ export default async function handler(req, res) {
 
   try {
     const found = await shopifyGraphQL(`
-      query($handle: String!) {
-        pageByHandle(handle: $handle) { id }
+      query($q: String!) {
+        pages(first: 1, query: $q) { nodes { id } }
       }
-    `, { handle })
-    const pageId = found.pageByHandle?.id
+    `, { q: `handle:${handle}` })
+    const pageId = found.pages.nodes[0]?.id
     if (!pageId) throw new Error(`No page found for handle "${handle}"`)
 
     const mf = original.metafields || {}
