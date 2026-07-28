@@ -21,15 +21,15 @@ export default async function handler(req, res) {
 
     const mf = original.metafields || {}
     const update = await shopifyGraphQL(`
-      mutation($input: PageInput!) {
-        pageUpdate(input: $input) {
+      mutation($id: ID!, $page: PageUpdateInput!) {
+        pageUpdate(id: $id, page: $page) {
           page { id handle }
           userErrors { field message }
         }
       }
     `, {
-      input: {
-        id: pageId,
+      id: pageId,
+      page: {
         templateSuffix: original.templateSuffix || '',
         metafields: [
           { namespace: 'custom', key: 'seo_brand_name', type: 'single_line_text_field', value: mf.seo_brand_name || '' },
