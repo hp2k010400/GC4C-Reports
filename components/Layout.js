@@ -39,6 +39,7 @@ const NAV = [
     label: 'Marketing',
     items: [
       { label: 'Model Collection Template', href: '/marketing/model-collection-template' },
+      { label: 'Brand Hub Template', href: '/marketing/brand-hub-template' },
     ],
   },
   { label: 'Reports', href: '/' },
