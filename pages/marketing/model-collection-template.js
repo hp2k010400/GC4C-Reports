@@ -86,6 +86,7 @@ function firstParagraphsOf(sectionText) {
 const EMPTY_PARSED = {
   handle: '', pageTitle: '', metaDescription: '',
   title: '', intro: '', faqs: [],
+  collectionDescription: '', playerType: '', otherBrands: '', tradeIn: '', whyChooseUs: '', guides: '',
 }
 
 export default function ModelCollectionTemplate() {
@@ -114,6 +115,12 @@ export default function ModelCollectionTemplate() {
       title,
       intro: body,
       faqs,
+      collectionDescription: sections['Collection Description Copy'] || '',
+      playerType: sections['Player Type Copy'] || '',
+      otherBrands: sections['Other Clubs or Brands'] || '',
+      tradeIn: sections['Generic Trade-In Copy'] || '',
+      whyChooseUs: sections['Why Choose Us Copy'] || '',
+      guides: sections['Guides & Help Required'] || '',
     })
     setStatus('Loaded ' + new Date().toLocaleTimeString())
 
@@ -156,6 +163,13 @@ export default function ModelCollectionTemplate() {
           faqs: parsed.faqs.map(f => [f.q, f.a]),
           pageTitle: parsed.pageTitle,
           metaDescription: parsed.metaDescription,
+          collectionDescription: parsed.collectionDescription,
+          playerType: parsed.playerType,
+          otherBrands: parsed.otherBrands,
+          tradeIn: parsed.tradeIn,
+          whyChooseUs: parsed.whyChooseUs,
+          guides: parsed.guides,
+          image: image?.image || null,
         }),
       })
       const data = await res.json()
