@@ -152,6 +152,7 @@ function BrandHubPreview({ brand, parsed, resolved }) {
       <style jsx>{`
         .bh-preview { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #fff; color: #1c1f1a; width: 100%; box-sizing: border-box; }
         .bh-wrap { max-width: 960px; margin: 0 auto; padding: 0 1.75rem; box-sizing: border-box; }
+        .bh-copy { max-width: 640px; margin: 0 auto; }
         .bh-hero { padding: 2.4rem 0 1rem; }
         .bh-hero h1 { font-size: clamp(1.9rem, 3.6vw, 2.5rem); font-weight: 700; margin: 0; max-width: 20ch; }
         .bh-hero p { margin-top: 1rem; color: #5b6259; font-size: 1.02rem; max-width: 68ch; }
@@ -188,17 +189,21 @@ function BrandHubPreview({ brand, parsed, resolved }) {
 
       <section className="bh-hero">
         <div className="bh-wrap">
-          <h1>{parsed.h1 || parsed.pageTitle || `${brand} Brand Hub`}</h1>
-          {parsed.heroParagraphs.map((p, i) => <p key={i}>{p}</p>)}
+          <div className="bh-copy">
+            <h1>{parsed.h1 || parsed.pageTitle || `${brand} Brand Hub`}</h1>
+            {parsed.heroParagraphs.map((p, i) => <p key={i}>{p}</p>)}
+          </div>
         </div>
       </section>
 
       {parsed.whyBrandParagraphs.length > 0 && (
         <section className="bh-band paper">
           <div className="bh-wrap">
-            <h2 className="bh-title">{parsed.whyBrandHeading}</h2>
-            <div style={{ marginTop: '1rem' }}>
-              {parsed.whyBrandParagraphs.map((p, i) => <p key={i} style={{ color: '#5b6259', maxWidth: '70ch', marginTop: '0.9rem' }}>{p}</p>)}
+            <div className="bh-copy">
+              <h2 className="bh-title">{parsed.whyBrandHeading}</h2>
+              <div style={{ marginTop: '1rem' }}>
+                {parsed.whyBrandParagraphs.map((p, i) => <p key={i} style={{ color: '#5b6259', marginTop: '0.9rem' }}>{p}</p>)}
+              </div>
             </div>
           </div>
         </section>
@@ -239,9 +244,11 @@ function BrandHubPreview({ brand, parsed, resolved }) {
       {parsed.tradeInParagraphs.length > 0 && (
         <section className="bh-band">
           <div className="bh-wrap">
-            <h2 className="bh-title">Trade in your {brand} clubs</h2>
-            {parsed.tradeInParagraphs.map((p, i) => <p key={i} style={{ color: '#5b6259', maxWidth: '66ch', marginTop: '0.9rem' }}>{p}</p>)}
-            <a className="bh-cta" href="/pages/sell-your-clubs" onClick={e => e.preventDefault()}>Trade your clubs in here</a>
+            <div className="bh-copy">
+              <h2 className="bh-title">Trade in your {brand} clubs</h2>
+              {parsed.tradeInParagraphs.map((p, i) => <p key={i} style={{ color: '#5b6259', marginTop: '0.9rem' }}>{p}</p>)}
+              <a className="bh-cta" href="/pages/sell-your-clubs" onClick={e => e.preventDefault()}>Trade your clubs in here</a>
+            </div>
           </div>
         </section>
       )}
@@ -281,24 +288,26 @@ function BrandHubPreview({ brand, parsed, resolved }) {
       {parsed.faqs.length > 0 && (
         <section className="bh-band">
           <div className="bh-wrap">
-            <h2 className="bh-title" style={{ marginBottom: '0.3rem' }}>{brand} &mdash; your questions answered</h2>
-            {(() => {
-              let tierSeen = ''
-              return parsed.faqs.map((item, i) => {
-                const showTier = item.tier !== tierSeen
-                tierSeen = item.tier
-                return (
-                  <div key={i}>
-                    {showTier && <div className="bh-faq-tier"><div className="tier-label">{item.tier}</div></div>}
-                    <details className="bh-faq">
-                      <summary>{item.q}</summary>
-                      <p>{item.a}</p>
-                      {item.ctaUrl && <a className="faq-cta" href={item.ctaUrl} onClick={e => e.preventDefault()}>{item.ctaText || 'Learn more'} &rarr;</a>}
-                    </details>
-                  </div>
-                )
-              })
-            })()}
+            <div className="bh-copy">
+              <h2 className="bh-title" style={{ marginBottom: '0.3rem' }}>{brand} &mdash; your questions answered</h2>
+              {(() => {
+                let tierSeen = ''
+                return parsed.faqs.map((item, i) => {
+                  const showTier = item.tier !== tierSeen
+                  tierSeen = item.tier
+                  return (
+                    <div key={i}>
+                      {showTier && <div className="bh-faq-tier"><div className="tier-label">{item.tier}</div></div>}
+                      <details className="bh-faq">
+                        <summary>{item.q}</summary>
+                        <p>{item.a}</p>
+                        {item.ctaUrl && <a className="faq-cta" href={item.ctaUrl} onClick={e => e.preventDefault()}>{item.ctaText || 'Learn more'} &rarr;</a>}
+                      </details>
+                    </div>
+                  )
+                })
+              })()}
+            </div>
           </div>
         </section>
       )}
@@ -306,9 +315,11 @@ function BrandHubPreview({ brand, parsed, resolved }) {
       {parsed.guidesUrl && (
         <section className="bh-band bh-clubhouse">
           <div className="bh-wrap">
-            <h2>Go to the clubhouse</h2>
-            <p>{parsed.guidesBody}</p>
-            <a className="bh-cta" href={parsed.guidesUrl} onClick={e => e.preventDefault()}>Read our {brand} guides</a>
+            <div className="bh-copy">
+              <h2>Go to the clubhouse</h2>
+              <p>{parsed.guidesBody}</p>
+              <a className="bh-cta" href={parsed.guidesUrl} onClick={e => e.preventDefault()}>Read our {brand} guides</a>
+            </div>
           </div>
         </section>
       )}
