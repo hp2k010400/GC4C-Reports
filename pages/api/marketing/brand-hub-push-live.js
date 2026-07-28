@@ -18,23 +18,20 @@ async function resolveCategory(url) {
       query($h: String!) {
         collectionByHandle(handle: $h) {
           title
-          image { url }
-          productsCount { count }
-          products(first: 5) { nodes { featuredImage { url } } }
+          products(first: 5, sortKey: BEST_SELLING) { nodes { featuredImage { url } } }
         }
       }
     `, { h: handle })
     const c = data.collectionByHandle
-    if (!c) return { label: handle, handle, image: null, count: null }
+    if (!c) return { label: handle, handle, image: null }
     const productImage = c.products.nodes.find(p => p.featuredImage)?.featuredImage?.url
     return {
       label: `Shop all ${c.title}`,
       handle,
-      image: c.image?.url || productImage || null,
-      count: c.productsCount?.count ?? null,
+      image: productImage || null,
     }
   } catch {
-    return { label: handle, handle, image: null, count: null }
+    return { label: handle, handle, image: null }
   }
 }
 
