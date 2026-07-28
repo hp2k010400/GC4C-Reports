@@ -43,6 +43,7 @@ export default async function handler(req, res) {
           { namespace: 'custom', key: 'seo_tradein_paragraphs', type: 'json', value: mf.seo_tradein_paragraphs || '[]' },
           { namespace: 'custom', key: 'seo_guides_url', type: 'single_line_text_field', value: mf.seo_guides_url || '' },
           { namespace: 'custom', key: 'seo_guides_body', type: 'multi_line_text_field', value: mf.seo_guides_body || '' },
+          { namespace: 'global', key: 'description_tag', type: 'single_line_text_field', value: mf.description_tag || '' },
         ],
       },
     })

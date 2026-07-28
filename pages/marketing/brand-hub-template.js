@@ -41,13 +41,15 @@ function resolveCtaUrl(label, guidesUrl) {
 }
 
 function sectionText(text, startLabel, endLabels) {
-  const startIdx = text.search(new RegExp('^' + startLabel + '\\s*$', 'm'))
-  if (startIdx === -1) return ''
-  const after = text.slice(startIdx + startLabel.length)
+  // Prefix match, not exact-line match — real headings carry trailing text
+  // like "Child collection links Required - Ordered by GA4 Data".
+  const startMatch = text.match(new RegExp('^' + startLabel + '.*$', 'm'))
+  if (!startMatch) return ''
+  const after = text.slice(startMatch.index + startMatch[0].length)
   let endIdx = after.length
   for (const end of endLabels) {
-    const idx = after.search(new RegExp('^' + end + '\\s*$', 'm'))
-    if (idx !== -1 && idx < endIdx) endIdx = idx
+    const m = after.match(new RegExp('^' + end + '.*$', 'm'))
+    if (m && m.index < endIdx) endIdx = m.index
   }
   return after.slice(0, endIdx).trim()
 }

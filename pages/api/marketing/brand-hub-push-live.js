@@ -3,10 +3,9 @@ import { shopifyGraphQL } from '../../../lib/shopify.js'
 // Writes to a Page's metafields + assigns the shared "brand-hub" template
 // (built once, reused for all ~16 brands). Category tiles come in as plain
 // collection URLs (GA4-ordered) — label, image and count are all resolved
-// here from the live public storefront JSON at push time, since Liquid
-// can't make outbound calls and the doc doesn't give handles+labels together.
+// here via the authenticated Admin API at push time (real title, not
+// guessed from product data), since Liquid can't make outbound calls.
 const TEMPLATE_SUFFIX = 'brand-hub'
-const STORE_DOMAIN = 'www.golfclubs4cash.co.uk'
 
 function handleFromUrl(url) {
   return (url || '').split('/').filter(Boolean).pop() || ''
@@ -15,23 +14,25 @@ function handleFromUrl(url) {
 async function resolveCategory(url) {
   const handle = handleFromUrl(url)
   try {
-    const [productsRes, collectionsRes] = await Promise.all([
-      fetch(`https://${STORE_DOMAIN}/collections/${encodeURIComponent(handle)}/products.json?limit=1`, { headers: { 'User-Agent': 'Mozilla/5.0' } }),
-      fetch(`https://${STORE_DOMAIN}/collections.json?limit=250`, { headers: { 'User-Agent': 'Mozilla/5.0' } }),
-    ])
-    const productsData = await productsRes.json()
-    const product = productsData.products?.[0]
-    let title = product ? `Shop all ${product.vendor} ${product.product_type}s` : handle
-    let count = null
-    try {
-      const collectionsData = await collectionsRes.json()
-      const match = collectionsData.collections?.find(c => c.handle === handle)
-      if (match) {
-        title = `Shop all ${match.title}`
-        count = match.products_count
+    const data = await shopifyGraphQL(`
+      query($h: String!) {
+        collectionByHandle(handle: $h) {
+          title
+          image { url }
+          productsCount { count }
+          products(first: 5) { nodes { featuredImage { url } } }
+        }
       }
-    } catch { /* fall back to product-derived title */ }
-    return { label: title, handle, image: product?.images?.[0]?.src || null, count }
+    `, { h: handle })
+    const c = data.collectionByHandle
+    if (!c) return { label: handle, handle, image: null, count: null }
+    const productImage = c.products.nodes.find(p => p.featuredImage)?.featuredImage?.url
+    return {
+      label: `Shop all ${c.title}`,
+      handle,
+      image: c.image?.url || productImage || null,
+      count: c.productsCount?.count ?? null,
+    }
   } catch {
     return { label: handle, handle, image: null, count: null }
   }
@@ -68,6 +69,7 @@ export default async function handler(req, res) {
             mf_tradein: metafield(namespace: "custom", key: "seo_tradein_paragraphs") { value }
             mf_guides_url: metafield(namespace: "custom", key: "seo_guides_url") { value }
             mf_guides_body: metafield(namespace: "custom", key: "seo_guides_body") { value }
+            mf_description: metafield(namespace: "global", key: "description_tag") { value }
           }
         }
       }
@@ -89,6 +91,7 @@ export default async function handler(req, res) {
         seo_tradein_paragraphs: page.mf_tradein?.value || '',
         seo_guides_url: page.mf_guides_url?.value || '',
         seo_guides_body: page.mf_guides_body?.value || '',
+        description_tag: page.mf_description?.value || '',
       },
     }
 
@@ -121,15 +124,16 @@ export default async function handler(req, res) {
           { namespace: 'custom', key: 'seo_tradein_paragraphs', type: 'json', value: JSON.stringify(tradeInParagraphs || []) },
           { namespace: 'custom', key: 'seo_guides_url', type: 'single_line_text_field', value: guidesUrl || '' },
           { namespace: 'custom', key: 'seo_guides_body', type: 'multi_line_text_field', value: guidesBody || '' },
+          // Pages have no native "seo" input field like Collections do — the theme
+          // actually reads the meta description from this metafield convention instead.
+          // Confirmed by writing a test value and checking it render in <meta name="description">.
+          { namespace: 'global', key: 'description_tag', type: 'single_line_text_field', value: metaDescription || '' },
         ],
       },
     })
 
     const errors = update.pageUpdate.userErrors
     if (errors?.length) throw new Error(errors.map(e => e.message).join('; '))
-
-    // seo / meta description on Pages goes through SEO fields, not part of PageUpdateInput's basic fields in this API version —
-    // set title (done above); meta description isn't natively supported the same way as Collection.seo, so it's tracked here for reference only.
 
     return res.status(200).json({ ok: true, original, resolvedMain, resolvedOther })
   } catch (err) {
