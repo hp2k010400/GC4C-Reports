@@ -1,39 +1,12 @@
 import { shopifyGraphQL } from '../../../lib/shopify.js'
+import { resolveCategory } from '../../../lib/marketing-categories.js'
 
 // Writes to a Page's metafields + assigns the shared "brand-hub" template
 // (built once, reused for all ~16 brands). Category tiles come in as plain
-// collection URLs (GA4-ordered) — label, image and count are all resolved
-// here via the authenticated Admin API at push time (real title, not
-// guessed from product data), since Liquid can't make outbound calls.
+// collection URLs (GA4-ordered) — label and image are resolved here via the
+// authenticated Admin API at push time (real title, real product photo),
+// since Liquid can't make outbound calls.
 const TEMPLATE_SUFFIX = 'brand-hub'
-
-function handleFromUrl(url) {
-  return (url || '').split('/').filter(Boolean).pop() || ''
-}
-
-async function resolveCategory(url) {
-  const handle = handleFromUrl(url)
-  try {
-    const data = await shopifyGraphQL(`
-      query($h: String!) {
-        collectionByHandle(handle: $h) {
-          title
-          products(first: 5, sortKey: BEST_SELLING) { nodes { featuredImage { url } } }
-        }
-      }
-    `, { h: handle })
-    const c = data.collectionByHandle
-    if (!c) return { label: handle, handle, image: null }
-    const productImage = c.products.nodes.find(p => p.featuredImage)?.featuredImage?.url
-    return {
-      label: `Shop all ${c.title}`,
-      handle,
-      image: productImage || null,
-    }
-  } catch {
-    return { label: handle, handle, image: null }
-  }
-}
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'POST only' })

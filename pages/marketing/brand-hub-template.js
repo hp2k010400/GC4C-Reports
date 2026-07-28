@@ -140,6 +140,182 @@ function parseBrandHubDoc(text) {
   }
 }
 
+// Mirrors sections/brand-hub.liquid 1:1 (same classes, same markup order) so
+// what's shown here is what actually renders on the live page — this never
+// writes to Shopify, it only calls the read-only resolve-categories lookup.
+function BrandHubPreview({ brand, parsed, resolved }) {
+  const tiers = []
+  for (const f of parsed.faqs) if (!tiers.includes(f.tier)) tiers.push(f.tier)
+
+  return (
+    <div className="bh-preview">
+      <style jsx>{`
+        .bh-preview { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #fff; color: #1c1f1a; }
+        .bh-wrap { max-width: 1080px; margin: 0 auto; padding: 0 1.75rem; }
+        .bh-hero { padding: 2.4rem 0 1rem; }
+        .bh-hero h1 { font-size: clamp(1.9rem, 3.6vw, 2.5rem); font-weight: 700; margin: 0; max-width: 20ch; }
+        .bh-hero p { margin-top: 1rem; color: #5b6259; font-size: 1.02rem; max-width: 68ch; }
+        .bh-hero p + p { margin-top: 0.9rem; }
+        .bh-band { padding: 2.4rem 0; border-top: 1px solid #e3e0d6; }
+        .bh-band.paper { background: #fff; }
+        .bh-title { font-size: 1.5rem; max-width: 46ch; margin: 0; }
+        .bh-tile-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-top: 1.5rem; }
+        .bh-tile { text-decoration: none; color: #1c1f1a; display: flex; flex-direction: column; gap: 0.5rem; }
+        .bh-tile img { width: 100%; aspect-ratio: 4/3; object-fit: cover; border-radius: 6px; border: 1px solid #e3e0d6; background: #f6f4ef; }
+        .bh-tile .ph { aspect-ratio: 4/3; background: #f6f4ef; border-radius: 6px; border: 1px solid #e3e0d6; }
+        .bh-tile .name { font-size: 0.84rem; font-weight: 700; text-align: center; }
+        .bh-cta { display: inline-block; margin-top: 1.2rem; background: #20842e; color: #fff; font-weight: 700; text-decoration: none; padding: 0.7rem 1.3rem; border-radius: 6px; font-size: 0.92rem; }
+        .bh-faq-tier { margin-top: 1.6rem; }
+        .bh-faq-tier:first-child { margin-top: 1.4rem; }
+        .bh-faq-tier .tier-label { font-size: 0.7rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #005f2c; margin-bottom: 0.6rem; }
+        .bh-faq { border-bottom: 1px solid #e3e0d6; padding: 0.9rem 0; }
+        .bh-faq summary { list-style: none; cursor: pointer; display: flex; justify-content: space-between; align-items: center; gap: 1rem; font-weight: 700; font-size: 0.95rem; }
+        .bh-faq summary::-webkit-details-marker { display: none; }
+        .bh-faq summary::after { content: "+"; font-family: monospace; font-size: 1.2rem; color: #b5651d; flex: none; }
+        .bh-faq[open] summary::after { content: "\\2212"; }
+        .bh-faq p { color: #5b6259; margin-top: 0.6rem; max-width: 66ch; font-size: 0.92rem; }
+        .bh-faq .faq-cta { display: inline-block; margin-top: 0.5rem; font-size: 0.85rem; font-weight: 700; color: #20842e; text-decoration: underline; }
+        .bh-why-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.4rem; margin-top: 1.6rem; }
+        .bh-why-item h3 { font-size: 1rem; margin: 0; }
+        .bh-why-item p { font-size: 0.9rem; color: #5b6259; margin-top: 0.4rem; }
+        .bh-why-item a { font-size: 0.85rem; font-weight: 700; color: #20842e; text-decoration: underline; display: inline-block; margin-top: 0.4rem; }
+        .bh-clubhouse { background: #005f2c; color: #fff; }
+        .bh-clubhouse h2 { color: #fff; margin: 0; }
+        .bh-clubhouse p { color: #fff; opacity: 0.92; max-width: 60ch; margin-top: 0.8rem; }
+        .bh-clubhouse .bh-cta { background: #fff; color: #005f2c; }
+        @media (max-width: 860px) { .bh-tile-grid { grid-template-columns: repeat(2, 1fr); } }
+      `}</style>
+
+      <section className="bh-hero">
+        <div className="bh-wrap">
+          <h1>{parsed.h1 || parsed.pageTitle || `${brand} Brand Hub`}</h1>
+          {parsed.heroParagraphs.map((p, i) => <p key={i}>{p}</p>)}
+        </div>
+      </section>
+
+      {parsed.whyBrandParagraphs.length > 0 && (
+        <section className="bh-band paper">
+          <div className="bh-wrap">
+            <h2 className="bh-title">{parsed.whyBrandHeading}</h2>
+            <div style={{ marginTop: '1rem' }}>
+              {parsed.whyBrandParagraphs.map((p, i) => <p key={i} style={{ color: '#5b6259', maxWidth: '70ch', marginTop: '0.9rem' }}>{p}</p>)}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {resolved.main.length > 0 && (
+        <section className="bh-band">
+          <div className="bh-wrap">
+            <h2 className="bh-title">Shop {brand} by category</h2>
+            <div className="bh-tile-grid">
+              {resolved.main.map((c, i) => (
+                <a className="bh-tile" href={`/collections/${c.handle}`} key={i} onClick={e => e.preventDefault()}>
+                  {c.image ? <img src={c.image} alt={c.label} /> : <div className="ph" />}
+                  <span className="name">{c.label}</span>
+                </a>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {resolved.other.length > 0 && (
+        <section className="bh-band paper">
+          <div className="bh-wrap">
+            <h2 className="bh-title">Popular {brand} models</h2>
+            <div className="bh-tile-grid">
+              {resolved.other.map((c, i) => (
+                <a className="bh-tile" href={`/collections/${c.handle}`} key={i} onClick={e => e.preventDefault()}>
+                  {c.image ? <img src={c.image} alt={c.label} /> : <div className="ph" />}
+                  <span className="name">{c.label}</span>
+                </a>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {parsed.tradeInParagraphs.length > 0 && (
+        <section className="bh-band">
+          <div className="bh-wrap">
+            <h2 className="bh-title">Trade in your {brand} clubs</h2>
+            {parsed.tradeInParagraphs.map((p, i) => <p key={i} style={{ color: '#5b6259', maxWidth: '66ch', marginTop: '0.9rem' }}>{p}</p>)}
+            <a className="bh-cta" href="/pages/sell-your-clubs" onClick={e => e.preventDefault()}>Trade your clubs in here</a>
+          </div>
+        </section>
+      )}
+
+      <section className="bh-band paper">
+        <div className="bh-wrap">
+          <h2 className="bh-title">Why choose us</h2>
+          <div className="bh-why-grid">
+            <div className="bh-why-item">
+              <h3>Tens of thousands of 5-star reviews</h3>
+              <p>Golfers trust us, and they say so. We've earned tens of thousands of 5-star reviews on Trustpilot from players who've bought, sold and traded with us over the years.</p>
+              <a href="https://www.trustpilot.com/review/golfclubs4cash.co.uk" onClick={e => e.preventDefault()}>See our Trustpilot reviews</a>
+            </div>
+            <div className="bh-why-item">
+              <h3>Every club hand-inspected and graded</h3>
+              <p>Nothing goes on sale until our team has checked it over and graded its condition against the same standard every time. You'll know exactly what you're getting before it arrives.</p>
+              <a href="/pages/condition-rating-guide" onClick={e => e.preventDefault()}>Read our condition rating guide</a>
+            </div>
+            <div className="bh-why-item">
+              <h3>A huge range, every major brand</h3>
+              <p>Browse one of the UK's largest ranges of used clubs, with fresh stock landing every day. TaylorMade, Callaway, Ping, Titleist, Cobra and Mizuno, all in one place and all well below new prices.</p>
+              <a href="/collections/all" onClick={e => e.preventDefault()}>Browse all brands</a>
+            </div>
+            <div className="bh-why-item">
+              <h3>Advice from real golfers</h3>
+              <p>We're players first and retailers second. Ask which driver suits your handicap or whether a set is worth the jump, and you'll get a straight answer instead of a push toward the priciest option in the shop.</p>
+            </div>
+            <div className="bh-why-item">
+              <h3>Free UK delivery, easy checkout</h3>
+              <p>Free UK delivery on qualifying orders, secure payment, and every club packed to land ready for the first tee.</p>
+              <a href="/pages/delivery" onClick={e => e.preventDefault()}>Delivery information</a>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {parsed.faqs.length > 0 && (
+        <section className="bh-band">
+          <div className="bh-wrap">
+            <h2 className="bh-title" style={{ marginBottom: '0.3rem' }}>{brand} &mdash; your questions answered</h2>
+            {(() => {
+              let tierSeen = ''
+              return parsed.faqs.map((item, i) => {
+                const showTier = item.tier !== tierSeen
+                tierSeen = item.tier
+                return (
+                  <div key={i}>
+                    {showTier && <div className="bh-faq-tier"><div className="tier-label">{item.tier}</div></div>}
+                    <details className="bh-faq">
+                      <summary>{item.q}</summary>
+                      <p>{item.a}</p>
+                      {item.ctaUrl && <a className="faq-cta" href={item.ctaUrl} onClick={e => e.preventDefault()}>{item.ctaText || 'Learn more'} &rarr;</a>}
+                    </details>
+                  </div>
+                )
+              })
+            })()}
+          </div>
+        </section>
+      )}
+
+      {parsed.guidesUrl && (
+        <section className="bh-band bh-clubhouse">
+          <div className="bh-wrap">
+            <h2>Go to the clubhouse</h2>
+            <p>{parsed.guidesBody}</p>
+            <a className="bh-cta" href={parsed.guidesUrl} onClick={e => e.preventDefault()}>Read our {brand} guides</a>
+          </div>
+        </section>
+      )}
+    </div>
+  )
+}
+
 const EMPTY = {
   handle: '', pageTitle: '', metaDescription: '', h1: '', heroParagraphs: [],
   whyBrandHeading: '', whyBrandParagraphs: [], mainCategoryUrls: [], otherCategoryUrls: [],
@@ -155,10 +331,25 @@ export default function BrandHubTemplate() {
   const [pushState, setPushState] = useState('idle')
   const [pushError, setPushError] = useState(null)
   const [originalContent, setOriginalContent] = useState(null)
+  const [resolved, setResolved] = useState({ main: [], other: [] })
+  const [previewLoading, setPreviewLoading] = useState(false)
 
-  function handleParse() {
-    setParsed(parseBrandHubDoc(docText))
+  async function handleParse() {
+    const next = parseBrandHubDoc(docText)
+    setParsed(next)
     setStatus('Loaded ' + new Date().toLocaleTimeString())
+    setPreviewLoading(true)
+    try {
+      const res = await fetch('/api/marketing/resolve-categories', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mainCategoryUrls: next.mainCategoryUrls, otherCategoryUrls: next.otherCategoryUrls }),
+      })
+      const data = await res.json()
+      if (res.ok) setResolved({ main: data.main, other: data.other })
+    } finally {
+      setPreviewLoading(false)
+    }
   }
 
   async function handlePushLive() {
@@ -228,7 +419,7 @@ export default function BrandHubTemplate() {
         />
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 10 }}>
           <button className="btn btn-primary" onClick={handleParse} disabled={!docText.trim()}>Show preview</button>
-          {status && <span style={{ fontSize: 12, color: '#888' }}>{status}</span>}
+          {status && <span style={{ fontSize: 12, color: '#888' }}>{status}{previewLoading ? ' — resolving category images…' : ''}</span>}
         </div>
 
         <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px dashed #ddd' }}>
@@ -253,6 +444,13 @@ export default function BrandHubTemplate() {
           {pushState === 'error' && <span style={{ fontSize: 12.5, color: '#c0392b' }}>{pushError}</span>}
         </div>
       </div>
+
+      {status && (
+        <div className="settings-section" style={{ padding: 0, overflow: 'hidden' }}>
+          <h3 className="settings-section-title" style={{ padding: '14px 18px 0' }}>Live preview (renders the real design — no Shopify writes)</h3>
+          <BrandHubPreview brand={brandName} parsed={parsed} resolved={resolved} />
+        </div>
+      )}
 
       <div className="settings-section">
         <h3 className="settings-section-title">Parsed fields</h3>
