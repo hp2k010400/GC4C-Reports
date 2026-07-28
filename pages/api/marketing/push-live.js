@@ -13,23 +13,37 @@ function escapeHtml(str) {
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 }
 
-// Shopify's descriptionHtml sanitizer strips <style> tags and most class
-// attributes on save, even though the API call itself reports success — so
-// every bit of visual treatment here has to survive as inline style="" only.
+// Real GC4C brand values (pulled from the theme's own scheme editor + Google
+// Fonts settings, not invented) — <style> tags get stripped on save, so every
+// bit of this has to survive as inline style="" only. Confirmed that does
+// survive intact.
+const BRAND = {
+  cream: '#f6f4ef',
+  deepGreen: '#005f2c',
+  green: '#20842e',
+  faqAccent: '#b5651d',
+  border: '#e3e0d6',
+  text: '#222222',
+  muted: '#555555',
+}
+
 function buildDescriptionHtml({ title, intro, faqs }) {
   const introHtml = `
-    <p style="color:#555555;max-width:62ch;margin:0 auto;font-size:1.05rem;line-height:1.6;text-align:left;">${escapeHtml(intro)}</p>`
+    <div style="background:${BRAND.cream};border-left:4px solid ${BRAND.green};border-radius:6px;padding:1.25rem 1.5rem;max-width:68ch;margin:0 auto;text-align:left;">
+      <span style="display:block;font-size:0.72rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:${BRAND.deepGreen};margin-bottom:0.5rem;">About this collection</span>
+      <p style="color:${BRAND.muted};font-size:1.05rem;line-height:1.6;margin:0;">${escapeHtml(intro)}</p>
+    </div>`
 
   const faqItems = (faqs || []).map(([q, a]) => `
-        <details style="border-bottom:1px solid #e3e0d6;padding:0.9rem 0;">
-          <summary style="font-weight:700;color:#b5651d;text-transform:uppercase;cursor:pointer;">${escapeHtml(q)}</summary>
-          <p style="color:#666666;margin-top:0.6rem;max-width:68ch;">${escapeHtml(a)}</p>
+        <details style="border-bottom:1px solid ${BRAND.border};padding:0.9rem 0;">
+          <summary style="font-weight:700;color:${BRAND.faqAccent};text-transform:uppercase;font-size:0.92rem;cursor:pointer;">${escapeHtml(q)}</summary>
+          <p style="color:${BRAND.muted};margin:0.5rem 0 0;font-size:0.95rem;">${escapeHtml(a)}</p>
         </details>`).join('')
 
   const footerHtml = faqItems
     ? `
-    <div style="border-top:1px solid #e3e0d6;margin-top:2rem;padding-top:1.5rem;text-align:left;max-width:68ch;margin-left:auto;margin-right:auto;">
-      <h2 style="font-size:1.4rem;margin-bottom:1rem;">Questions about ${escapeHtml(title)}</h2>
+    <div style="background:${BRAND.cream};border-radius:6px;padding:1.5rem 1.75rem;max-width:68ch;margin:2rem auto 0;text-align:left;">
+      <h2 style="font-size:1.35rem;margin:0 0 1rem;color:${BRAND.text};">Questions about ${escapeHtml(title)}</h2>
       ${faqItems}
     </div>`
     : ''
