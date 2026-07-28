@@ -150,8 +150,8 @@ function BrandHubPreview({ brand, parsed, resolved }) {
   return (
     <div className="bh-preview">
       <style jsx>{`
-        .bh-preview { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #fff; color: #1c1f1a; }
-        .bh-wrap { max-width: 1080px; margin: 0 auto; padding: 0 1.75rem; }
+        .bh-preview { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #fff; color: #1c1f1a; width: 100%; box-sizing: border-box; }
+        .bh-wrap { max-width: 960px; margin: 0 auto; padding: 0 1.75rem; box-sizing: border-box; }
         .bh-hero { padding: 2.4rem 0 1rem; }
         .bh-hero h1 { font-size: clamp(1.9rem, 3.6vw, 2.5rem); font-weight: 700; margin: 0; max-width: 20ch; }
         .bh-hero p { margin-top: 1rem; color: #5b6259; font-size: 1.02rem; max-width: 68ch; }
