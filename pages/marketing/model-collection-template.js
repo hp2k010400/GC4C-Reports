@@ -143,10 +143,25 @@ export default function ModelCollectionTemplate() {
           value={docText}
           onChange={e => setDocText(e.target.value)}
         />
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 10 }}>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 10, flexWrap: 'wrap' }}>
           <button className="btn btn-primary" onClick={handleParse} disabled={!docText.trim()}>Parse &amp; preview</button>
+          {parsed.handle && (
+            <a
+              className="btn btn-secondary"
+              href={`https://www.golfclubs4cash.co.uk/collections/${parsed.handle}`}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              View live page &#8599;
+            </a>
+          )}
           {status && <span style={{ fontSize: 12, color: '#888' }}>{status}</span>}
         </div>
+        {parsed.handle && (
+          <p style={{ fontSize: 12, color: '#aaa', marginTop: 6 }}>
+            Note: the live page won&rsquo;t show this content yet &mdash; the theme has no section reading these fields until we deploy one.
+          </p>
+        )}
       </div>
 
       <div className="settings-section" style={{ display: 'flex', gap: 8, padding: 12 }}>
