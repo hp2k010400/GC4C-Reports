@@ -154,12 +154,12 @@ function BrandHubPreview({ brand, parsed, resolved }) {
         .bh-wrap { max-width: 960px; margin: 0 auto; padding: 0 1.75rem; box-sizing: border-box; }
         .bh-copy { max-width: 640px; margin: 0 auto; }
         .bh-hero { padding: 2.4rem 0 1rem; }
-        .bh-hero h1 { font-size: clamp(1.9rem, 3.6vw, 2.5rem); font-weight: 700; margin: 0; max-width: 20ch; }
+        .bh-hero h1 { font-size: clamp(1.9rem, 3.6vw, 2.5rem); font-weight: 700; margin: 0 auto; max-width: 20ch; text-align: center; }
         .bh-hero p { margin-top: 1rem; color: #5b6259; font-size: 1.02rem; max-width: 68ch; }
         .bh-hero p + p { margin-top: 0.9rem; }
         .bh-band { padding: 2.4rem 0; border-top: 1px solid #e3e0d6; }
         .bh-band.paper { background: #fff; }
-        .bh-title { font-size: 1.5rem; max-width: 46ch; margin: 0; }
+        .bh-title { font-size: 1.5rem; max-width: 46ch; margin: 0 auto; text-align: center; }
         .bh-tile-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-top: 1.5rem; }
         .bh-tile { text-decoration: none; color: #1c1f1a; display: flex; flex-direction: column; gap: 0.5rem; }
         .bh-tile img { width: 100%; aspect-ratio: 4/3; object-fit: cover; border-radius: 6px; border: 1px solid #e3e0d6; background: #f6f4ef; }
