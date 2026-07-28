@@ -1,7 +1,8 @@
 import { shopifyGraphQL } from '../../../lib/shopify.js'
 
-// Restores the exact description/SEO fields push-live handed back before
-// it overwrote them — a true undo, not just a blank.
+// Restores the exact templateSuffix + metafield values push-live captured
+// before it changed them — clears the template assignment back to whatever
+// it was (usually none), so the page instantly reverts to its normal layout.
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'POST only' })
   if (!process.env.SHOPIFY_ACCESS_TOKEN) {
@@ -21,6 +22,7 @@ export default async function handler(req, res) {
     const collectionId = found.collectionByHandle?.id
     if (!collectionId) throw new Error(`No collection found for handle "${handle}"`)
 
+    const mf = original.metafields || {}
     const update = await shopifyGraphQL(`
       mutation($input: CollectionInput!) {
         collectionUpdate(input: $input) {
@@ -31,9 +33,13 @@ export default async function handler(req, res) {
     `, {
       input: {
         id: collectionId,
-        title: original.title || undefined,
-        descriptionHtml: original.descriptionHtml,
-        seo: { title: original.seoTitle || undefined, description: original.seoDescription || undefined },
+        templateSuffix: original.templateSuffix || '',
+        metafields: [
+          { namespace: 'custom', key: 'seo_intro', type: 'multi_line_text_field', value: mf.seo_intro || '' },
+          { namespace: 'custom', key: 'seo_faqs', type: 'json', value: mf.seo_faqs || '[]' },
+          { namespace: 'custom', key: 'seo_compare_brands', type: 'json', value: mf.seo_compare_brands || '[]' },
+          { namespace: 'custom', key: 'seo_guides_url', type: 'single_line_text_field', value: mf.seo_guides_url || '' },
+        ],
       },
     })
 
