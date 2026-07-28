@@ -13,40 +13,28 @@ function escapeHtml(str) {
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 }
 
+// Shopify's descriptionHtml sanitizer strips <style> tags and most class
+// attributes on save, even though the API call itself reports success — so
+// every bit of visual treatment here has to survive as inline style="" only.
 function buildDescriptionHtml({ title, intro, faqs }) {
   const introHtml = `
-    <div class="model-seo-intro">
-      <p>${escapeHtml(intro)}</p>
-    </div>`
+    <p style="color:#555555;max-width:62ch;margin:0 auto;font-size:1.05rem;line-height:1.6;text-align:left;">${escapeHtml(intro)}</p>`
 
   const faqItems = (faqs || []).map(([q, a]) => `
-        <details class="model-seo-faq-item">
-          <summary>${escapeHtml(q)}</summary>
-          <p>${escapeHtml(a)}</p>
+        <details style="border-bottom:1px solid #e3e0d6;padding:0.9rem 0;">
+          <summary style="font-weight:700;color:#b5651d;text-transform:uppercase;cursor:pointer;">${escapeHtml(q)}</summary>
+          <p style="color:#666666;margin-top:0.6rem;max-width:68ch;">${escapeHtml(a)}</p>
         </details>`).join('')
 
   const footerHtml = faqItems
     ? `
-    <div class="model-seo-faq">
-      <h2>Questions about ${escapeHtml(title)}</h2>
+    <div style="border-top:1px solid #e3e0d6;margin-top:2rem;padding-top:1.5rem;text-align:left;max-width:68ch;margin-left:auto;margin-right:auto;">
+      <h2 style="font-size:1.4rem;margin-bottom:1rem;">Questions about ${escapeHtml(title)}</h2>
       ${faqItems}
     </div>`
     : ''
 
-  const styles = `
-    <style>
-      .model-seo-intro p { color: #555; max-width: 62ch; margin: 0 auto; font-size: 1.05rem; line-height: 1.6; text-align: left; }
-      .model-seo-faq { border-top: 1px solid #e3e0d6; margin-top: 2rem; padding-top: 1.5rem; text-align: left; max-width: 68ch; margin-left: auto; margin-right: auto; }
-      .model-seo-faq h2 { font-size: 1.4rem; margin-bottom: 1rem; }
-      .model-seo-faq-item { border-bottom: 1px solid #e3e0d6; padding: 0.9rem 0; }
-      .model-seo-faq-item summary { font-weight: 700; color: #b5651d; text-transform: uppercase; cursor: pointer; list-style: none; }
-      .model-seo-faq-item summary::-webkit-details-marker { display: none; }
-      .model-seo-faq-item summary::after { content: "+"; float: right; color: #b5651d; }
-      .model-seo-faq-item[open] summary::after { content: "\\2212"; }
-      .model-seo-faq-item p { color: #666; margin-top: 0.6rem; max-width: 68ch; }
-    </style>`
-
-  return `${styles}${introHtml}\n<!--footer-text-->\n${footerHtml}`
+  return `${introHtml}\n<!--footer-text-->\n${footerHtml}`
 }
 
 export default async function handler(req, res) {
