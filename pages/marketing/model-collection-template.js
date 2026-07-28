@@ -99,6 +99,7 @@ export default function ModelCollectionTemplate() {
   const [pushState, setPushState] = useState('idle') // idle | pushing | live | reverting | error
   const [pushError, setPushError] = useState(null)
   const [originalContent, setOriginalContent] = useState(null)
+  const [targetHandle, setTargetHandle] = useState('marketing-automation-test')
 
   async function handleParse() {
     const { labels, sections } = parseDoc(docText)
@@ -137,9 +138,9 @@ export default function ModelCollectionTemplate() {
   }
 
   async function handlePushLive() {
-    if (!parsed.handle) return
+    if (!targetHandle.trim()) return
     const sure = window.confirm(
-      `This writes to the description field only — the grid, filters and breadcrumbs are untouched.\n\nIt'll be visible on the real, live page:\nhttps://www.golfclubs4cash.co.uk/collections/${parsed.handle}\n\nContinue?`
+      `This writes to the description field only — the grid, filters and breadcrumbs are untouched.\n\nIt'll be visible on:\nhttps://www.golfclubs4cash.co.uk/collections/${targetHandle}\n\nContinue?`
     )
     if (!sure) return
     setPushState('pushing')
@@ -149,7 +150,7 @@ export default function ModelCollectionTemplate() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          handle: parsed.handle,
+          handle: targetHandle.trim(),
           title: parsed.title,
           intro: parsed.intro,
           faqs: parsed.faqs.map(f => [f.q, f.a]),
@@ -168,14 +169,14 @@ export default function ModelCollectionTemplate() {
   }
 
   async function handleRevert() {
-    if (!parsed.handle || !originalContent) return
+    if (!targetHandle.trim() || !originalContent) return
     setPushState('reverting')
     setPushError(null)
     try {
       const res = await fetch('/api/marketing/revert-live', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ handle: parsed.handle, original: originalContent }),
+        body: JSON.stringify({ handle: targetHandle.trim(), original: originalContent }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
@@ -210,57 +211,63 @@ export default function ModelCollectionTemplate() {
         </div>
 
         {parsed.handle && (
-          <div className="settings-row" style={{ marginTop: 14 }}>
-            <div>
-              <div className="settings-label">Live page this doc points to</div>
-              <div className="settings-value">https://www.golfclubs4cash.co.uk/collections/{parsed.handle}</div>
-            </div>
+          <p style={{ fontSize: 12, color: '#aaa', marginTop: 14 }}>
+            The doc itself points to <code>{parsed.handle}</code> &mdash; but pushes below always go to the test collection
+            you set here, never that real page, unless you deliberately change it.
+          </p>
+        )}
+
+        <div style={{ marginTop: 10, paddingTop: 14, borderTop: '1px dashed #ddd' }}>
+          <label className="settings-label" style={{ display: 'block', marginBottom: 6 }}>Test collection to push to (its own dedicated, unlinked URL)</label>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+            <input
+              className="form-input"
+              style={{ width: 320 }}
+              value={targetHandle}
+              onChange={e => setTargetHandle(e.target.value)}
+            />
             <a
               className="btn btn-secondary"
-              href={`https://www.golfclubs4cash.co.uk/collections/${parsed.handle}`}
+              href={`https://www.golfclubs4cash.co.uk/collections/${targetHandle}`}
               target="_blank"
               rel="noopener noreferrer"
             >
               View page
             </a>
           </div>
-        )}
-        {parsed.handle && pushState !== 'live' && (
           <p style={{ fontSize: 12, color: '#aaa', marginTop: 6 }}>
-            That page won&rsquo;t show this content yet &mdash; nothing&rsquo;s been pushed to it. This lets you check what it looks like now, before anything changes.
+            Defaults to <code>marketing-automation-test</code> &mdash; a real collection created just for this, not linked in any menu or nav.
           </p>
-        )}
+        </div>
 
-        {parsed.handle && (
-          <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px dashed #ddd', display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-            {pushState !== 'live' ? (
-              <button
-                className="btn btn-primary"
-                style={{ background: '#c0392b' }}
-                onClick={handlePushLive}
-                disabled={pushState === 'pushing'}
-              >
-                {pushState === 'pushing' ? 'Pushing…' : 'Push live'}
-              </button>
-            ) : (
-              <button
-                className="btn btn-secondary"
-                onClick={handleRevert}
-                disabled={pushState === 'reverting'}
-              >
-                {pushState === 'reverting' ? 'Reverting…' : 'Revert (undo)'}
-              </button>
-            )}
-            {pushState === 'live' && (
-              <span style={{ fontSize: 12.5, color: '#1a7a2e', fontWeight: 600 }}>
-                Live on the real page now &mdash; click Revert when you&rsquo;re done showing Murray.
-              </span>
-            )}
-            {pushState === 'error' && (
-              <span style={{ fontSize: 12.5, color: '#c0392b' }}>{pushError}</span>
-            )}
-          </div>
-        )}
+        <div style={{ marginTop: 14, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+          {pushState !== 'live' ? (
+            <button
+              className="btn btn-primary"
+              style={{ background: '#c0392b' }}
+              onClick={handlePushLive}
+              disabled={pushState === 'pushing' || !targetHandle.trim()}
+            >
+              {pushState === 'pushing' ? 'Pushing…' : 'Push live'}
+            </button>
+          ) : (
+            <button
+              className="btn btn-secondary"
+              onClick={handleRevert}
+              disabled={pushState === 'reverting'}
+            >
+              {pushState === 'reverting' ? 'Reverting…' : 'Revert (undo)'}
+            </button>
+          )}
+          {pushState === 'live' && (
+            <span style={{ fontSize: 12.5, color: '#1a7a2e', fontWeight: 600 }}>
+              Live on that test page now &mdash; click Revert when you&rsquo;re done showing Murray.
+            </span>
+          )}
+          {pushState === 'error' && (
+            <span style={{ fontSize: 12.5, color: '#c0392b' }}>{pushError}</span>
+          )}
+        </div>
       </div>
 
       <div className="settings-section" style={{ display: 'flex', gap: 8, padding: 12 }}>
