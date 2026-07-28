@@ -63,6 +63,35 @@ export default function AdjustmentsPage() {
   const logScrollTopRef = useRef(null)
   const [logTableWidth, setLogTableWidth] = useState(0)
 
+  // Stocky historical adjustments — uploaded as a CSV in Settings, searched here.
+  const [stockyQuery, setStockyQuery] = useState('')
+  const [stockyRows, setStockyRows] = useState(null)
+  const [stockyResults, setStockyResults] = useState(null)
+  const [stockyLoading, setStockyLoading] = useState(false)
+  const [stockyError, setStockyError] = useState(null)
+
+  async function searchStocky(e) {
+    e.preventDefault()
+    if (!stockyQuery.trim()) return
+    setStockyLoading(true)
+    setStockyError(null)
+    try {
+      let rows = stockyRows
+      if (!rows) {
+        const res = await fetch('/api/stocky-log')
+        const data = await res.json()
+        rows = data.rows || []
+        setStockyRows(rows)
+      }
+      const q = stockyQuery.trim().toLowerCase()
+      setStockyResults(rows.filter(r => Object.values(r).some(v => String(v ?? '').toLowerCase().includes(q))))
+    } catch {
+      setStockyError('Could not load the Stocky log')
+    } finally {
+      setStockyLoading(false)
+    }
+  }
+
   useEffect(() => {
     fetch('/api/locations').then(r => r.json()).then(d => {
       const locs = d.locations || []
@@ -318,6 +347,50 @@ export default function AdjustmentsPage() {
       <div className="page-title">Stock Adjustments</div>
       <div className="page-sub">
         Add one or more SKUs, set a quantity for each, then apply with a shared reason and location. All adjustments sync to Shopify instantly.
+      </div>
+
+      {/* Stocky historical adjustments search */}
+      <div className="adj-card">
+        <div className="adj-card-title">Stocky Historical Adjustments</div>
+        <div style={{ fontSize: 13, color: '#888', marginBottom: 12 }}>
+          Search Stocky&apos;s historical individual stock adjustments (from before it was replaced). Partial matches supported.
+        </div>
+        <form onSubmit={searchStocky} style={{ display: 'flex', gap: 8 }}>
+          <input
+            className="form-input"
+            style={{ flex: 1, maxWidth: 400 }}
+            type="text"
+            placeholder="Search SKU, product, employee…"
+            value={stockyQuery}
+            onChange={e => setStockyQuery(e.target.value)}
+          />
+          <button className="btn btn-primary" type="submit" disabled={stockyLoading || !stockyQuery.trim()}>
+            {stockyLoading ? 'Searching…' : 'Search'}
+          </button>
+        </form>
+        {stockyError && <div style={{ color: '#c0392b', fontSize: 13, marginTop: 8 }}>{stockyError}</div>}
+        {stockyResults && (
+          stockyResults.length === 0 ? (
+            <div style={{ fontSize: 13, color: '#888', marginTop: 12 }}>No matches found.</div>
+          ) : (
+            <div className="table-wrap" style={{ marginTop: 12 }}>
+              <table>
+                <thead>
+                  <tr>
+                    {Object.keys(stockyResults[0]).map(col => <th key={col}>{col}</th>)}
+                  </tr>
+                </thead>
+                <tbody>
+                  {stockyResults.map((row, i) => (
+                    <tr key={i}>
+                      {Object.keys(stockyResults[0]).map(col => <td key={col} style={{ fontSize: 12 }}>{row[col]}</td>)}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )
+        )}
       </div>
 
       {/* Global settings */}

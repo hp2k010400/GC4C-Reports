@@ -1,5 +1,27 @@
 import { useEffect, useState } from 'react'
 
+function parseCSV(text) {
+  const lines = text.trim().split('\n')
+  const headers = lines[0].split(',').map(h => h.replace(/"/g, '').trim())
+  return lines.slice(1).map(line => {
+    const vals = []
+    let current = ''
+    let inQuotes = false
+    for (let i = 0; i < line.length; i++) {
+      if (line[i] === '"') {
+        inQuotes = !inQuotes
+      } else if (line[i] === ',' && !inQuotes) {
+        vals.push(current.trim())
+        current = ''
+      } else {
+        current += line[i]
+      }
+    }
+    vals.push(current.trim())
+    return Object.fromEntries(headers.map((h, i) => [h, vals[i] ?? '']))
+  })
+}
+
 const SHOPIFY_CODES = [
   { value: 'correction',     label: 'Correction' },
   { value: 'damaged',        label: 'Damaged' },
@@ -31,6 +53,14 @@ export default function Settings() {
   const [editSaving, setEditSaving] = useState(false)
   const [editError, setEditError] = useState(null)
 
+  const [stockyCount, setStockyCount] = useState(null)
+  const [stockyUpdatedAt, setStockyUpdatedAt] = useState(null)
+  const [stockyFileName, setStockyFileName] = useState(null)
+  const [stockyRows, setStockyRows] = useState(null)
+  const [stockyUploading, setStockyUploading] = useState(false)
+  const [stockyError, setStockyError] = useState(null)
+  const [stockyResult, setStockyResult] = useState(null)
+
   useEffect(() => {
     try {
       const h = JSON.parse(localStorage.getItem('gc4c_history') || '[]')
@@ -41,6 +71,55 @@ export default function Settings() {
   useEffect(() => {
     fetch('/api/reason-codes').then(r => r.json()).then(d => setReasonCodes(d.codes || [])).catch(() => {})
   }, [])
+
+  useEffect(() => {
+    if (!unlocked) return
+    fetch('/api/stocky-log').then(r => r.json()).then(d => {
+      setStockyCount(d.rows?.length || 0)
+      setStockyUpdatedAt(d.updatedAt)
+    }).catch(() => {})
+  }, [unlocked])
+
+  function handleStockyFile(e) {
+    const file = e.target.files[0]
+    if (!file) return
+    setStockyFileName(file.name)
+    setStockyResult(null)
+    setStockyError(null)
+    const reader = new FileReader()
+    reader.onload = ev => {
+      try {
+        setStockyRows(parseCSV(ev.target.result))
+      } catch {
+        setStockyError('Could not parse CSV')
+      }
+    }
+    reader.readAsText(file)
+  }
+
+  async function uploadStocky() {
+    if (!stockyRows?.length) return
+    setStockyUploading(true)
+    setStockyError(null)
+    try {
+      const res = await fetch('/api/stocky-log', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: gatePassword, rows: stockyRows }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error)
+      setStockyResult(`Uploaded ${data.count} rows`)
+      setStockyCount(data.count)
+      setStockyUpdatedAt(new Date().toISOString())
+      setStockyRows(null)
+      setStockyFileName(null)
+    } catch (err) {
+      setStockyError(err.message)
+    } finally {
+      setStockyUploading(false)
+    }
+  }
 
   async function addReason() {
     if (!newLabel.trim()) return
@@ -266,6 +345,31 @@ export default function Settings() {
           </button>
         </div>
         {reasonError && <div style={{ color: '#c0392b', fontSize: 13, marginTop: 8 }}>{reasonError}</div>}
+      </div>
+
+      <div className="settings-section">
+        <h3 className="settings-section-title">Stocky Historical Adjustments</h3>
+        <p style={{ fontSize: 13, color: '#888', marginBottom: 12 }}>
+          Powers the search box at the top of Stock Adjustments. Export Neil&apos;s spreadsheet as CSV and upload
+          it here each time it&apos;s updated — this replaces the whole searchable log with the new file.
+        </p>
+        <div className="settings-row">
+          <div>
+            <div className="settings-label">Current log</div>
+            <div className="settings-value">
+              {stockyCount === null ? '…' : `${stockyCount.toLocaleString()} rows`}
+              {stockyUpdatedAt && ` — last updated ${new Date(stockyUpdatedAt).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })}`}
+            </div>
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap', alignItems: 'center' }}>
+          <input type="file" accept=".csv" onChange={handleStockyFile} />
+          <button className="btn btn-primary" onClick={uploadStocky} disabled={!stockyRows?.length || stockyUploading}>
+            {stockyUploading ? 'Uploading…' : `Upload${stockyFileName ? ` ${stockyFileName}` : ''}`}
+          </button>
+        </div>
+        {stockyResult && <div style={{ color: '#005F2C', fontSize: 13, marginTop: 8 }}>{stockyResult}</div>}
+        {stockyError && <div style={{ color: '#c0392b', fontSize: 13, marginTop: 8 }}>{stockyError}</div>}
       </div>
     </div>
   )
