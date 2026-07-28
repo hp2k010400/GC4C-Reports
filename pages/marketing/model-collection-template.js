@@ -42,6 +42,13 @@ function parseDoc(text) {
       if (currentHeader) sections[currentHeader] = buffer.join('\n').trim()
       currentHeader = line
       buffer = []
+    } else if (/^_{3,}$/.test(line)) {
+      // Doc-format divider (a horizontal rule in Google Docs exports as underscores) —
+      // treat as the end of whatever section we're in, so "before/after comparison"
+      // scaffolding after it doesn't bleed into the real copy.
+      if (currentHeader) sections[currentHeader] = buffer.join('\n').trim()
+      currentHeader = null
+      buffer = []
     } else if (currentHeader) {
       buffer.push(lines[i])
     }
