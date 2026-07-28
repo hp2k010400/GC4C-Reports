@@ -96,6 +96,8 @@ export default function ModelCollectionTemplate() {
   const [imageError, setImageError] = useState(null)
   const [loadingImage, setLoadingImage] = useState(false)
   const [status, setStatus] = useState('')
+  const [pushState, setPushState] = useState('idle') // idle | pushing | live | reverting | error
+  const [pushError, setPushError] = useState(null)
 
   async function handleParse() {
     const { labels, sections } = parseDoc(docText)
@@ -130,6 +132,54 @@ export default function ModelCollectionTemplate() {
     } else {
       setImage(null)
       setImageError('No "Suggested URL" found in the doc, so there\'s no handle to look an image up for.')
+    }
+  }
+
+  async function handlePushLive() {
+    if (!parsed.handle) return
+    const sure = window.confirm(
+      `This will make the intro + FAQs visible on the real, live page:\n\nhttps://www.golfclubs4cash.co.uk/collections/${parsed.handle}\n\nAny real visitor could see it immediately. Continue?`
+    )
+    if (!sure) return
+    setPushState('pushing')
+    setPushError(null)
+    try {
+      const res = await fetch('/api/marketing/push-live', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          handle: parsed.handle,
+          intro: parsed.intro,
+          faqs: parsed.faqs.map(f => [f.q, f.a]),
+          pageTitle: parsed.pageTitle,
+          metaDescription: parsed.metaDescription,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error)
+      setPushState('live')
+    } catch (err) {
+      setPushState('error')
+      setPushError(err.message)
+    }
+  }
+
+  async function handleRevert() {
+    if (!parsed.handle) return
+    setPushState('reverting')
+    setPushError(null)
+    try {
+      const res = await fetch('/api/marketing/revert-live', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ handle: parsed.handle }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error)
+      setPushState('idle')
+    } catch (err) {
+      setPushState('error')
+      setPushError(err.message)
     }
   }
 
@@ -171,10 +221,41 @@ export default function ModelCollectionTemplate() {
             </a>
           </div>
         )}
-        {parsed.handle && (
+        {parsed.handle && pushState !== 'live' && (
           <p style={{ fontSize: 12, color: '#aaa', marginTop: 6 }}>
             That page won&rsquo;t show this content yet &mdash; nothing&rsquo;s been pushed to it. This lets you check what it looks like now, before anything changes.
           </p>
+        )}
+
+        {parsed.handle && (
+          <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px dashed #ddd', display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+            {pushState !== 'live' ? (
+              <button
+                className="btn btn-primary"
+                style={{ background: '#c0392b' }}
+                onClick={handlePushLive}
+                disabled={pushState === 'pushing'}
+              >
+                {pushState === 'pushing' ? 'Pushing…' : 'Push live'}
+              </button>
+            ) : (
+              <button
+                className="btn btn-secondary"
+                onClick={handleRevert}
+                disabled={pushState === 'reverting'}
+              >
+                {pushState === 'reverting' ? 'Reverting…' : 'Revert (undo)'}
+              </button>
+            )}
+            {pushState === 'live' && (
+              <span style={{ fontSize: 12.5, color: '#1a7a2e', fontWeight: 600 }}>
+                Live on the real page now &mdash; click Revert when you&rsquo;re done showing Murray.
+              </span>
+            )}
+            {pushState === 'error' && (
+              <span style={{ fontSize: 12.5, color: '#c0392b' }}>{pushError}</span>
+            )}
+          </div>
         )}
       </div>
 
