@@ -102,15 +102,32 @@ export default function Settings() {
     setStockyUploading(true)
     setStockyError(null)
     try {
-      const res = await fetch('/api/stocky-log', {
+      const CHUNK_SIZE = 3000
+      const totalChunks = Math.ceil(stockyRows.length / CHUNK_SIZE)
+
+      for (let i = 0; i < totalChunks; i++) {
+        const chunk = stockyRows.slice(i * CHUNK_SIZE, (i + 1) * CHUNK_SIZE)
+        const res = await fetch('/api/stocky-log', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password: gatePassword, type: 'chunk', chunk: i, rows: chunk }),
+        })
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}))
+          throw new Error(data.error || 'Upload failed')
+        }
+      }
+
+      const metaRes = await fetch('/api/stocky-log', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password: gatePassword, rows: stockyRows }),
+        body: JSON.stringify({ password: gatePassword, type: 'meta', totalChunks, count: stockyRows.length }),
       })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error)
-      setStockyResult(`Uploaded ${data.count} rows`)
-      setStockyCount(data.count)
+      const metaData = await metaRes.json()
+      if (!metaRes.ok) throw new Error(metaData.error)
+
+      setStockyResult(`Uploaded ${stockyRows.length} rows`)
+      setStockyCount(stockyRows.length)
       setStockyUpdatedAt(new Date().toISOString())
       setStockyRows(null)
       setStockyFileName(null)
