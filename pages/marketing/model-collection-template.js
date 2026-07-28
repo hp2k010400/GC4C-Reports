@@ -104,7 +104,7 @@ export default function ModelCollectionTemplate() {
       intro: body,
       faqs,
     })
-    setStatus('Parsed ' + new Date().toLocaleTimeString())
+    setStatus('Loaded ' + new Date().toLocaleTimeString())
 
     if (handle) {
       setLoadingImage(true)
@@ -131,7 +131,7 @@ export default function ModelCollectionTemplate() {
       <div className="page-title">Model Collection Template</div>
       <div className="page-sub">
         CRO-informed template for the ~380 model collection pages (short copy above the grid, FAQ below — per Will&rsquo;s email).
-        Paste a copy doc below to see it parsed and rendered live, with a real product image pulled from the live store.
+        Paste a copy doc below to see it rendered live, with a real product image pulled from the live store.
       </div>
 
       <div className="settings-section">
@@ -144,22 +144,29 @@ export default function ModelCollectionTemplate() {
           onChange={e => setDocText(e.target.value)}
         />
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 10, flexWrap: 'wrap' }}>
-          <button className="btn btn-primary" onClick={handleParse} disabled={!docText.trim()}>Parse &amp; preview</button>
-          {parsed.handle && (
+          <button className="btn btn-primary" onClick={handleParse} disabled={!docText.trim()}>Show preview</button>
+          {status && <span style={{ fontSize: 12, color: '#888' }}>{status}</span>}
+        </div>
+
+        {parsed.handle && (
+          <div className="settings-row" style={{ marginTop: 14 }}>
+            <div>
+              <div className="settings-label">Live page this doc points to</div>
+              <div className="settings-value">https://www.golfclubs4cash.co.uk/collections/{parsed.handle}</div>
+            </div>
             <a
               className="btn btn-secondary"
               href={`https://www.golfclubs4cash.co.uk/collections/${parsed.handle}`}
               target="_blank"
               rel="noopener noreferrer"
             >
-              View live page &#8599;
+              View page
             </a>
-          )}
-          {status && <span style={{ fontSize: 12, color: '#888' }}>{status}</span>}
-        </div>
+          </div>
+        )}
         {parsed.handle && (
           <p style={{ fontSize: 12, color: '#aaa', marginTop: 6 }}>
-            Note: the live page won&rsquo;t show this content yet &mdash; the theme has no section reading these fields until we deploy one.
+            That page won&rsquo;t show this content yet &mdash; nothing&rsquo;s been pushed to it. This lets you check what it looks like now, before anything changes.
           </p>
         )}
       </div>
@@ -191,16 +198,11 @@ function Preview({ parsed, image, imageError, loadingImage }) {
             {parsed.handle || 'paste-a-doc-above'}
           </div>
           <h1 style={{ fontSize: '2.1rem', fontWeight: 700, margin: 0 }}>
-            {parsed.title || 'Title will appear here once parsed'}
+            {parsed.title || 'Title will appear here'}
           </h1>
           <p style={{ marginTop: 12, color: '#555', maxWidth: '62ch' }}>
-            {parsed.intro || 'Paste a doc and hit Parse & preview — the intro copy from "Header & Footer Text" renders here.'}
+            {parsed.intro || 'Paste a doc and hit Show preview — the intro copy from "Header & Footer Text" renders here.'}
           </p>
-          <div style={{ display: 'flex', gap: 8, marginTop: 14, flexWrap: 'wrap' }}>
-            {['Hand-graded', 'Guarantee included', 'Free UK delivery £150+'].map(t => (
-              <span key={t} style={{ fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', background: '#fff', border: '1px solid #e3e0d6', borderLeft: '3px dashed #20842e', padding: '0.4rem 0.7rem', borderRadius: 3 }}>{t}</span>
-            ))}
-          </div>
         </div>
 
         <div style={{ maxWidth: 900, margin: '0 auto', padding: '0 1.5rem 1.5rem' }}>
@@ -226,7 +228,7 @@ function Preview({ parsed, image, imageError, loadingImage }) {
         <div style={{ background: '#fff', borderTop: '1px solid #e3e0d6', padding: '2rem 1.5rem' }}>
           <div style={{ maxWidth: 900, margin: '0 auto' }}>
             <h2 style={{ fontSize: '1.3rem', marginBottom: 12 }}>
-              {hasContent ? `Questions about ${parsed.title || 'this collection'}` : 'FAQs will appear here once parsed'}
+              {hasContent ? `Questions about ${parsed.title || 'this collection'}` : 'FAQs will appear here'}
             </h2>
             {parsed.faqs.map(({ q, a }) => (
               <details key={q} style={{ borderBottom: '1px solid #e3e0d6', padding: '0.8rem 0' }}>
@@ -261,9 +263,6 @@ const LIQUID_TEMPLATE = `{% comment %}
     {% if collection.metafields.custom.seo_intro %}
       <p class="model-seo__intro">{{ collection.metafields.custom.seo_intro.value }}</p>
     {% endif %}
-    <div class="model-seo__trust">
-      <span>Hand-graded</span><span>Guarantee included</span><span>Free UK delivery £150+</span>
-    </div>
   </div>
 </div>
 
