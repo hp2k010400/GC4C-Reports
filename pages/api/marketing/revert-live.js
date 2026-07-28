@@ -31,6 +31,7 @@ export default async function handler(req, res) {
     `, {
       input: {
         id: collectionId,
+        title: original.title || undefined,
         descriptionHtml: original.descriptionHtml,
         seo: { title: original.seoTitle || undefined, description: original.seoDescription || undefined },
       },
