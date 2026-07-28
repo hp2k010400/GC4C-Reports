@@ -1,16 +1,16 @@
 import { shopifyGraphQL } from '../../../lib/shopify.js'
 
-// Clears templateSuffix so the collection instantly falls back to its normal
-// template. Leaves the metafields and theme files in place — harmless, since
-// nothing references them once the template assignment is gone.
+// Restores the exact description/SEO fields push-live handed back before
+// it overwrote them — a true undo, not just a blank.
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'POST only' })
   if (!process.env.SHOPIFY_ACCESS_TOKEN) {
     return res.status(500).json({ error: 'SHOPIFY_ACCESS_TOKEN not configured on this environment' })
   }
 
-  const { handle } = req.body
+  const { handle, original } = req.body
   if (!handle) return res.status(400).json({ error: 'handle is required' })
+  if (!original) return res.status(400).json({ error: 'original content is required to restore it' })
 
   try {
     const found = await shopifyGraphQL(`
@@ -24,16 +24,22 @@ export default async function handler(req, res) {
     const update = await shopifyGraphQL(`
       mutation($input: CollectionInput!) {
         collectionUpdate(input: $input) {
-          collection { id handle templateSuffix }
+          collection { id handle }
           userErrors { field message }
         }
       }
-    `, { input: { id: collectionId, templateSuffix: '' } })
+    `, {
+      input: {
+        id: collectionId,
+        descriptionHtml: original.descriptionHtml,
+        seo: { title: original.seoTitle || undefined, description: original.seoDescription || undefined },
+      },
+    })
 
     const errors = update.collectionUpdate.userErrors
     if (errors?.length) throw new Error(errors.map(e => e.message).join('; '))
 
-    return res.status(200).json({ ok: true, collection: update.collectionUpdate.collection })
+    return res.status(200).json({ ok: true })
   } catch (err) {
     return res.status(500).json({ error: err.message })
   }

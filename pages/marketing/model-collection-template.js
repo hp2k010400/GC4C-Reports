@@ -98,6 +98,7 @@ export default function ModelCollectionTemplate() {
   const [status, setStatus] = useState('')
   const [pushState, setPushState] = useState('idle') // idle | pushing | live | reverting | error
   const [pushError, setPushError] = useState(null)
+  const [originalContent, setOriginalContent] = useState(null)
 
   async function handleParse() {
     const { labels, sections } = parseDoc(docText)
@@ -138,7 +139,7 @@ export default function ModelCollectionTemplate() {
   async function handlePushLive() {
     if (!parsed.handle) return
     const sure = window.confirm(
-      `This will make the intro + FAQs visible on the real, live page:\n\nhttps://www.golfclubs4cash.co.uk/collections/${parsed.handle}\n\nAny real visitor could see it immediately. Continue?`
+      `This writes to the description field only — the grid, filters and breadcrumbs are untouched.\n\nIt'll be visible on the real, live page:\nhttps://www.golfclubs4cash.co.uk/collections/${parsed.handle}\n\nContinue?`
     )
     if (!sure) return
     setPushState('pushing')
@@ -149,6 +150,7 @@ export default function ModelCollectionTemplate() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           handle: parsed.handle,
+          title: parsed.title,
           intro: parsed.intro,
           faqs: parsed.faqs.map(f => [f.q, f.a]),
           pageTitle: parsed.pageTitle,
@@ -157,6 +159,7 @@ export default function ModelCollectionTemplate() {
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
+      setOriginalContent(data.original)
       setPushState('live')
     } catch (err) {
       setPushState('error')
@@ -165,17 +168,18 @@ export default function ModelCollectionTemplate() {
   }
 
   async function handleRevert() {
-    if (!parsed.handle) return
+    if (!parsed.handle || !originalContent) return
     setPushState('reverting')
     setPushError(null)
     try {
       const res = await fetch('/api/marketing/revert-live', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ handle: parsed.handle }),
+        body: JSON.stringify({ handle: parsed.handle, original: originalContent }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
+      setOriginalContent(null)
       setPushState('idle')
     } catch (err) {
       setPushState('error')
@@ -267,11 +271,6 @@ export default function ModelCollectionTemplate() {
       {tab === 'preview'
         ? <Preview parsed={parsed} image={image} imageError={imageError} loadingImage={loadingImage} />
         : <CodePanel />}
-
-      <div className="settings-section" style={{ marginTop: 20 }}>
-        <h3 className="settings-section-title">Blocked on</h3>
-        <div className="settings-row"><div className="settings-label">Shopify token for this app, to actually write metafields once we're ready to go live (image lookup above doesn't need it — that's public storefront data)</div></div>
-      </div>
     </div>
   )
 }
@@ -335,54 +334,31 @@ function Preview({ parsed, image, imageError, loadingImage }) {
   )
 }
 
-const LIQUID_TEMPLATE = `{% comment %}
-  sections/model-collection-seo.liquid
-  Assign via an alternate collection template (e.g. templates/collection.model-page.json)
-  applied to all 380 model collections via template_suffix. Content is per-collection,
-  driven entirely by metafields — this file is written ONCE and never touched again.
-  Metafields expected (namespace: custom):
-    custom.seo_intro        (multi_line_text_field)
-    custom.seo_faqs         (json — [[question, answer], ...])
-{% endcomment %}
-
-<div class="model-seo">
-  <div class="model-seo__container">
-    <h1>{{ collection.title }}</h1>
-    {% if collection.metafields.custom.seo_intro %}
-      <p class="model-seo__intro">{{ collection.metafields.custom.seo_intro.value }}</p>
-    {% endif %}
-  </div>
-</div>
-
-{{ collection.description }}
-{%- comment -%} Fast Simon grid renders here via the existing collection template {%- endcomment -%}
-
-{% if collection.metafields.custom.seo_faqs %}
-  <div class="model-seo model-seo--faq">
-    <div class="model-seo__container">
-      <h2>Questions about {{ collection.title }}</h2>
-      {% assign faqs = collection.metafields.custom.seo_faqs.value %}
-      {% for pair in faqs %}
-        <details class="model-seo__faq">
-          <summary>{{ pair[0] }}</summary>
-          <p>{{ pair[1] }}</p>
-        </details>
-      {% endfor %}
-    </div>
-  </div>
-{% endif %}
-`
+const DESCRIPTION_EXAMPLE = `<p>{intro copy}</p>
+<!--footer-text-->
+<div class="model-seo-faq">
+  <h2>Questions about {title}</h2>
+  <details><summary>{question}</summary><p>{answer}</p></details>
+  ...
+</div>`
 
 function CodePanel() {
   return (
     <div className="settings-section">
-      <h3 className="settings-section-title">sections/model-collection-seo.liquid</h3>
+      <h3 className="settings-section-title">How Push live actually works</h3>
       <p style={{ fontSize: 13, color: '#888', marginBottom: 12 }}>
-        Paste into Edit code &rarr; Sections. Reads two metafields per collection (intro text, FAQ list) so the same file serves all 380 without editing it again.
+        No new theme section, no template_suffix, nothing added to the theme at all. The live collection template
+        already splits <code>collection.description</code> on a <code>&lt;!--footer-text--&gt;</code> marker —
+        one part renders above the product grid, the other below it. Push live only writes to that one field,
+        so the grid, filters, breadcrumbs and everything else on the page are untouched.
       </p>
       <pre style={{ background: '#0d1410', color: '#d7ecd9', padding: 16, borderRadius: 8, fontSize: 12.5, overflowX: 'auto', lineHeight: 1.6 }}>
-        {LIQUID_TEMPLATE}
+        {DESCRIPTION_EXAMPLE}
       </pre>
+      <p style={{ fontSize: 13, color: '#888', marginTop: 12 }}>
+        Revert restores the collection&rsquo;s exact original description and SEO fields (captured the moment
+        before Push live overwrites them) &mdash; a true undo, not just a blank page.
+      </p>
     </div>
   )
 }
