@@ -52,12 +52,10 @@ export default async function handler(req, res) {
         collectionByHandle(handle: $handle) {
           id
           templateSuffix
-          metafields(identifiers: [
-            {namespace: "custom", key: "seo_intro"},
-            {namespace: "custom", key: "seo_faqs"},
-            {namespace: "custom", key: "seo_compare_brands"},
-            {namespace: "custom", key: "seo_guides_url"}
-          ]) { key value }
+          mf_intro: metafield(namespace: "custom", key: "seo_intro") { value }
+          mf_faqs: metafield(namespace: "custom", key: "seo_faqs") { value }
+          mf_brands: metafield(namespace: "custom", key: "seo_compare_brands") { value }
+          mf_guides: metafield(namespace: "custom", key: "seo_guides_url") { value }
         }
       }
     `, { handle })
@@ -66,7 +64,12 @@ export default async function handler(req, res) {
 
     const original = {
       templateSuffix: collection.templateSuffix || '',
-      metafields: Object.fromEntries((collection.metafields || []).filter(Boolean).map(m => [m.key, m.value])),
+      metafields: {
+        seo_intro: collection.mf_intro?.value || '',
+        seo_faqs: collection.mf_faqs?.value || '',
+        seo_compare_brands: collection.mf_brands?.value || '',
+        seo_guides_url: collection.mf_guides?.value || '',
+      },
     }
 
     const guidesUrlMatch = (guides || '').match(/https?:\/\/\S+/)
