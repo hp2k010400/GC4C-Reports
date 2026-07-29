@@ -1,5 +1,13 @@
 import { useEffect, useState } from 'react'
 
+// The dedicated test page/collection ends up in this list too (it picks up
+// the real template every time it's used for testing), but "Remove" on it
+// has no purpose — pushing again just overwrites it anyway — and clicking
+// it by mistake has broken the in-progress test three times. Disabled for
+// these specifically rather than hiding the row, since seeing it in the
+// list (and being able to View/Edit it) is still wanted.
+const NO_REMOVE_HANDLES = ['marketing-automation-test-page', 'marketing-automation-test']
+
 // Shared "which of these have we already done" tracking list for both the
 // Brand Hub and Model Collection tools — same shape, different endpoints.
 export default function MarketingHistoryList({ title, listEndpoint, resetEndpoint, baseUrl, onUseHandle }) {
@@ -76,14 +84,20 @@ export default function MarketingHistoryList({ title, listEndpoint, resetEndpoin
                     {onUseHandle && (
                       <button className="btn btn-secondary" style={{ fontSize: 12, padding: '4px 10px' }} onClick={() => onUseHandle(item.handle)}>Edit</button>
                     )}
-                    <button
-                      className="btn btn-secondary"
-                      style={{ fontSize: 12, padding: '4px 10px', color: '#c0392b' }}
-                      onClick={() => handleReset(item.handle)}
-                      disabled={resetting === item.handle}
-                    >
-                      {resetting === item.handle ? 'Removing…' : 'Remove'}
-                    </button>
+                    {NO_REMOVE_HANDLES.includes(item.handle) ? (
+                      <span style={{ fontSize: 12, padding: '4px 10px', color: '#aaa' }} title="This is the dedicated test page — Remove is disabled since it'd just get pushed to again anyway.">
+                        Test page
+                      </span>
+                    ) : (
+                      <button
+                        className="btn btn-secondary"
+                        style={{ fontSize: 12, padding: '4px 10px', color: '#c0392b' }}
+                        onClick={() => handleReset(item.handle)}
+                        disabled={resetting === item.handle}
+                      >
+                        {resetting === item.handle ? 'Removing…' : 'Remove'}
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))}
