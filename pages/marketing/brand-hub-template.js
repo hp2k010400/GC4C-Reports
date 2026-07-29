@@ -181,6 +181,7 @@ function BrandHubPreview({ brand, parsed, resolved }) {
         .bh-tile img { width: 100%; aspect-ratio: 4/3; object-fit: cover; border-radius: 6px; border: 1px solid #e3e0d6; background: #f6f4ef; }
         .bh-tile .ph { aspect-ratio: 4/3; background: #f6f4ef; border-radius: 6px; border: 1px solid #e3e0d6; }
         .bh-tile .name { font-size: 0.84rem; font-weight: 700; text-align: center; }
+        .bh-tile .count { font-size: 0.65rem; font-weight: 400; color: #5b6259; margin-left: 2px; }
         .bh-cta { display: inline-block; margin-top: 1.2rem; background: #20842e; color: #fff; font-weight: 700; text-decoration: none; padding: 0.7rem 1.3rem; border-radius: 6px; font-size: 0.92rem; }
         .bh-faq-tier { margin-top: 1.6rem; }
         .bh-faq-tier:first-child { margin-top: 1.4rem; }
@@ -235,7 +236,7 @@ function BrandHubPreview({ brand, parsed, resolved }) {
               {resolved.main.map((c, i) => (
                 <a className="bh-tile" href={`/collections/${c.handle}`} key={i} onClick={e => e.preventDefault()}>
                   {c.image ? <img src={c.image} alt={c.label} /> : <div className="ph" />}
-                  <span className="name">{c.label}</span>
+                  <span className="name">{c.label}{c.count ? <sup className="count">{c.count}</sup> : null}</span>
                 </a>
               ))}
             </div>
@@ -251,7 +252,7 @@ function BrandHubPreview({ brand, parsed, resolved }) {
               {resolved.other.map((c, i) => (
                 <a className="bh-tile" href={`/collections/${c.handle}`} key={i} onClick={e => e.preventDefault()}>
                   {c.image ? <img src={c.image} alt={c.label} /> : <div className="ph" />}
-                  <span className="name">{c.label}</span>
+                  <span className="name">{c.label}{c.count ? <sup className="count">{c.count}</sup> : null}</span>
                 </a>
               ))}
             </div>
@@ -380,6 +381,7 @@ export default function BrandHubTemplate() {
   const [docUrl, setDocUrl] = useState('')
   const [docLoading, setDocLoading] = useState(false)
   const [docLoadError, setDocLoadError] = useState(null)
+  const [docImages, setDocImages] = useState([])
 
   async function handleLoadFromUrl() {
     if (!docUrl.trim()) return
@@ -394,6 +396,7 @@ export default function BrandHubTemplate() {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
       setDocText(data.text)
+      setDocImages(data.images || [])
     } catch (err) {
       setDocLoadError(err.message)
     } finally {
@@ -494,6 +497,18 @@ export default function BrandHubTemplate() {
           </button>
         </div>
         {docLoadError && <div style={{ fontSize: 12.5, color: '#c0392b', marginBottom: 8 }}>{docLoadError}</div>}
+        {docImages.length > 0 && (
+          <div style={{ marginBottom: 10, padding: 10, background: '#fafafa', border: '1px solid #eee', borderRadius: 6 }}>
+            <div style={{ fontSize: 12, color: '#888', marginBottom: 6 }}>
+              Reference image{docImages.length > 1 ? 's' : ''} pasted into the doc (visual reference only — not pushed to the page):
+            </div>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              {docImages.map((src, i) => (
+                <img key={i} src={src} alt={`Doc reference ${i + 1}`} style={{ maxWidth: 260, maxHeight: 180, border: '1px solid #ddd', borderRadius: 4 }} />
+              ))}
+            </div>
+          </div>
+        )}
         <textarea
           className="form-input"
           style={{ width: '100%', minHeight: 220, fontFamily: 'monospace', fontSize: 12.5 }}
