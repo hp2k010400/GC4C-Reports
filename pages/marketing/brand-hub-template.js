@@ -1,6 +1,10 @@
 import { useState } from 'react'
 import MarketingHistoryList from '../../components/MarketingHistoryList'
 
+// Mirrors lib/marketing-safety.js — pushing to anything outside this list
+// requires typing the handle out to confirm, not just clicking a dialog.
+const SAFE_TEST_HANDLES = ['marketing-automation-test-page', 'marketing-automation-test']
+
 // Real doc format (matches the actual TaylorMade Brand Hub doc), loose
 // prose under section headings rather than strict "Label: value" pairs:
 //   SEO Page Title: ...
@@ -379,6 +383,8 @@ export default function BrandHubTemplate() {
   const [docLoading, setDocLoading] = useState(false)
   const [docLoadError, setDocLoadError] = useState(null)
   const [docImages, setDocImages] = useState([])
+  const [confirmHandleInput, setConfirmHandleInput] = useState('')
+  const isProtectedHandle = !SAFE_TEST_HANDLES.includes(targetHandle.trim())
 
   async function handleLoadFromUrl() {
     if (!docUrl.trim()) return
@@ -431,6 +437,7 @@ export default function BrandHubTemplate() {
 
   async function handlePushLive() {
     if (!targetHandle.trim()) return
+    if (isProtectedHandle && confirmHandleInput.trim() !== targetHandle.trim()) return
     const sure = window.confirm(
       `This writes to the page's metafields and assigns the shared brand-hub template.\n\nIt'll be visible on:\nhttps://www.golfclubs4cash.co.uk/pages/${targetHandle}\n\nContinue?`
     )
@@ -441,7 +448,7 @@ export default function BrandHubTemplate() {
       const res = await fetch('/api/marketing/brand-hub-push-live', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ handle: targetHandle.trim(), brandName, ...parsed }),
+        body: JSON.stringify({ handle: targetHandle.trim(), confirmHandle: confirmHandleInput.trim(), brandName, ...parsed }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
@@ -490,7 +497,7 @@ export default function BrandHubTemplate() {
         listEndpoint="/api/marketing/brand-hub-list"
         resetEndpoint="/api/marketing/brand-hub-reset"
         baseUrl="https://www.golfclubs4cash.co.uk/pages/"
-        onUseHandle={(handle) => setTargetHandle(handle)}
+        onUseHandle={(handle) => { setTargetHandle(handle); setConfirmHandleInput('') }}
       />
 
       <div className="settings-section">
@@ -539,14 +546,36 @@ export default function BrandHubTemplate() {
         <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px dashed #ddd' }}>
           <label className="settings-label" style={{ display: 'block', marginBottom: 6 }}>Test page to push to (its own dedicated, unlinked URL)</label>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-            <input className="form-input" style={{ width: 340 }} value={targetHandle} onChange={e => setTargetHandle(e.target.value)} />
+            <input className="form-input" style={{ width: 340 }} value={targetHandle} onChange={e => { setTargetHandle(e.target.value); setConfirmHandleInput('') }} />
             <a className="btn btn-secondary" href={`https://www.golfclubs4cash.co.uk/pages/${targetHandle}`} target="_blank" rel="noopener noreferrer">View page</a>
           </div>
+          {isProtectedHandle && targetHandle.trim() && (
+            <div style={{ marginTop: 10, padding: 10, background: '#fff6f6', border: '1px solid #f0d0d0', borderRadius: 6 }}>
+              <div style={{ fontSize: 12.5, color: '#c0392b', fontWeight: 600, marginBottom: 6 }}>
+                "{targetHandle.trim()}" isn't one of the known safe test handles — this looks like a real, live page.
+              </div>
+              <label className="settings-label" style={{ display: 'block', marginBottom: 4, fontSize: 12 }}>
+                Type <code>{targetHandle.trim()}</code> below to confirm you mean to push to it:
+              </label>
+              <input
+                className="form-input"
+                style={{ width: 340 }}
+                value={confirmHandleInput}
+                onChange={e => setConfirmHandleInput(e.target.value)}
+                placeholder={targetHandle.trim()}
+              />
+            </div>
+          )}
         </div>
 
         <div style={{ marginTop: 14, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
           {pushState !== 'live' ? (
-            <button className="btn btn-primary" style={{ background: '#c0392b' }} onClick={handlePushLive} disabled={pushState === 'pushing' || !targetHandle.trim()}>
+            <button
+              className="btn btn-primary"
+              style={{ background: '#c0392b' }}
+              onClick={handlePushLive}
+              disabled={pushState === 'pushing' || !targetHandle.trim() || (isProtectedHandle && confirmHandleInput.trim() !== targetHandle.trim())}
+            >
               {pushState === 'pushing' ? 'Pushing…' : 'Push live'}
             </button>
           ) : (

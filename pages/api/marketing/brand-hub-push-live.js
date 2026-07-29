@@ -1,5 +1,6 @@
 import { shopifyGraphQL } from '../../../lib/shopify.js'
 import { resolveCategory, resolvePageLink } from '../../../lib/marketing-categories.js'
+import { checkPushGuard } from '../../../lib/marketing-safety.js'
 
 // Writes to a Page's metafields + assigns the shared "brand-hub" template
 // (built once, reused for all ~16 brands). Category tiles come in as plain
@@ -15,11 +16,14 @@ export default async function handler(req, res) {
   }
 
   const {
-    handle, brandName, pageTitle, metaDescription, h1, heroParagraphs,
+    handle, confirmHandle, brandName, pageTitle, metaDescription, h1, heroParagraphs,
     whyBrandHeading, whyBrandParagraphs, mainCategoryUrls, otherCategoryUrls, otherBrandHubUrls,
     faqs, tradeInParagraphs, guidesUrl, guidesBody,
   } = req.body
   if (!handle) return res.status(400).json({ error: 'handle is required' })
+
+  const guardError = checkPushGuard(handle, confirmHandle)
+  if (guardError) return res.status(400).json({ error: guardError })
 
   try {
     const found = await shopifyGraphQL(`

@@ -1,4 +1,5 @@
 import { shopifyGraphQL } from '../../../lib/shopify.js'
+import { checkPushGuard } from '../../../lib/marketing-safety.js'
 
 // This is the REAL version: writes to metafields + assigns the shared
 // "model-page" template (built once, reused for all 380). The section
@@ -43,8 +44,11 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'SHOPIFY_ACCESS_TOKEN not configured on this environment' })
   }
 
-  const { handle, faqs, otherBrands, guides, intro } = req.body
+  const { handle, confirmHandle, faqs, otherBrands, guides, intro } = req.body
   if (!handle) return res.status(400).json({ error: 'handle is required' })
+
+  const guardError = checkPushGuard(handle, confirmHandle)
+  if (guardError) return res.status(400).json({ error: guardError })
 
   try {
     const found = await shopifyGraphQL(`
