@@ -183,9 +183,6 @@ function BrandHubPreview({ brand, parsed, resolved }) {
         .bh-tile .name { font-size: 0.84rem; font-weight: 700; text-align: center; }
         .bh-tile .count { font-size: 0.65rem; font-weight: 400; color: #5b6259; margin-left: 2px; }
         .bh-cta { display: inline-block; margin-top: 1.2rem; background: #20842e; color: #fff; font-weight: 700; text-decoration: none; padding: 0.7rem 1.3rem; border-radius: 6px; font-size: 0.92rem; }
-        .bh-faq-tier { margin-top: 1.6rem; }
-        .bh-faq-tier:first-child { margin-top: 1.4rem; }
-        .bh-faq-tier .tier-label { font-size: 0.7rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #005f2c; margin-bottom: 0.6rem; }
         .bh-faq { border-bottom: 1px solid #e3e0d6; padding: 0.9rem 0; }
         .bh-faq summary { list-style: none; cursor: pointer; display: flex; justify-content: space-between; align-items: center; gap: 1rem; font-weight: 700; font-size: 0.95rem; }
         .bh-faq summary::-webkit-details-marker { display: none; }
@@ -327,12 +324,11 @@ function BrandHubPreview({ brand, parsed, resolved }) {
               {(() => {
                 let tierSeen = ''
                 return parsed.faqs.map((item, i) => {
-                  const showTier = item.tier !== tierSeen
+                  const isTierStart = item.tier !== tierSeen
                   tierSeen = item.tier
                   return (
                     <div key={i}>
-                      {showTier && <div className="bh-faq-tier"><div className="tier-label">{item.tier}</div></div>}
-                      <details className="bh-faq">
+                      <details className="bh-faq" style={isTierStart && i > 0 ? { marginTop: '1.4rem' } : undefined}>
                         <summary>{item.q}</summary>
                         <p>{item.a}</p>
                         {item.ctaUrl && <a className="faq-cta" href={item.ctaUrl} onClick={e => e.preventDefault()}>{item.ctaText || 'Learn more'} &rarr;</a>}
