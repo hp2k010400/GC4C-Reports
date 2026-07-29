@@ -168,10 +168,10 @@ function BrandHubPreview({ brand, parsed, resolved }) {
         }
         .bh-preview { font-family: 'Open Sans Condensed Preview', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #fff; color: #1c1f1a; width: 100%; box-sizing: border-box; }
         .bh-wrap { max-width: 960px; margin: 0 auto; padding: 0 1.75rem; box-sizing: border-box; }
-        .bh-copy { max-width: 640px; margin: 0 auto; }
+        .bh-copy { max-width: 900px; margin: 0 auto; }
         .bh-hero { padding: 2.4rem 0 1rem; }
         .bh-hero h1 { font-size: clamp(1.9rem, 3.6vw, 2.5rem); font-weight: 700; margin: 0 auto; max-width: 20ch; text-align: center; }
-        .bh-hero p { margin-top: 1rem; color: #5b6259; font-size: 1.02rem; max-width: 68ch; }
+        .bh-hero p { margin-top: 1rem; color: #5b6259; font-size: 1.02rem; }
         .bh-hero p + p { margin-top: 0.9rem; }
         .bh-band { padding: 2.4rem 0; border-top: 1px solid #e3e0d6; }
         .bh-band.paper { background: #fff; }
@@ -190,7 +190,7 @@ function BrandHubPreview({ brand, parsed, resolved }) {
         .bh-faq summary::-webkit-details-marker { display: none; }
         .bh-faq summary::after { content: "+"; font-family: monospace; font-size: 1.2rem; color: #b5651d; flex: none; }
         .bh-faq[open] summary::after { content: "\\2212"; }
-        .bh-faq p { color: #5b6259; margin-top: 0.6rem; max-width: 66ch; font-size: 0.92rem; }
+        .bh-faq p { color: #5b6259; margin-top: 0.6rem; font-size: 0.92rem; }
         .bh-faq .faq-cta { display: inline-block; margin-top: 0.5rem; font-size: 0.85rem; font-weight: 700; color: #20842e; text-decoration: underline; }
         .bh-why-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.4rem; margin-top: 1.6rem; }
         .bh-why-item h3 { font-size: 1rem; margin: 0; }
@@ -200,7 +200,7 @@ function BrandHubPreview({ brand, parsed, resolved }) {
         .bh-hub-link { text-decoration: none; color: #1c1f1a; font-weight: 700; font-size: 0.9rem; padding: 0.6rem 1.1rem; border: 1px solid #e3e0d6; border-radius: 999px; }
         .bh-clubhouse { background: #005f2c; color: #fff; }
         .bh-clubhouse h2 { color: #fff; margin: 0; }
-        .bh-clubhouse p { color: #fff; opacity: 0.92; max-width: 60ch; margin-top: 0.8rem; }
+        .bh-clubhouse p { color: #fff; opacity: 0.92; margin-top: 0.8rem; }
         .bh-clubhouse .bh-cta { background: #fff; color: #005f2c; }
         @media (max-width: 860px) { .bh-tile-grid { grid-template-columns: repeat(2, 1fr); } }
       `}</style>
