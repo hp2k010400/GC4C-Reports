@@ -34,6 +34,13 @@ function saveHistory(entry) {
 const EDITABLE = ['SKU', 'Price', 'Compare At Price', 'Title', 'Brand', 'Type', 'Status', 'Barcode', 'Tags']
 
 export default function BulkUpdate() {
+  // No persistence (no cookie/localStorage) — password required every time
+  // this page is opened, same pattern as Settings and Stock Adjustments.
+  const [unlocked, setUnlocked] = useState(false)
+  const [gatePassword, setGatePassword] = useState('')
+  const [gateChecking, setGateChecking] = useState(false)
+  const [gateError, setGateError] = useState(null)
+
   const [rows, setRows] = useState(null)
   const [applying, setApplying] = useState(false)
   const [result, setResult] = useState(null)
@@ -66,7 +73,7 @@ export default function BulkUpdate() {
       const res = await fetch('/api/bulk-update', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ rows }),
+        body: JSON.stringify({ rows, password: gatePassword }),
       })
       const json = await res.json()
       setApplying(false)
@@ -90,6 +97,49 @@ export default function BulkUpdate() {
   }
 
   const columns = rows?.length ? Object.keys(rows[0]) : []
+
+  async function handleUnlock(e) {
+    e.preventDefault()
+    if (!gatePassword) return
+    setGateChecking(true)
+    setGateError(null)
+    try {
+      const res = await fetch('/api/settings-auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: gatePassword }),
+      })
+      if (!res.ok) throw new Error('Incorrect password')
+      setUnlocked(true)
+    } catch (err) {
+      setGateError(err.message)
+    } finally {
+      setGateChecking(false)
+    }
+  }
+
+  if (!unlocked) {
+    return (
+      <div className="container" style={{ maxWidth: 380 }}>
+        <div className="page-title">Bulk Product Update</div>
+        <div className="page-sub">This section is restricted. Enter the password to continue.</div>
+        <form onSubmit={handleUnlock} style={{ marginTop: 20, display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <input
+            className="form-input"
+            type="password"
+            placeholder="Password"
+            value={gatePassword}
+            onChange={e => setGatePassword(e.target.value)}
+            autoFocus
+          />
+          <button className="btn btn-primary" type="submit" disabled={gateChecking || !gatePassword}>
+            {gateChecking ? 'Checking…' : 'Continue'}
+          </button>
+          {gateError && <div className="state-box error">{gateError}</div>}
+        </form>
+      </div>
+    )
+  }
 
   return (
     <div className="container">
