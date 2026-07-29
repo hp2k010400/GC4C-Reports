@@ -107,20 +107,25 @@ export default function DeletionCandidatesPage() {
   }, [])
 
   async function fetchAllProducts() {
-    try {
-      const metaRes = await fetch('/api/products-cache?meta=1&scope=active')
-      const meta = metaRes ? await metaRes.json() : {}
-      if (meta.hit && meta.totalChunks > 0) {
-        const chunks = await Promise.all(
-          Array.from({ length: meta.totalChunks }, (_, i) =>
-            fetch(`/api/products-cache?chunk=${i}&scope=active`).then(r => r.json()).then(d => d.rows || [])
+    // The shared cache only ever holds the full, unfiltered storewide dataset
+    // (what the nightly warmer maintains) — it can't correctly answer a
+    // Brand/Type-scoped pre-filter, so skip it entirely when one is set.
+    if (!preRunVendor && !preRunType) {
+      try {
+        const metaRes = await fetch('/api/products-cache?meta=1&scope=active')
+        const meta = metaRes ? await metaRes.json() : {}
+        if (meta.hit && meta.totalChunks > 0) {
+          const chunks = await Promise.all(
+            Array.from({ length: meta.totalChunks }, (_, i) =>
+              fetch(`/api/products-cache?chunk=${i}&scope=active`).then(r => r.json()).then(d => d.rows || [])
+            )
           )
-        )
-        const rows = chunks.flat()
-        setProductCount(rows.length)
-        return { rows, fromCache: true }
-      }
-    } catch {}
+          const rows = chunks.flat()
+          setProductCount(rows.length)
+          return { rows, fromCache: true }
+        }
+      } catch {}
+    }
 
     let rows = []
     let pageInfo = null
@@ -228,7 +233,10 @@ export default function DeletionCandidatesPage() {
       setPhase('products')
       const { rows: productRows, fromCache } = await fetchAllProducts()
       if (!fromCache) {
-        writeProductsCache(productRows).catch(() => {})
+        // Only the unfiltered result is safe to cache — writing a Brand/Type
+        // -scoped subset here would overwrite the shared full dataset for
+        // every other filter combination too.
+        if (!preRunVendor && !preRunType) writeProductsCache(productRows).catch(() => {})
         // Live product fetch just drained Shopify's rate-limit bucket — give it
         // a moment to refill before hammering the orders API, or the first
         // orders-skus call gets throttled, retries, and blows Netlify's 10s limit.
