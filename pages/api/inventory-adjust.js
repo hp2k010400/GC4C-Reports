@@ -12,6 +12,19 @@ const FALLBACK_REASON_MAP = {
   'Other':                     'other',
 }
 
+const FIRST_ADJUSTMENT_NUMBER = 30000
+
+// Reserves `count` sequential adjustment numbers and returns the first one.
+// Not perfectly atomic under truly simultaneous submissions, but this is a
+// low-concurrency internal tool (same tradeoff already accepted elsewhere).
+async function reserveAdjustmentNumbers(count) {
+  const store = getStore({ name: 'gc4c-adjustment-counter', consistency: 'strong' })
+  const current = await store.get('next', { type: 'json' })
+  const start = typeof current === 'number' ? current : FIRST_ADJUSTMENT_NUMBER
+  await store.set('next', JSON.stringify(start + count))
+  return start
+}
+
 async function getReasonMap() {
   try {
     const store = getStore('gc4c-settings')
@@ -67,6 +80,7 @@ export default async function handler(req, res) {
     }
 
     const resultChanges = data.inventoryAdjustQuantities?.inventoryAdjustmentGroup?.changes || []
+    const startNumber = await reserveAdjustmentNumbers(items.length)
 
     try {
       const store = getStore('gc4c-adjustments')
@@ -76,6 +90,7 @@ export default async function handler(req, res) {
       items.forEach((item, i) => {
         log.push({
           id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+          adjustmentNumber: startNumber + i,
           timestamp: new Date().toISOString(),
           sku: item.sku, productTitle: item.productTitle, variantTitle: item.variantTitle,
           inventoryItemId: item.inventoryItemId, locationId: parseInt(item.locationId), locationName: item.locationName,
@@ -88,7 +103,7 @@ export default async function handler(req, res) {
       await store.set(monthKey, JSON.stringify(log))
     } catch {}
 
-    res.status(200).json({ ok: true, count: items.length })
+    res.status(200).json({ ok: true, count: items.length, adjustmentNumbers: items.map((_, i) => startNumber + i) })
   } catch (err) {
     res.status(500).json({ error: err.message })
   }

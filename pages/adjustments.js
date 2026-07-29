@@ -223,7 +223,7 @@ export default function AdjustmentsPage() {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Adjustment failed')
 
-      setSubmitResult({ ok: true, count: validLines.length, lines: validLines, locationName: selectedLoc?.name })
+      setSubmitResult({ ok: true, count: validLines.length, lines: validLines, locationName: selectedLoc?.name, adjustmentNumbers: data.adjustmentNumbers })
 
       // Refresh log
       const logRes = await fetch(`/api/adjustment-log?month=${logMonth}`)
@@ -242,7 +242,8 @@ export default function AdjustmentsPage() {
 
   function exportApplied() {
     if (!submitResult?.lines) return
-    const rows = submitResult.lines.map(l => ({
+    const rows = submitResult.lines.map((l, i) => ({
+      'Adjustment #': submitResult.adjustmentNumbers?.[i] ?? '',
       SKU: l.product.sku,
       Product: l.product.productTitle + (l.product.variantTitle ? ` — ${l.product.variantTitle}` : ''),
       Location: submitResult.locationName,
@@ -258,6 +259,7 @@ export default function AdjustmentsPage() {
   function exportLog() {
     if (!logEntries.length) return
     const rows = logEntries.map(e => ({
+      'Adjustment #': e.adjustmentNumber ?? '',
       'Date': new Date(e.timestamp).toLocaleString('en-GB', { dateStyle: 'short', timeStyle: 'short' }),
       'Employee': e.employee,
       'SKU': e.sku,
@@ -276,7 +278,7 @@ export default function AdjustmentsPage() {
   const [logReasonFilter, setLogReasonFilter] = useState('')
   const logReasons = [...new Set(logEntries.map(e => e.reason).filter(Boolean))].sort((a, b) => a.localeCompare(b))
   const filteredLog = logEntries
-    .filter(e => !logSearch.trim() || e.sku?.toLowerCase().includes(logSearch.trim().toLowerCase()))
+    .filter(e => !logSearch.trim() || e.sku?.toLowerCase().includes(logSearch.trim().toLowerCase()) || String(e.adjustmentNumber ?? '').includes(logSearch.trim()))
     .filter(e => !logReasonFilter || e.reason === logReasonFilter)
 
   const validCount = lines.filter(l => l.product && l.qty && parseInt(l.qty) !== 0 && !isNaN(parseInt(l.qty))).length
@@ -556,7 +558,7 @@ export default function AdjustmentsPage() {
         <input
           className="form-input"
           type="text"
-          placeholder="Search by SKU…"
+          placeholder="Search by SKU or Adjustment #…"
           value={logSearch}
           onChange={e => setLogSearch(e.target.value)}
           style={{ maxWidth: 280 }}
@@ -590,6 +592,7 @@ export default function AdjustmentsPage() {
           <table>
             <thead>
               <tr>
+                <th>Adj #</th>
                 <th>Date / Time</th>
                 <th>Employee</th>
                 <th>SKU</th>
@@ -605,6 +608,7 @@ export default function AdjustmentsPage() {
             <tbody>
               {filteredLog.map(e => (
                 <tr key={e.id}>
+                  <td style={{ fontSize: 12, whiteSpace: 'nowrap' }}>{e.adjustmentNumber ? `#${e.adjustmentNumber}` : '—'}</td>
                   <td style={{ whiteSpace: 'nowrap', fontSize: 12 }}>
                     {new Date(e.timestamp).toLocaleString('en-GB', { dateStyle: 'short', timeStyle: 'short' })}
                   </td>
@@ -621,6 +625,7 @@ export default function AdjustmentsPage() {
                   <td>
                     <button className="btn btn-secondary" style={{ fontSize: 11, padding: '2px 8px', whiteSpace: 'nowrap' }}
                       onClick={() => downloadCSV([{
+                        'Adjustment #': e.adjustmentNumber ?? '',
                         'Date': new Date(e.timestamp).toLocaleString('en-GB', { dateStyle: 'short', timeStyle: 'short' }),
                         'Employee': e.employee, 'SKU': e.sku,
                         'Product': e.productTitle + (e.variantTitle ? ` — ${e.variantTitle}` : ''),
