@@ -362,6 +362,29 @@ export default function BrandHubTemplate() {
   const [originalContent, setOriginalContent] = useState(null)
   const [resolved, setResolved] = useState({ main: [], other: [], otherBrandHubs: [] })
   const [previewLoading, setPreviewLoading] = useState(false)
+  const [docUrl, setDocUrl] = useState('')
+  const [docLoading, setDocLoading] = useState(false)
+  const [docLoadError, setDocLoadError] = useState(null)
+
+  async function handleLoadFromUrl() {
+    if (!docUrl.trim()) return
+    setDocLoading(true)
+    setDocLoadError(null)
+    try {
+      const res = await fetch('/api/marketing/fetch-google-doc', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: docUrl.trim() }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error)
+      setDocText(data.text)
+    } catch (err) {
+      setDocLoadError(err.message)
+    } finally {
+      setDocLoading(false)
+    }
+  }
 
   async function handleParse() {
     const next = parseBrandHubDoc(docText)
@@ -443,10 +466,23 @@ export default function BrandHubTemplate() {
           <label className="settings-label" style={{ alignSelf: 'center' }}>Brand name</label>
           <input className="form-input" style={{ width: 200 }} value={brandName} onChange={e => setBrandName(e.target.value)} />
         </div>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
+          <input
+            className="form-input"
+            style={{ flex: 1 }}
+            placeholder="Or paste the Google Doc share link here to load it automatically…"
+            value={docUrl}
+            onChange={e => setDocUrl(e.target.value)}
+          />
+          <button className="btn btn-secondary" onClick={handleLoadFromUrl} disabled={docLoading || !docUrl.trim()}>
+            {docLoading ? 'Loading…' : 'Load doc'}
+          </button>
+        </div>
+        {docLoadError && <div style={{ fontSize: 12.5, color: '#c0392b', marginBottom: 8 }}>{docLoadError}</div>}
         <textarea
           className="form-input"
           style={{ width: '100%', minHeight: 220, fontFamily: 'monospace', fontSize: 12.5 }}
-          placeholder="Paste the full brand hub doc text here..."
+          placeholder="...or paste the full brand hub doc text here"
           value={docText}
           onChange={e => setDocText(e.target.value)}
         />
