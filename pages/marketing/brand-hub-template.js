@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import MarketingHistoryList from '../../components/MarketingHistoryList'
 
 // Real doc format (matches the actual TaylorMade Brand Hub doc), loose
 // prose under section headings rather than strict "Label: value" pairs:
@@ -483,6 +484,14 @@ export default function BrandHubTemplate() {
         One shared template for the ~16 Brand Hub pages, matching the real doc structure: editorial H1, two GA4-ordered category tile rows,
         3-tier FAQs with CTA links, brand trade-in copy, shared Why Choose Us, and a guides CTA.
       </div>
+
+      <MarketingHistoryList
+        title="Brand hubs done so far"
+        listEndpoint="/api/marketing/brand-hub-list"
+        resetEndpoint="/api/marketing/brand-hub-reset"
+        baseUrl="https://www.golfclubs4cash.co.uk/pages/"
+        onUseHandle={(handle) => setTargetHandle(handle)}
+      />
 
       <div className="settings-section">
         <h3 className="settings-section-title">1. Paste the copy doc</h3>

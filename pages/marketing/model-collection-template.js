@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import MarketingHistoryList from '../../components/MarketingHistoryList'
 
 const SECTION_HEADERS = [
   'Header & Footer Text',
@@ -209,6 +210,14 @@ export default function ModelCollectionTemplate() {
         CRO-informed template for the ~380 model collection pages (short copy above the grid, FAQ below — per Will&rsquo;s email).
         Paste a copy doc below to see it rendered live, with a real product image pulled from the live store.
       </div>
+
+      <MarketingHistoryList
+        title="Model collections done so far"
+        listEndpoint="/api/marketing/model-collection-list"
+        resetEndpoint="/api/marketing/model-collection-reset"
+        baseUrl="https://www.golfclubs4cash.co.uk/collections/"
+        onUseHandle={(handle) => setTargetHandle(handle)}
+      />
 
       <div className="settings-section">
         <h3 className="settings-section-title">1. Paste the copy doc</h3>
