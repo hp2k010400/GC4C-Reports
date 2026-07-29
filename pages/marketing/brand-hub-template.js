@@ -404,6 +404,12 @@ export default function BrandHubTemplate() {
     const next = parseBrandHubDoc(docText)
     setParsed(next)
     setStatus('Loaded ' + new Date().toLocaleTimeString())
+    // Freshly parsed content hasn't been pushed yet — always offer "Push live"
+    // rather than carrying over a "Revert" state from whatever was parsed
+    // and pushed earlier in this browser tab.
+    setPushState('idle')
+    setPushError(null)
+    setOriginalContent(null)
     setPreviewLoading(true)
     try {
       const res = await fetch('/api/marketing/resolve-categories', {
@@ -448,6 +454,10 @@ export default function BrandHubTemplate() {
 
   async function handleRevert() {
     if (!targetHandle.trim() || !originalContent) return
+    const sure = window.confirm(
+      `This restores the page to what it looked like before your last push, undoing whatever is currently live on:\nhttps://www.golfclubs4cash.co.uk/pages/${targetHandle}\n\nContinue?`
+    )
+    if (!sure) return
     setPushState('reverting')
     setPushError(null)
     try {
