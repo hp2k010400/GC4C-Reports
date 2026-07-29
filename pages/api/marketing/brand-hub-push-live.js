@@ -1,5 +1,5 @@
 import { shopifyGraphQL } from '../../../lib/shopify.js'
-import { resolveCategory } from '../../../lib/marketing-categories.js'
+import { resolveCategory, resolvePageLink } from '../../../lib/marketing-categories.js'
 
 // Writes to a Page's metafields + assigns the shared "brand-hub" template
 // (built once, reused for all ~16 brands). Category tiles come in as plain
@@ -16,7 +16,7 @@ export default async function handler(req, res) {
 
   const {
     handle, brandName, pageTitle, metaDescription, h1, heroParagraphs,
-    whyBrandHeading, whyBrandParagraphs, mainCategoryUrls, otherCategoryUrls,
+    whyBrandHeading, whyBrandParagraphs, mainCategoryUrls, otherCategoryUrls, otherBrandHubUrls,
     faqs, tradeInParagraphs, guidesUrl, guidesBody,
   } = req.body
   if (!handle) return res.status(400).json({ error: 'handle is required' })
@@ -35,6 +35,7 @@ export default async function handler(req, res) {
             mf_why_p: metafield(namespace: "custom", key: "seo_why_brand_paragraphs") { value }
             mf_main_cats: metafield(namespace: "custom", key: "seo_main_categories") { value }
             mf_other_cats: metafield(namespace: "custom", key: "seo_other_categories") { value }
+            mf_other_hubs: metafield(namespace: "custom", key: "seo_other_brand_hubs") { value }
             mf_faqs: metafield(namespace: "custom", key: "seo_faqs") { value }
             mf_tradein: metafield(namespace: "custom", key: "seo_tradein_paragraphs") { value }
             mf_guides_url: metafield(namespace: "custom", key: "seo_guides_url") { value }
@@ -57,6 +58,7 @@ export default async function handler(req, res) {
         seo_why_brand_paragraphs: page.mf_why_p?.value || '',
         seo_main_categories: page.mf_main_cats?.value || '',
         seo_other_categories: page.mf_other_cats?.value || '',
+        seo_other_brand_hubs: page.mf_other_hubs?.value || '',
         seo_faqs: page.mf_faqs?.value || '',
         seo_tradein_paragraphs: page.mf_tradein?.value || '',
         seo_guides_url: page.mf_guides_url?.value || '',
@@ -65,9 +67,10 @@ export default async function handler(req, res) {
       },
     }
 
-    const [resolvedMain, resolvedOther] = await Promise.all([
+    const [resolvedMain, resolvedOther, resolvedOtherHubs] = await Promise.all([
       Promise.all((mainCategoryUrls || []).map(resolveCategory)),
       Promise.all((otherCategoryUrls || []).map(resolveCategory)),
+      Promise.all((otherBrandHubUrls || []).map(resolvePageLink)),
     ])
 
     const update = await shopifyGraphQL(`
@@ -90,6 +93,7 @@ export default async function handler(req, res) {
           { namespace: 'custom', key: 'seo_why_brand_paragraphs', type: 'json', value: JSON.stringify(whyBrandParagraphs || []) },
           { namespace: 'custom', key: 'seo_main_categories', type: 'json', value: JSON.stringify(resolvedMain) },
           { namespace: 'custom', key: 'seo_other_categories', type: 'json', value: JSON.stringify(resolvedOther) },
+          { namespace: 'custom', key: 'seo_other_brand_hubs', type: 'json', value: JSON.stringify(resolvedOtherHubs) },
           { namespace: 'custom', key: 'seo_faqs', type: 'json', value: JSON.stringify(faqs || []) },
           { namespace: 'custom', key: 'seo_tradein_paragraphs', type: 'json', value: JSON.stringify(tradeInParagraphs || []) },
           { namespace: 'custom', key: 'seo_guides_url', type: 'single_line_text_field', value: guidesUrl || '' },
@@ -105,7 +109,7 @@ export default async function handler(req, res) {
     const errors = update.pageUpdate.userErrors
     if (errors?.length) throw new Error(errors.map(e => e.message).join('; '))
 
-    return res.status(200).json({ ok: true, original, resolvedMain, resolvedOther })
+    return res.status(200).json({ ok: true, original, resolvedMain, resolvedOther, resolvedOtherHubs })
   } catch (err) {
     return res.status(500).json({ error: err.message })
   }

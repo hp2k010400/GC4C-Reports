@@ -39,6 +39,7 @@ export default async function handler(req, res) {
           { namespace: 'custom', key: 'seo_why_brand_paragraphs', type: 'json', value: mf.seo_why_brand_paragraphs || '[]' },
           { namespace: 'custom', key: 'seo_main_categories', type: 'json', value: mf.seo_main_categories || '[]' },
           { namespace: 'custom', key: 'seo_other_categories', type: 'json', value: mf.seo_other_categories || '[]' },
+          { namespace: 'custom', key: 'seo_other_brand_hubs', type: 'json', value: mf.seo_other_brand_hubs || '[]' },
           { namespace: 'custom', key: 'seo_faqs', type: 'json', value: mf.seo_faqs || '[]' },
           { namespace: 'custom', key: 'seo_tradein_paragraphs', type: 'json', value: mf.seo_tradein_paragraphs || '[]' },
           { namespace: 'custom', key: 'seo_guides_url', type: 'single_line_text_field', value: mf.seo_guides_url || '' },

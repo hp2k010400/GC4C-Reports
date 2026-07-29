@@ -118,6 +118,7 @@ function parseBrandHubDoc(text) {
 
   const mainCategoryUrls = extractUrls(sectionText(text, 'Child collection links Required', SECTION_MARKERS))
   const otherCategoryUrls = extractUrls(sectionText(text, 'Other Clubs suggestions', SECTION_MARKERS))
+  const otherBrandHubUrls = extractUrls(sectionText(text, 'Other brand hubs', SECTION_MARKERS))
 
   const longForm = sectionText(text, 'long-form descriptions', SECTION_MARKERS)
   const lfLines = longForm.split('\n').map(l => l.trim()).filter(Boolean)
@@ -135,7 +136,7 @@ function parseBrandHubDoc(text) {
   return {
     handle, pageTitle, metaDescription, h1, heroParagraphs,
     whyBrandHeading, whyBrandParagraphs,
-    mainCategoryUrls, otherCategoryUrls,
+    mainCategoryUrls, otherCategoryUrls, otherBrandHubUrls,
     faqs, tradeInParagraphs, guidesUrl, guidesBody,
   }
 }
@@ -180,6 +181,8 @@ function BrandHubPreview({ brand, parsed, resolved }) {
         .bh-why-item h3 { font-size: 1rem; margin: 0; }
         .bh-why-item p { font-size: 0.9rem; color: #5b6259; margin-top: 0.4rem; }
         .bh-why-item a { font-size: 0.85rem; font-weight: 700; color: #20842e; text-decoration: underline; display: inline-block; margin-top: 0.4rem; }
+        .bh-hub-links { display: flex; flex-wrap: wrap; gap: 0.7rem; justify-content: center; margin-top: 1.5rem; }
+        .bh-hub-link { text-decoration: none; color: #1c1f1a; font-weight: 700; font-size: 0.9rem; padding: 0.6rem 1.1rem; border: 1px solid #e3e0d6; border-radius: 999px; }
         .bh-clubhouse { background: #005f2c; color: #fff; }
         .bh-clubhouse h2 { color: #fff; margin: 0; }
         .bh-clubhouse p { color: #fff; opacity: 0.92; max-width: 60ch; margin-top: 0.8rem; }
@@ -236,6 +239,21 @@ function BrandHubPreview({ brand, parsed, resolved }) {
                   <span className="name">{c.label}</span>
                 </a>
               ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {resolved.otherBrandHubs?.length > 0 && (
+        <section className="bh-band paper">
+          <div className="bh-wrap">
+            <div className="bh-copy">
+              <h2 className="bh-title">Explore our other brand hubs</h2>
+              <div className="bh-hub-links">
+                {resolved.otherBrandHubs.map((h, i) => (
+                  <a className="bh-hub-link" href={`/pages/${h.handle}`} key={i} onClick={e => e.preventDefault()}>{h.label}</a>
+                ))}
+              </div>
             </div>
           </div>
         </section>
@@ -329,7 +347,7 @@ function BrandHubPreview({ brand, parsed, resolved }) {
 
 const EMPTY = {
   handle: '', pageTitle: '', metaDescription: '', h1: '', heroParagraphs: [],
-  whyBrandHeading: '', whyBrandParagraphs: [], mainCategoryUrls: [], otherCategoryUrls: [],
+  whyBrandHeading: '', whyBrandParagraphs: [], mainCategoryUrls: [], otherCategoryUrls: [], otherBrandHubUrls: [],
   faqs: [], tradeInParagraphs: [], guidesUrl: '', guidesBody: '',
 }
 
@@ -342,7 +360,7 @@ export default function BrandHubTemplate() {
   const [pushState, setPushState] = useState('idle')
   const [pushError, setPushError] = useState(null)
   const [originalContent, setOriginalContent] = useState(null)
-  const [resolved, setResolved] = useState({ main: [], other: [] })
+  const [resolved, setResolved] = useState({ main: [], other: [], otherBrandHubs: [] })
   const [previewLoading, setPreviewLoading] = useState(false)
 
   async function handleParse() {
@@ -354,10 +372,14 @@ export default function BrandHubTemplate() {
       const res = await fetch('/api/marketing/resolve-categories', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ mainCategoryUrls: next.mainCategoryUrls, otherCategoryUrls: next.otherCategoryUrls }),
+        body: JSON.stringify({
+          mainCategoryUrls: next.mainCategoryUrls,
+          otherCategoryUrls: next.otherCategoryUrls,
+          otherBrandHubUrls: next.otherBrandHubUrls,
+        }),
       })
       const data = await res.json()
-      if (res.ok) setResolved({ main: data.main, other: data.other })
+      if (res.ok) setResolved({ main: data.main, other: data.other, otherBrandHubs: data.otherBrandHubs })
     } finally {
       setPreviewLoading(false)
     }
@@ -474,6 +496,7 @@ export default function BrandHubTemplate() {
           ['Why-brand paragraphs', parsed.whyBrandParagraphs.length],
           ['Main categories', parsed.mainCategoryUrls.length],
           ['Other categories', parsed.otherCategoryUrls.length],
+          ['Other brand hubs', parsed.otherBrandHubUrls.length],
           ['FAQs', parsed.faqs.length],
           ['Trade-in paragraphs', parsed.tradeInParagraphs.length],
           ['Guides URL', parsed.guidesUrl],
