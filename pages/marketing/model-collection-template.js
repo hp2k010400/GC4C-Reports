@@ -255,7 +255,7 @@ export default function ModelCollectionTemplate() {
               className="form-input"
               style={{ width: 320 }}
               value={targetHandle}
-              onChange={e => { setTargetHandle(e.target.value); setConfirmHandleInput('') }}
+              onChange={e => { setTargetHandle(e.target.value); setConfirmHandleInput(''); setPushError(null); if (pushState === 'error') setPushState('idle') }}
             />
             <a
               className="btn btn-secondary"

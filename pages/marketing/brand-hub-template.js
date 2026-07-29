@@ -546,7 +546,7 @@ export default function BrandHubTemplate() {
         <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px dashed #ddd' }}>
           <label className="settings-label" style={{ display: 'block', marginBottom: 6 }}>Test page to push to (its own dedicated, unlinked URL)</label>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-            <input className="form-input" style={{ width: 340 }} value={targetHandle} onChange={e => { setTargetHandle(e.target.value); setConfirmHandleInput('') }} />
+            <input className="form-input" style={{ width: 340 }} value={targetHandle} onChange={e => { setTargetHandle(e.target.value); setConfirmHandleInput(''); setPushError(null); if (pushState === 'error') setPushState('idle') }} />
             <a className="btn btn-secondary" href={`https://www.golfclubs4cash.co.uk/pages/${targetHandle}`} target="_blank" rel="noopener noreferrer">View page</a>
           </div>
           {isProtectedHandle && targetHandle.trim() && (
