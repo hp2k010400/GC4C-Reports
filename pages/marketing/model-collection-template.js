@@ -106,7 +106,6 @@ export default function ModelCollectionTemplate() {
   const [pushError, setPushError] = useState(null)
   const [originalContent, setOriginalContent] = useState(null)
   const [targetHandle, setTargetHandle] = useState('marketing-automation-test')
-  const [confirmHandleInput, setConfirmHandleInput] = useState('')
   const isProtectedHandle = !SAFE_TEST_HANDLES.includes(targetHandle.trim())
 
   async function handleParse() {
@@ -153,9 +152,10 @@ export default function ModelCollectionTemplate() {
 
   async function handlePushLive() {
     if (!targetHandle.trim()) return
-    if (isProtectedHandle && confirmHandleInput.trim() !== targetHandle.trim()) return
     const sure = window.confirm(
-      `This writes to the description field only — the grid, filters and breadcrumbs are untouched.\n\nIt'll be visible on:\nhttps://www.golfclubs4cash.co.uk/collections/${targetHandle}\n\nContinue?`
+      isProtectedHandle
+        ? `"${targetHandle.trim()}" isn't the usual test handle — this looks like a real, live collection.\n\nThis writes to the description field only — the grid, filters and breadcrumbs are untouched.\n\nIt'll be visible on:\nhttps://www.golfclubs4cash.co.uk/collections/${targetHandle}\n\nContinue?`
+        : `This writes to the description field only — the grid, filters and breadcrumbs are untouched.\n\nIt'll be visible on:\nhttps://www.golfclubs4cash.co.uk/collections/${targetHandle}\n\nContinue?`
     )
     if (!sure) return
     setPushState('pushing')
@@ -166,7 +166,7 @@ export default function ModelCollectionTemplate() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           handle: targetHandle.trim(),
-          confirmHandle: confirmHandleInput.trim(),
+          confirmHandle: targetHandle.trim(),
           title: parsed.title,
           intro: parsed.intro,
           faqs: parsed.faqs.map(f => [f.q, f.a]),
@@ -224,7 +224,7 @@ export default function ModelCollectionTemplate() {
         listEndpoint="/api/marketing/model-collection-list"
         resetEndpoint="/api/marketing/model-collection-reset"
         baseUrl="https://www.golfclubs4cash.co.uk/collections/"
-        onUseHandle={(handle) => { setTargetHandle(handle); setConfirmHandleInput('') }}
+        onUseHandle={(handle) => setTargetHandle(handle)}
       />
 
       <div className="settings-section">
@@ -255,7 +255,7 @@ export default function ModelCollectionTemplate() {
               className="form-input"
               style={{ width: 320 }}
               value={targetHandle}
-              onChange={e => { setTargetHandle(e.target.value); setConfirmHandleInput(''); setPushError(null); if (pushState === 'error') setPushState('idle') }}
+              onChange={e => { setTargetHandle(e.target.value); setPushError(null); if (pushState === 'error') setPushState('idle') }}
             />
             <a
               className="btn btn-secondary"
@@ -270,20 +270,8 @@ export default function ModelCollectionTemplate() {
             Defaults to <code>marketing-automation-test</code> &mdash; a real collection created just for this, not linked in any menu or nav.
           </p>
           {isProtectedHandle && targetHandle.trim() && (
-            <div style={{ marginTop: 10, padding: 10, background: '#fff6f6', border: '1px solid #f0d0d0', borderRadius: 6 }}>
-              <div style={{ fontSize: 12.5, color: '#c0392b', fontWeight: 600, marginBottom: 6 }}>
-                "{targetHandle.trim()}" isn't one of the known safe test handles — this looks like a real, live collection.
-              </div>
-              <label className="settings-label" style={{ display: 'block', marginBottom: 4, fontSize: 12 }}>
-                Type <code>{targetHandle.trim()}</code> below to confirm you mean to push to it:
-              </label>
-              <input
-                className="form-input"
-                style={{ width: 320 }}
-                value={confirmHandleInput}
-                onChange={e => setConfirmHandleInput(e.target.value)}
-                placeholder={targetHandle.trim()}
-              />
+            <div style={{ marginTop: 10, fontSize: 12, color: '#c0392b' }}>
+              "{targetHandle.trim()}" isn't the usual test handle — this looks like a real, live collection.
             </div>
           )}
         </div>
@@ -294,7 +282,7 @@ export default function ModelCollectionTemplate() {
               className="btn btn-primary"
               style={{ background: '#c0392b' }}
               onClick={handlePushLive}
-              disabled={pushState === 'pushing' || !targetHandle.trim() || (isProtectedHandle && confirmHandleInput.trim() !== targetHandle.trim())}
+              disabled={pushState === 'pushing' || !targetHandle.trim()}
             >
               {pushState === 'pushing' ? 'Pushing…' : 'Push live'}
             </button>
