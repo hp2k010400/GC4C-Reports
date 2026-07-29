@@ -1,5 +1,10 @@
 import { shopifyGraphQL } from '../../../lib/shopify.js'
 
+// Keep in sync with brand-hub-list.js — the dedicated test collection must
+// never appear here, since "Remove" clears templateSuffix and would break
+// whatever's currently being tested there for no reason.
+const EXCLUDED_HANDLES = ['marketing-automation-test-page', 'marketing-automation-test']
+
 // Collections don't support filtering by template_suffix in Shopify's search
 // syntax either, and there are 1000+ collections on this store — too many
 // to fetch in one page. Paginates through all of them (title/handle/
@@ -33,7 +38,7 @@ export default async function handler(req, res) {
       `, { cursor })
       const edges = data.collections.edges
       for (const { node } of edges) {
-        if (node.templateSuffix === 'model-page') {
+        if (node.templateSuffix === 'model-page' && !EXCLUDED_HANDLES.includes(node.handle)) {
           items.push({ handle: node.handle, title: node.title, updatedAt: node.updatedAt })
         }
       }
