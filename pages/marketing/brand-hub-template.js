@@ -177,6 +177,7 @@ function BrandHubPreview({ brand, parsed, resolved }) {
         .bh-hero { padding: 2.4rem 0 1rem; }
         .bh-hero h1 { font-size: clamp(1.9rem, 3.6vw, 2.5rem); font-weight: 700; margin: 0 auto; max-width: 20ch; text-align: center; }
         .bh-hero p { margin-top: 1rem; color: #5b6259; font-size: 1.02rem; }
+        .bh-preview p a, .bh-preview .bh-faq p a { color: #20842e; font-weight: 700; text-decoration: underline; }
         .bh-hero p + p { margin-top: 0.9rem; }
         .bh-band { padding: 2.4rem 0; border-top: 1px solid #e3e0d6; }
         .bh-band.paper { background: #fff; }
@@ -212,7 +213,7 @@ function BrandHubPreview({ brand, parsed, resolved }) {
         <div className="bh-wrap">
           <div className="bh-copy">
             <h1>{parsed.h1 || parsed.pageTitle || `${brand} Brand Hub`}</h1>
-            {parsed.heroParagraphs.map((p, i) => <p key={i}>{p}</p>)}
+            {parsed.heroParagraphs.map((p, i) => <p key={i} dangerouslySetInnerHTML={{ __html: p }} />)}
           </div>
         </div>
       </section>
@@ -223,7 +224,7 @@ function BrandHubPreview({ brand, parsed, resolved }) {
             <div className="bh-copy">
               <h2 className="bh-title">{parsed.whyBrandHeading}</h2>
               <div style={{ marginTop: '1rem' }}>
-                {parsed.whyBrandParagraphs.map((p, i) => <p key={i} style={{ color: '#5b6259', marginTop: '0.9rem' }}>{p}</p>)}
+                {parsed.whyBrandParagraphs.map((p, i) => <p key={i} style={{ color: '#5b6259', marginTop: '0.9rem' }} dangerouslySetInnerHTML={{ __html: p }} />)}
               </div>
             </div>
           </div>
@@ -282,7 +283,7 @@ function BrandHubPreview({ brand, parsed, resolved }) {
           <div className="bh-wrap">
             <div className="bh-copy">
               <h2 className="bh-title">Trade in your {brand} clubs</h2>
-              {parsed.tradeInParagraphs.map((p, i) => <p key={i} style={{ color: '#5b6259', marginTop: '0.9rem' }}>{p}</p>)}
+              {parsed.tradeInParagraphs.map((p, i) => <p key={i} style={{ color: '#5b6259', marginTop: '0.9rem' }} dangerouslySetInnerHTML={{ __html: p }} />)}
               <a className="bh-cta" href="/pages/sell-your-clubs" onClick={e => e.preventDefault()}>Trade your clubs in here</a>
             </div>
           </div>
@@ -335,7 +336,7 @@ function BrandHubPreview({ brand, parsed, resolved }) {
                     <div key={i}>
                       <details className="bh-faq" style={isTierStart && i > 0 ? { marginTop: '1.4rem' } : undefined}>
                         <summary>{item.q}</summary>
-                        <p>{item.a}</p>
+                        <p dangerouslySetInnerHTML={{ __html: item.a }} />
                         {item.ctaUrl && <a className="faq-cta" href={item.ctaUrl} onClick={e => e.preventDefault()}>{item.ctaText || 'Learn more'} &rarr;</a>}
                       </details>
                     </div>
@@ -352,7 +353,7 @@ function BrandHubPreview({ brand, parsed, resolved }) {
           <div className="bh-wrap">
             <div className="bh-copy">
               <h2>Go to the clubhouse</h2>
-              <p>{parsed.guidesBody}</p>
+              <p dangerouslySetInnerHTML={{ __html: parsed.guidesBody }} />
               <a className="bh-cta" href={parsed.guidesUrl} onClick={e => e.preventDefault()}>Read our {brand} guides</a>
             </div>
           </div>
