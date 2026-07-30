@@ -37,6 +37,10 @@ const SAFE_TEST_HANDLES = ['marketing-automation-test-page', 'marketing-automati
 // CTA label -> real URL. Anything not matched here is left unlinked rather
 // than guessed, since a wrong link is worse than no link.
 function resolveCtaUrl(label, guidesUrl) {
+  // If Murray's put the actual URL on the CTA LINK line itself, that always
+  // wins over guessing from a label like "MODELS" or "BRAND HUBS".
+  const urlMatch = (label || '').match(/https?:\/\/\S+/)
+  if (urlMatch) return urlMatch[0]
   const l = (label || '').toLowerCase()
   if (l.includes('condition')) return '/pages/condition-rating-guide'
   if (l.includes('bag') || l.includes('blog')) return guidesUrl || ''
@@ -110,8 +114,12 @@ function parseBrandHubDoc(text) {
     } else if (aMatch && current) {
       current.a = aMatch[1].trim()
     } else if (ctaMatch && current) {
-      current.ctaText = ctaMatch[1].trim()
-      current.ctaUrl = resolveCtaUrl(ctaMatch[1].trim(), guidesUrlGlobal)
+      const raw = ctaMatch[1].trim()
+      // A raw URL isn't meant to be shown as the button's own text — leave
+      // ctaText blank so it falls back to "Learn more" instead of printing
+      // the literal link.
+      current.ctaText = /^https?:\/\//.test(raw) ? '' : raw
+      current.ctaUrl = resolveCtaUrl(raw, guidesUrlGlobal)
     } else if (current && !current.a) {
       current.q += ' ' + line
     }
