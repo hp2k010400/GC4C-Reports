@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { Fragment, useEffect, useState } from 'react'
 
 // The dedicated test page/collection ends up in this list too (it picks up
 // the real template every time it's used for testing), but "Remove" on it
@@ -10,10 +10,19 @@ const NO_REMOVE_HANDLES = ['marketing-automation-test-page', 'marketing-automati
 
 // Shared "which of these have we already done" tracking list for both the
 // Brand Hub and Model Collection tools — same shape, different endpoints.
-export default function MarketingHistoryList({ title, listEndpoint, resetEndpoint, baseUrl, onUseHandle }) {
+// seoEndpoint is optional: when passed, each row gets an "Edit SEO" toggle
+// that GETs/POSTs {title, metaDescription} to it directly, without needing
+// a full doc re-push — Murray asked for this after seeing the demo.
+export default function MarketingHistoryList({ title, listEndpoint, resetEndpoint, seoEndpoint, baseUrl, onUseHandle }) {
   const [items, setItems] = useState(null)
   const [error, setError] = useState(null)
   const [resetting, setResetting] = useState(null)
+  const [seoOpenHandle, setSeoOpenHandle] = useState(null)
+  const [seoLoading, setSeoLoading] = useState(false)
+  const [seoForm, setSeoForm] = useState({ title: '', metaDescription: '' })
+  const [seoSaving, setSeoSaving] = useState(false)
+  const [seoError, setSeoError] = useState(null)
+  const [seoSavedHandle, setSeoSavedHandle] = useState(null)
 
   async function load() {
     setError(null)
@@ -51,6 +60,48 @@ export default function MarketingHistoryList({ title, listEndpoint, resetEndpoin
     }
   }
 
+  async function toggleSeo(handle) {
+    setSeoSavedHandle(null)
+    if (seoOpenHandle === handle) {
+      setSeoOpenHandle(null)
+      return
+    }
+    setSeoOpenHandle(handle)
+    setSeoError(null)
+    setSeoLoading(true)
+    try {
+      const res = await fetch(`${seoEndpoint}?handle=${encodeURIComponent(handle)}`)
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error)
+      setSeoForm({ title: data.title || '', metaDescription: data.metaDescription || '' })
+    } catch (err) {
+      setSeoError(err.message)
+    } finally {
+      setSeoLoading(false)
+    }
+  }
+
+  async function saveSeo(handle) {
+    setSeoSaving(true)
+    setSeoError(null)
+    try {
+      const res = await fetch(seoEndpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ handle, title: seoForm.title, metaDescription: seoForm.metaDescription }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error)
+      setSeoSavedHandle(handle)
+      setSeoOpenHandle(null)
+      await load()
+    } catch (err) {
+      setSeoError(err.message)
+    } finally {
+      setSeoSaving(false)
+    }
+  }
+
   return (
     <div className="settings-section">
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
@@ -75,31 +126,77 @@ export default function MarketingHistoryList({ title, listEndpoint, resetEndpoin
             </thead>
             <tbody>
               {items.map(item => (
-                <tr key={item.handle} style={{ borderTop: '1px solid #eee' }}>
-                  <td style={{ padding: '8px' }}>{item.title}</td>
-                  <td style={{ padding: '8px' }}><code>{item.handle}</code></td>
-                  <td style={{ padding: '8px', color: '#888' }}>{new Date(item.updatedAt).toLocaleString()}</td>
-                  <td style={{ padding: '8px', display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-                    <a className="btn btn-secondary" style={{ fontSize: 12, padding: '4px 10px' }} href={`${baseUrl}${item.handle}`} target="_blank" rel="noopener noreferrer">View</a>
-                    {onUseHandle && (
-                      <button className="btn btn-secondary" style={{ fontSize: 12, padding: '4px 10px' }} onClick={() => onUseHandle(item.handle)}>Edit</button>
-                    )}
-                    {NO_REMOVE_HANDLES.includes(item.handle) ? (
-                      <span style={{ fontSize: 12, padding: '4px 10px', color: '#aaa' }} title="This is the dedicated test page — Remove is disabled since it'd just get pushed to again anyway.">
-                        Test page
-                      </span>
-                    ) : (
-                      <button
-                        className="btn btn-secondary"
-                        style={{ fontSize: 12, padding: '4px 10px', color: '#c0392b' }}
-                        onClick={() => handleReset(item.handle)}
-                        disabled={resetting === item.handle}
-                      >
-                        {resetting === item.handle ? 'Removing…' : 'Remove'}
-                      </button>
-                    )}
-                  </td>
-                </tr>
+                <Fragment key={item.handle}>
+                  <tr style={{ borderTop: '1px solid #eee' }}>
+                    <td style={{ padding: '8px' }}>{item.title}</td>
+                    <td style={{ padding: '8px' }}><code>{item.handle}</code></td>
+                    <td style={{ padding: '8px', color: '#888' }}>
+                      {new Date(item.updatedAt).toLocaleString()}
+                      {seoSavedHandle === item.handle && <span style={{ marginLeft: 8, color: '#1a7a2e', fontWeight: 600 }}>SEO saved</span>}
+                    </td>
+                    <td style={{ padding: '8px', display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                      <a className="btn btn-secondary" style={{ fontSize: 12, padding: '4px 10px' }} href={`${baseUrl}${item.handle}`} target="_blank" rel="noopener noreferrer">View</a>
+                      {onUseHandle && (
+                        <button className="btn btn-secondary" style={{ fontSize: 12, padding: '4px 10px' }} onClick={() => onUseHandle(item.handle)}>Edit</button>
+                      )}
+                      {seoEndpoint && (
+                        <button className="btn btn-secondary" style={{ fontSize: 12, padding: '4px 10px' }} onClick={() => toggleSeo(item.handle)}>
+                          {seoOpenHandle === item.handle ? 'Close' : 'Edit SEO'}
+                        </button>
+                      )}
+                      {NO_REMOVE_HANDLES.includes(item.handle) ? (
+                        <span style={{ fontSize: 12, padding: '4px 10px', color: '#aaa' }} title="This is the dedicated test page — Remove is disabled since it'd just get pushed to again anyway.">
+                          Test page
+                        </span>
+                      ) : (
+                        <button
+                          className="btn btn-secondary"
+                          style={{ fontSize: 12, padding: '4px 10px', color: '#c0392b' }}
+                          onClick={() => handleReset(item.handle)}
+                          disabled={resetting === item.handle}
+                        >
+                          {resetting === item.handle ? 'Removing…' : 'Remove'}
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                  {seoOpenHandle === item.handle && (
+                    <tr>
+                      <td colSpan={4} style={{ padding: '10px 8px 16px', background: '#fafafa', borderBottom: '1px solid #eee' }}>
+                        {seoLoading ? (
+                          <div style={{ fontSize: 13, color: '#888' }}>Loading current SEO title/description…</div>
+                        ) : (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxWidth: 640 }}>
+                            <label style={{ fontSize: 11.5, color: '#888', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                              Google search title
+                              <input
+                                className="form-input"
+                                style={{ width: '100%', marginTop: 4 }}
+                                value={seoForm.title}
+                                onChange={e => setSeoForm(f => ({ ...f, title: e.target.value }))}
+                              />
+                            </label>
+                            <label style={{ fontSize: 11.5, color: '#888', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                              Meta description
+                              <textarea
+                                className="form-input"
+                                style={{ width: '100%', marginTop: 4, minHeight: 60 }}
+                                value={seoForm.metaDescription}
+                                onChange={e => setSeoForm(f => ({ ...f, metaDescription: e.target.value }))}
+                              />
+                            </label>
+                            {seoError && <div style={{ fontSize: 12.5, color: '#c0392b' }}>{seoError}</div>}
+                            <div>
+                              <button className="btn btn-primary" style={{ fontSize: 12.5 }} onClick={() => saveSeo(item.handle)} disabled={seoSaving}>
+                                {seoSaving ? 'Saving…' : 'Save'}
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  )}
+                </Fragment>
               ))}
             </tbody>
           </table>

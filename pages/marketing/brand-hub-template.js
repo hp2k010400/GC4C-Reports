@@ -496,6 +496,7 @@ export default function BrandHubTemplate() {
         title="Brand hubs done so far"
         listEndpoint="/api/marketing/brand-hub-list"
         resetEndpoint="/api/marketing/brand-hub-reset"
+        seoEndpoint="/api/marketing/brand-hub-seo"
         baseUrl="https://www.golfclubs4cash.co.uk/pages/"
         onUseHandle={(handle) => setTargetHandle(handle)}
       />
