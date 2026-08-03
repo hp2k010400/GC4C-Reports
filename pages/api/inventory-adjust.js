@@ -80,7 +80,9 @@ export default async function handler(req, res) {
     }
 
     const resultChanges = data.inventoryAdjustQuantities?.inventoryAdjustmentGroup?.changes || []
-    const startNumber = await reserveAdjustmentNumbers(items.length)
+    // One number per submitted batch, not per line — everything applied
+    // together in a single "Apply Adjustment" click shares one number.
+    const adjustmentNumber = await reserveAdjustmentNumbers(1)
 
     try {
       const store = getStore('gc4c-adjustments')
@@ -90,7 +92,7 @@ export default async function handler(req, res) {
       items.forEach((item, i) => {
         log.push({
           id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-          adjustmentNumber: startNumber + i,
+          adjustmentNumber,
           timestamp: new Date().toISOString(),
           sku: item.sku, productTitle: item.productTitle, variantTitle: item.variantTitle,
           inventoryItemId: item.inventoryItemId, locationId: parseInt(item.locationId), locationName: item.locationName,
@@ -103,7 +105,7 @@ export default async function handler(req, res) {
       await store.set(monthKey, JSON.stringify(log))
     } catch {}
 
-    res.status(200).json({ ok: true, count: items.length, adjustmentNumbers: items.map((_, i) => startNumber + i) })
+    res.status(200).json({ ok: true, count: items.length, adjustmentNumbers: items.map(() => adjustmentNumber) })
   } catch (err) {
     res.status(500).json({ error: err.message })
   }
