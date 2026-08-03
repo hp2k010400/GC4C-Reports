@@ -624,14 +624,22 @@ export default function AdjustmentsPage() {
                   <td style={{ fontSize: 12, color: '#888' }}>{e.notes}</td>
                   <td>
                     <button className="btn btn-secondary" style={{ fontSize: 11, padding: '2px 8px', whiteSpace: 'nowrap' }}
-                      onClick={() => downloadCSV([{
-                        'Adjustment #': e.adjustmentNumber ?? '',
-                        'Date': new Date(e.timestamp).toLocaleString('en-GB', { dateStyle: 'short', timeStyle: 'short' }),
-                        'Employee': e.employee, 'SKU': e.sku,
-                        'Product': e.productTitle + (e.variantTitle ? ` — ${e.variantTitle}` : ''),
-                        'Location': e.locationName, 'Adjustment': e.adjustment,
-                        'New Qty': e.newQuantity ?? '', 'Cost Price': e.cost ?? '', 'Reason': e.reason, 'Notes': e.notes,
-                      }], `adjustment-${e.sku}-${e.timestamp.slice(0,10)}.csv`)}>
+                      title={e.adjustmentNumber ? `Export all lines from adjustment #${e.adjustmentNumber}` : 'Export this line'}
+                      onClick={() => {
+                        // Group by adjustment number so a multi-product batch exports as
+                        // one file — older entries with no number just export themselves.
+                        const matching = e.adjustmentNumber
+                          ? logEntries.filter(le => le.adjustmentNumber === e.adjustmentNumber)
+                          : [e]
+                        downloadCSV(matching.map(le => ({
+                          'Adjustment #': le.adjustmentNumber ?? '',
+                          'Date': new Date(le.timestamp).toLocaleString('en-GB', { dateStyle: 'short', timeStyle: 'short' }),
+                          'Employee': le.employee, 'SKU': le.sku,
+                          'Product': le.productTitle + (le.variantTitle ? ` — ${le.variantTitle}` : ''),
+                          'Location': le.locationName, 'Adjustment': le.adjustment,
+                          'New Qty': le.newQuantity ?? '', 'Cost Price': le.cost ?? '', 'Reason': le.reason, 'Notes': le.notes,
+                        })), `adjustment-${e.adjustmentNumber || e.sku}-${e.timestamp.slice(0,10)}.csv`)
+                      }}>
                       CSV
                     </button>
                   </td>
