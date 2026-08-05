@@ -10,7 +10,6 @@ const NAV = [
       { label: 'Adjustments', href: '/adjustments' },
       { label: 'Transfers', href: '/transfer-forecast' },
       { label: 'Combined', href: '/combined' },
-      { label: 'Stock Value', href: '/stock-value' },
     ],
   },
   {
