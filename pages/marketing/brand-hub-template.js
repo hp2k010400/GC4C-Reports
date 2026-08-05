@@ -157,6 +157,54 @@ function parseBrandHubDoc(text) {
 // Mirrors sections/brand-hub.liquid 1:1 (same classes, same markup order) so
 // what's shown here is what actually renders on the live page — this never
 // writes to Shopify, it only calls the read-only resolve-categories lookup.
+// Pulls every link that will actually end up on the page — tile grids,
+// CTA buttons, and any inline hyperlink woven into paragraph text — into
+// one flat, scannable list, so "is everything linked" has a real answer
+// instead of having to hunt through the rendered preview by eye.
+function extractInlineLinks(section, text) {
+  if (!text) return []
+  const found = []
+  for (const m of text.matchAll(/<a href="([^"]+)">([^<]+)<\/a>/g)) {
+    found.push({ section, text: m[2], url: m[1] })
+  }
+  return found
+}
+
+function buildLinkMap(brand, parsed, resolved) {
+  const links = []
+
+  parsed.heroParagraphs.forEach(p => links.push(...extractInlineLinks('Hero copy', p)))
+  parsed.whyBrandParagraphs.forEach(p => links.push(...extractInlineLinks(`Why ${brand || 'brand'}`, p)))
+  parsed.tradeInParagraphs.forEach(p => links.push(...extractInlineLinks('Trade-in copy', p)))
+  links.push(...extractInlineLinks('Clubhouse copy', parsed.guidesBody))
+  parsed.faqs.forEach(f => links.push(...extractInlineLinks(`FAQ answer (${f.tier})`, f.a)))
+
+  resolved.main.forEach(c => links.push({ section: 'Shop by category', text: c.label, url: `/collections/${c.handle}` }))
+  resolved.other.forEach(c => links.push({ section: 'Popular models', text: c.label, url: `/collections/${c.handle}` }))
+  resolved.otherBrandHubs?.forEach(h => links.push({ section: 'Other brand hubs', text: h.label, url: `/pages/${h.handle}` }))
+
+  parsed.faqs.forEach(f => {
+    if (f.ctaUrl) links.push({ section: `FAQ CTA (${f.tier})`, text: f.ctaText || 'Learn more', url: f.ctaUrl })
+  })
+
+  if (parsed.tradeInParagraphs.length > 0) {
+    links.push({ section: 'Trade-in CTA', text: 'Trade your clubs in here', url: '/pages/sell-your-clubs' })
+  }
+
+  links.push(
+    { section: 'Why choose us', text: 'See our Trustpilot reviews', url: 'https://www.trustpilot.com/review/golfclubs4cash.co.uk' },
+    { section: 'Why choose us', text: 'Read our condition rating guide', url: '/pages/condition-rating-guide' },
+    { section: 'Why choose us', text: 'Browse all brands', url: '/collections/all' },
+    { section: 'Why choose us', text: 'Delivery information', url: '/pages/delivery' },
+  )
+
+  if (parsed.guidesUrl) {
+    links.push({ section: 'Clubhouse CTA', text: `Read our ${brand} guides`, url: parsed.guidesUrl })
+  }
+
+  return links
+}
+
 function BrandHubPreview({ brand, parsed, resolved }) {
   const tiers = []
   for (const f of parsed.faqs) if (!tiers.includes(f.tier)) tiers.push(f.tier)
@@ -590,6 +638,29 @@ export default function BrandHubTemplate() {
         <div className="settings-section" style={{ padding: 0, overflow: 'hidden' }}>
           <h3 className="settings-section-title" style={{ padding: '14px 18px 0' }}>Live preview (renders the real design — no Shopify writes)</h3>
           <BrandHubPreview brand={brandName} parsed={parsed} resolved={resolved} />
+        </div>
+      )}
+
+      {status && (
+        <div className="settings-section">
+          <h3 className="settings-section-title">Link map — every link on this page, and where it goes</h3>
+          {(() => {
+            const links = buildLinkMap(brandName, parsed, resolved)
+            if (links.length === 0) return <div style={{ fontSize: 13, color: '#888' }}>No links resolved yet.</div>
+            const bySection = {}
+            for (const l of links) (bySection[l.section] ??= []).push(l)
+            return Object.entries(bySection).map(([section, items]) => (
+              <div key={section} style={{ marginBottom: 12 }}>
+                <div style={{ fontSize: 11.5, color: '#888', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 4 }}>{section}</div>
+                {items.map((l, i) => (
+                  <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, fontSize: 13, padding: '3px 0' }}>
+                    <span>{l.text}</span>
+                    <a href={l.url} target="_blank" rel="noopener noreferrer" style={{ color: '#20842e', wordBreak: 'break-all' }}>{l.url}</a>
+                  </div>
+                ))}
+              </div>
+            ))
+          })()}
         </div>
       )}
 
