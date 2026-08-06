@@ -46,9 +46,8 @@ export default async function handler(req, res) {
       }
     `, { q: `handle:${handle}` })
     const page = found.pages.nodes[0]
-    if (!page) throw new Error(`No page found for handle "${handle}"`)
 
-    const original = {
+    const original = page ? {
       templateSuffix: page.templateSuffix || '',
       metafields: {
         seo_brand_name: page.mf_brand?.value || '',
@@ -65,7 +64,7 @@ export default async function handler(req, res) {
         seo_guides_body: page.mf_guides_body?.value || '',
         description_tag: page.mf_description?.value || '',
       },
-    }
+    } : null
 
     const [resolvedMain, resolvedOther, resolvedOtherHubs] = await Promise.all([
       Promise.all((mainCategoryUrls || []).map(resolveCategory)),
@@ -73,43 +72,61 @@ export default async function handler(req, res) {
       Promise.all((otherBrandHubUrls || []).map(resolvePageLink)),
     ])
 
-    const update = await shopifyGraphQL(`
-      mutation($id: ID!, $page: PageUpdateInput!) {
-        pageUpdate(id: $id, page: $page) {
-          page { id handle templateSuffix }
-          userErrors { field message }
+    const metafields = [
+      { namespace: 'custom', key: 'seo_brand_name', type: 'single_line_text_field', value: brandName || '' },
+      { namespace: 'custom', key: 'seo_h1', type: 'single_line_text_field', value: h1 || '' },
+      { namespace: 'custom', key: 'seo_hero_paragraphs', type: 'json', value: JSON.stringify(heroParagraphs || []) },
+      { namespace: 'custom', key: 'seo_why_brand_heading', type: 'single_line_text_field', value: whyBrandHeading || '' },
+      { namespace: 'custom', key: 'seo_why_brand_paragraphs', type: 'json', value: JSON.stringify(whyBrandParagraphs || []) },
+      { namespace: 'custom', key: 'seo_main_categories', type: 'json', value: JSON.stringify(resolvedMain) },
+      { namespace: 'custom', key: 'seo_other_categories', type: 'json', value: JSON.stringify(resolvedOther) },
+      { namespace: 'custom', key: 'seo_other_brand_hubs', type: 'json', value: JSON.stringify(resolvedOtherHubs) },
+      { namespace: 'custom', key: 'seo_faqs', type: 'json', value: JSON.stringify(faqs || []) },
+      { namespace: 'custom', key: 'seo_tradein_paragraphs', type: 'json', value: JSON.stringify(tradeInParagraphs || []) },
+      { namespace: 'custom', key: 'seo_guides_url', type: 'single_line_text_field', value: guidesUrl || '' },
+      { namespace: 'custom', key: 'seo_guides_body', type: 'multi_line_text_field', value: guidesBody || '' },
+      // Pages have no native "seo" input field like Collections do — the theme
+      // actually reads the meta description from this metafield convention instead.
+      // Confirmed by writing a test value and checking it render in <meta name="description">.
+      { namespace: 'global', key: 'description_tag', type: 'single_line_text_field', value: metaDescription || '' },
+    ]
+
+    let resultPage
+    if (page) {
+      const update = await shopifyGraphQL(`
+        mutation($id: ID!, $page: PageUpdateInput!) {
+          pageUpdate(id: $id, page: $page) {
+            page { id handle templateSuffix }
+            userErrors { field message }
+          }
         }
-      }
-    `, {
-      id: page.id,
-      page: {
-        title: pageTitle || undefined,
-        templateSuffix: TEMPLATE_SUFFIX,
-        metafields: [
-          { namespace: 'custom', key: 'seo_brand_name', type: 'single_line_text_field', value: brandName || '' },
-          { namespace: 'custom', key: 'seo_h1', type: 'single_line_text_field', value: h1 || '' },
-          { namespace: 'custom', key: 'seo_hero_paragraphs', type: 'json', value: JSON.stringify(heroParagraphs || []) },
-          { namespace: 'custom', key: 'seo_why_brand_heading', type: 'single_line_text_field', value: whyBrandHeading || '' },
-          { namespace: 'custom', key: 'seo_why_brand_paragraphs', type: 'json', value: JSON.stringify(whyBrandParagraphs || []) },
-          { namespace: 'custom', key: 'seo_main_categories', type: 'json', value: JSON.stringify(resolvedMain) },
-          { namespace: 'custom', key: 'seo_other_categories', type: 'json', value: JSON.stringify(resolvedOther) },
-          { namespace: 'custom', key: 'seo_other_brand_hubs', type: 'json', value: JSON.stringify(resolvedOtherHubs) },
-          { namespace: 'custom', key: 'seo_faqs', type: 'json', value: JSON.stringify(faqs || []) },
-          { namespace: 'custom', key: 'seo_tradein_paragraphs', type: 'json', value: JSON.stringify(tradeInParagraphs || []) },
-          { namespace: 'custom', key: 'seo_guides_url', type: 'single_line_text_field', value: guidesUrl || '' },
-          { namespace: 'custom', key: 'seo_guides_body', type: 'multi_line_text_field', value: guidesBody || '' },
-          // Pages have no native "seo" input field like Collections do — the theme
-          // actually reads the meta description from this metafield convention instead.
-          // Confirmed by writing a test value and checking it render in <meta name="description">.
-          { namespace: 'global', key: 'description_tag', type: 'single_line_text_field', value: metaDescription || '' },
-        ],
-      },
-    })
+      `, {
+        id: page.id,
+        page: { title: pageTitle || undefined, templateSuffix: TEMPLATE_SUFFIX, metafields },
+      })
+      const errors = update.pageUpdate.userErrors
+      if (errors?.length) throw new Error(errors.map(e => e.message).join('; '))
+      resultPage = update.pageUpdate.page
+    } else {
+      // Roughly half the ~16 brand hub pages don't exist yet as real Shopify
+      // pages — create it fresh rather than requiring it to be made by hand
+      // in Admin first.
+      const create = await shopifyGraphQL(`
+        mutation($page: PageCreateInput!) {
+          pageCreate(page: $page) {
+            page { id handle templateSuffix }
+            userErrors { field message }
+          }
+        }
+      `, {
+        page: { title: pageTitle || h1 || handle, handle, templateSuffix: TEMPLATE_SUFFIX, isPublished: true, metafields },
+      })
+      const errors = create.pageCreate.userErrors
+      if (errors?.length) throw new Error(errors.map(e => e.message).join('; '))
+      resultPage = create.pageCreate.page
+    }
 
-    const errors = update.pageUpdate.userErrors
-    if (errors?.length) throw new Error(errors.map(e => e.message).join('; '))
-
-    return res.status(200).json({ ok: true, original, resolvedMain, resolvedOther, resolvedOtherHubs })
+    return res.status(200).json({ ok: true, original, created: !page, resolvedMain, resolvedOther, resolvedOtherHubs, pageHandle: resultPage.handle })
   } catch (err) {
     return res.status(500).json({ error: err.message })
   }

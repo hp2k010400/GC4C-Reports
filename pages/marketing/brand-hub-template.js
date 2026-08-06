@@ -434,6 +434,7 @@ export default function BrandHubTemplate() {
   const [pushState, setPushState] = useState('idle')
   const [pushError, setPushError] = useState(null)
   const [originalContent, setOriginalContent] = useState(null)
+  const [wasCreated, setWasCreated] = useState(false)
   const [resolved, setResolved] = useState({ main: [], other: [], otherBrandHubs: [] })
   const [previewLoading, setPreviewLoading] = useState(false)
   const [docUrl, setDocUrl] = useState('')
@@ -473,6 +474,7 @@ export default function BrandHubTemplate() {
     setPushState('idle')
     setPushError(null)
     setOriginalContent(null)
+    setWasCreated(false)
     setPreviewLoading(true)
     try {
       const res = await fetch('/api/marketing/resolve-categories', {
@@ -510,6 +512,7 @@ export default function BrandHubTemplate() {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
       setOriginalContent(data.original)
+      setWasCreated(data.created)
       setPushState('live')
     } catch (err) {
       setPushState('error')
@@ -518,9 +521,11 @@ export default function BrandHubTemplate() {
   }
 
   async function handleRevert() {
-    if (!targetHandle.trim() || !originalContent) return
+    if (!targetHandle.trim()) return
     const sure = window.confirm(
-      `This restores the page to what it looked like before your last push, undoing whatever is currently live on:\nhttps://www.golfclubs4cash.co.uk/pages/${targetHandle}\n\nContinue?`
+      wasCreated
+        ? `This page didn't exist before your last push — reverting deletes it entirely.\n\nContinue?`
+        : `This restores the page to what it looked like before your last push, undoing whatever is currently live on:\nhttps://www.golfclubs4cash.co.uk/pages/${targetHandle}\n\nContinue?`
     )
     if (!sure) return
     setPushState('reverting')
@@ -529,7 +534,7 @@ export default function BrandHubTemplate() {
       const res = await fetch('/api/marketing/brand-hub-revert-live', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ handle: targetHandle.trim(), original: originalContent }),
+        body: JSON.stringify({ handle: targetHandle.trim(), original: originalContent, created: wasCreated }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
@@ -626,7 +631,7 @@ export default function BrandHubTemplate() {
             </button>
           ) : (
             <button className="btn btn-secondary" onClick={handleRevert} disabled={pushState === 'reverting'}>
-              {pushState === 'reverting' ? 'Reverting…' : 'Revert (undo)'}
+              {pushState === 'reverting' ? 'Reverting…' : wasCreated ? 'Revert (delete)' : 'Revert (undo)'}
             </button>
           )}
           {pushState === 'live' && <span style={{ fontSize: 12.5, color: '#1a7a2e', fontWeight: 600 }}>Live on that test page now.</span>}

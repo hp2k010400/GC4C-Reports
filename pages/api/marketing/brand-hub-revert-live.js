@@ -6,9 +6,8 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'SHOPIFY_ACCESS_TOKEN not configured on this environment' })
   }
 
-  const { handle, original } = req.body
+  const { handle, original, created } = req.body
   if (!handle) return res.status(400).json({ error: 'handle is required' })
-  if (!original) return res.status(400).json({ error: 'original content is required to restore it' })
 
   try {
     const found = await shopifyGraphQL(`
@@ -18,6 +17,20 @@ export default async function handler(req, res) {
     `, { q: `handle:${handle}` })
     const pageId = found.pages.nodes[0]?.id
     if (!pageId) throw new Error(`No page found for handle "${handle}"`)
+
+    // If push-live had to create this page fresh, there's no "before" state
+    // to restore to — delete it, matching blog-revert-live.js's handling of
+    // brand-new articles.
+    if (created) {
+      const del = await shopifyGraphQL(`
+        mutation($id: ID!) { pageDelete(id: $id) { deletedPageId userErrors { field message } } }
+      `, { id: pageId })
+      const errors = del.pageDelete.userErrors
+      if (errors?.length) throw new Error(errors.map(e => e.message).join('; '))
+      return res.status(200).json({ ok: true, deleted: true })
+    }
+
+    if (!original) return res.status(400).json({ error: 'original content is required to restore it' })
 
     const mf = original.metafields || {}
     const update = await shopifyGraphQL(`
