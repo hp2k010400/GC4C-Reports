@@ -74,25 +74,31 @@ function parseClpDoc(text) {
   let browseAllLabel = ''
   let browseAllUrl = ''
   let mode = 'intro'
-  for (const line of heroLines.slice(1)) {
+  for (const rawLine of heroLines.slice(1)) {
+    // Strip the leading "* " bullet once, up front, so every check below
+    // works against the real content regardless of whether the doc bulleted
+    // that particular line — this is what "* H1: ..." was silently failing
+    // on before (the H1 check only ever looked for a line starting with
+    // "H1:", not "* H1:").
+    const line = rawLine.replace(/^\*+\s*/, '')
     const h1Match = line.match(/^H1:\s*(.+)$/i)
     if (h1Match) { h1 = h1Match[1].trim(); continue }
-    if (/^\*?\s*Short SEO introduction/i.test(line)) { mode = 'intro'; continue }
-    if (/^\*?\s*Trust signals/i.test(line)) { mode = 'trust'; continue }
-    const ctaMatch = line.match(/^\*?\s*"([^"]+)"\s*CTA LINK\/BUTTON/i)
+    if (/^Short SEO introduction/i.test(line)) { mode = 'intro'; continue }
+    if (/^Trust signals/i.test(line)) { mode = 'trust'; continue }
+    const ctaMatch = line.match(/^"([^"]+)"\s*CTA LINK\/BUTTON/i)
     if (ctaMatch) {
       browseAllLabel = ctaMatch[1].trim()
       const urlIn = line.match(/https?:\/\/\S+/)
       if (urlIn) browseAllUrl = urlIn[0]
       continue
     }
-    if (/^["“]|^copy["”]?$/i.test(line) || line === '"copy"') continue // stray quote-only lines
+    if (/^["“]/.test(line)) continue // stray quote-only placeholder lines like "copy"
     const urlOnly = line.match(/^https?:\/\/\S+$/)
     if (urlOnly && !browseAllUrl) { browseAllUrl = urlOnly[0]; continue }
     if (mode === 'trust') {
-      trustSignals.push(...line.split(',').map(s => s.replace(/^\*+\s*/, '').trim()).filter(Boolean))
+      trustSignals.push(...line.split(',').map(s => s.trim()).filter(Boolean))
     } else if (mode === 'intro') {
-      introParagraphs.push(line.replace(/^\*+\s*/, ''))
+      introParagraphs.push(line)
     }
   }
 
@@ -125,21 +131,27 @@ function parseClpDoc(text) {
   }
   if (current && current.q) faqs.push(current)
 
-  // Buying guide: everything between "Featured Collections" and "THE
-  // CLUBHOUSE" is the guide, whatever its own heading says (varies by
-  // topic — "Driver Buying Guide", "Iron Buying Guide", etc.). Short lines
-  // are H3s, longer sentence-ending lines are body paragraphs.
-  const afterFeatured = text.slice(text.indexOf('Featured Collections'))
-  const clubhouseIdx = afterFeatured.search(/^THE CLUBHOUSE/m)
-  const guideBlock = clubhouseIdx === -1 ? '' : afterFeatured.slice(0, clubhouseIdx)
-  const guideLinesAll = guideBlock.split('\n').map(l => l.trim()).filter(Boolean)
-  // First real line after "Featured Collections" heading itself, and after
-  // its own URLs, is the guide's own heading.
-  const guideContentLines = guideLinesAll.filter(l => l !== 'Featured Collections' && !/^https?:\/\//.test(l) && !/^\*/.test(l))
-  const buyingGuideHeading = guideContentLines[0] || ''
+  // Buying guide: its own heading varies by topic ("Driver Buying Guide",
+  // "Iron Buying Guide", etc.), so found by pattern rather than assuming it
+  // directly follows "Featured Collections" — that section's own leftover
+  // placeholder "LINK" lines (no bullet, unlike its other items) would
+  // otherwise leak in and get mistaken for guide headings.
+  const guideHeadingMatch = text.match(/^.*Buying Guide\s*$/im)
+  const buyingGuideHeading = guideHeadingMatch ? guideHeadingMatch[0].trim() : ''
+  const guideBlock = guideHeadingMatch
+    ? sectionText(text, buyingGuideHeading.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), ['THE CLUBHOUSE'])
+    : ''
+  const guideContentLines = guideBlock
+    .split('\n')
+    .map(l => l.trim())
+    .filter(Boolean)
+    .filter(l => !/^\*/.test(l))          // instructional bullet notes
+    .filter(l => !/^https?:\/\//.test(l)) // stray URLs
+    .filter(l => l.toUpperCase() !== 'LINK') // leftover placeholder tokens
+    .filter(l => !/^["“]/.test(l))        // quote-only placeholder lines like "COPY"
   const buyingGuideSections = []
   let curSection = null
-  for (const line of guideContentLines.slice(1)) {
+  for (const line of guideContentLines) {
     const isHeading = line.length < 70 && !/[.!?]$/.test(line)
     if (isHeading) {
       curSection = { heading: line, paragraphs: [] }
@@ -154,7 +166,10 @@ function parseClpDoc(text) {
   const clubhouseLines = clubhouseBlock.split('\n').map(l => l.trim()).filter(Boolean)
   const clubhouseUrlMatch = clubhouseBlock.match(/CTA LINK:\s*(https?:\/\/\S+)/i)
   const clubhouseUrl = clubhouseUrlMatch ? clubhouseUrlMatch[1] : ''
-  const clubhouseBody = clubhouseLines.filter(l => !/^CTA LINK/i.test(l)).join(' ')
+  const clubhouseBody = clubhouseLines
+    .filter(l => !/^CTA LINK/i.test(l))
+    .filter(l => !/^["“]/.test(l)) // quote-only placeholder lines like "COPY"
+    .join(' ')
 
   // Footer links — "Label - https://..." or "Label" alone (left unlinked
   // if no URL is present, same "no guess" rule as everywhere else).
