@@ -111,22 +111,32 @@ function BlogPreview({ parsed, resolved }) {
           src: url('https://www.golfclubs4cash.co.uk/cdn/fonts/open_sans_condensed/opensanscondensed_n7.540ad984d87539ff9a03e07d9527f1ec85e214bc.woff2') format('woff2');
           font-weight: 700; font-style: normal; font-display: swap;
         }
-        .blog-preview { font-family: 'Open Sans Condensed Preview', -apple-system, sans-serif; background: #fff; color: #1c1f1a; max-width: 760px; margin: 0 auto; padding: 2.4rem 1.75rem; }
-        .blog-preview h1 { font-size: clamp(1.8rem, 3.4vw, 2.3rem); font-weight: 700; margin: 0 0 1.2rem; text-align: center; }
-        .blog-preview h2 { font-size: 1.3rem; font-weight: 700; margin: 2rem 0 0.8rem; }
-        .blog-preview p { color: #333; font-size: 1rem; line-height: 1.6; margin-top: 0.8rem; }
-        .blog-preview p a, .blog-preview h2 + p a { color: #20842e; font-weight: 700; text-decoration: underline; }
-        .blog-preview img { max-width: 100%; border-radius: 8px; margin-top: 0.8rem; display: block; }
+        .blog-preview { font-family: 'Open Sans Condensed Preview', -apple-system, sans-serif; background: #fff; color: #1c1f1a; max-width: 700px; margin: 0 auto; padding: 2.4rem 1.75rem; }
+        .blog-preview h1 { font-size: clamp(1.8rem, 3.4vw, 2.3rem); font-weight: 700; margin: 0 0 1.5rem; text-align: center; }
+        .gc4c-post .gc4c-lede { font-size: 1.1rem; line-height: 1.75; color: #3f4640; }
+        .gc4c-post .gc4c-section { margin-top: 2.8rem; padding-top: 2.2rem; border-top: 1px solid #e3e0d6; }
+        .gc4c-post .gc4c-section:first-of-type { margin-top: 2rem; }
+        .gc4c-post h2 { font-size: 1.45rem; font-weight: 700; color: #0d3d1f; margin: 0 0 1.1rem; letter-spacing: -0.01em; }
+        .gc4c-post .gc4c-img-frame { max-width: 400px; margin: 0 auto 1.5rem; border-radius: 14px; overflow: hidden; border: 1px solid #e3e0d6; background: #f6f4ef; box-shadow: 0 8px 24px rgba(13,61,31,0.08); }
+        .gc4c-post .gc4c-img-frame img { width: 100%; aspect-ratio: 4/3; object-fit: cover; display: block; }
+        .gc4c-post p { font-size: 1rem; line-height: 1.75; color: #333; margin-top: 1rem; }
+        .gc4c-post p a, .gc4c-post .gc4c-lede a { color: #20842e; font-weight: 700; text-decoration: underline; }
       `}</style>
       <h1>{parsed.h1}</h1>
-      {parsed.introParagraphs.map((p, i) => <p key={i} dangerouslySetInnerHTML={{ __html: p }} />)}
-      {parsed.sections.map((s, i) => (
-        <div key={i}>
-          <h2>{s.heading}</h2>
-          {(resolved.sectionImages || [])[i] && <img src={resolved.sectionImages[i]} alt={s.heading} />}
-          {s.paragraphs.map((p, j) => <p key={j} dangerouslySetInnerHTML={{ __html: p }} />)}
-        </div>
-      ))}
+      <div className="gc4c-post">
+        {parsed.introParagraphs.map((p, i) => (
+          <p key={i} className={i === 0 ? 'gc4c-lede' : ''} dangerouslySetInnerHTML={{ __html: p }} />
+        ))}
+        {parsed.sections.map((s, i) => (
+          <div key={i} className="gc4c-section">
+            <h2>{s.heading}</h2>
+            {(resolved.sectionImages || [])[i] && (
+              <div className="gc4c-img-frame"><img src={resolved.sectionImages[i]} alt={s.heading} /></div>
+            )}
+            {s.paragraphs.map((p, j) => <p key={j} dangerouslySetInnerHTML={{ __html: p }} />)}
+          </div>
+        ))}
+      </div>
     </div>
   )
 }

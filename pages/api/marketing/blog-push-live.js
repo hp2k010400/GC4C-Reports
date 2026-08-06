@@ -1,5 +1,6 @@
 import { shopifyGraphQL } from '../../../lib/shopify.js'
 import { resolveProductImage } from '../../../lib/marketing-products.js'
+import { buildBlogBodyHtml } from '../../../lib/marketing-blog-html.js'
 
 // Writes directly to the article's native fields (title, body, summary,
 // tags, image) rather than metafields + a custom section — the theme's own
@@ -48,14 +49,10 @@ export default async function handler(req, res) {
       featuredImageHint ? resolveProductImage(featuredImageHint) : Promise.resolve(null),
     ])
 
-    const bodyParts = []
-    for (const p of (introParagraphs || [])) bodyParts.push(`<p>${p}</p>`)
-    ;(sections || []).forEach((s, i) => {
-      bodyParts.push(`<h2>${s.heading}</h2>`)
-      if (sectionImages[i]) bodyParts.push(`<p><img src="${sectionImages[i]}" alt="${s.heading}" style="max-width:100%;border-radius:8px;"></p>`)
-      for (const p of s.paragraphs) bodyParts.push(`<p>${p}</p>`)
+    const bodyHtml = buildBlogBodyHtml({
+      introParagraphs,
+      sections: (sections || []).map((s, i) => ({ ...s, image: sectionImages[i] || null })),
     })
-    const bodyHtml = bodyParts.join('\n')
 
     const articleInput = {
       title: title || h1,
