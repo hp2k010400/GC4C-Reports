@@ -475,6 +475,10 @@ export default function BrandHubTemplate() {
     setPushError(null)
     setOriginalContent(null)
     setWasCreated(false)
+    // Fill in the real handle from the doc's own "Suggested URL" — matches
+    // blog-template.js. Still shows the red "real, live page" warning and a
+    // confirm dialog before anything actually gets pushed to it.
+    if (next.handle) setTargetHandle(next.handle)
     setPreviewLoading(true)
     try {
       const res = await fetch('/api/marketing/resolve-categories', {
