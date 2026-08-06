@@ -54,6 +54,11 @@ export default async function handler(req, res) {
       sections: (sections || []).map((s, i) => ({ ...s, image: sectionImages[i] || null })),
     })
 
+    // Deliberately not setting article.image: the theme's stock article
+    // section ties "has a featured image" directly to "show it as a giant
+    // full-width hero" with no way to decouple the two using its own
+    // settings — Harry didn't want the hero. Real product photos already
+    // live inside the body content itself for visual interest.
     const articleInput = {
       title: title || h1,
       body: bodyHtml,
@@ -63,9 +68,9 @@ export default async function handler(req, res) {
       metafields: [
         { namespace: 'global', key: 'description_tag', type: 'single_line_text_field', value: metaDescription || '' },
       ],
-    }
-    if (featuredImageUrl) {
-      articleInput.image = { url: featuredImageUrl, altText: title || h1 || '' }
+      // Explicit null clears any image left over from an earlier push
+      // (before this fix) — omitting the field would just leave it as is.
+      image: null,
     }
 
     let article
