@@ -41,6 +41,7 @@ const NAV = [
       { label: 'Model Collection Template', href: '/marketing/model-collection-template' },
       { label: 'Brand Hub Template', href: '/marketing/brand-hub-template' },
       { label: 'Blog Post Template', href: '/marketing/blog-template' },
+      { label: 'CLP Template', href: '/marketing/clp-template' },
     ],
   },
   { label: 'Reports', href: '/' },
