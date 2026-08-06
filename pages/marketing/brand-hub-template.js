@@ -274,21 +274,34 @@ function BrandHubPreview({ brand, parsed, resolved }) {
         </div>
       </section>
 
-      {parsed.whyBrandParagraphs.length > 0 && (
-        <section className="bh-band paper">
+      {parsed.faqs.length > 0 && (
+        <section className="bh-band">
           <div className="bh-wrap">
             <div className="bh-copy">
-              <h2 className="bh-title">{parsed.whyBrandHeading}</h2>
-              <div style={{ marginTop: '1rem' }}>
-                {parsed.whyBrandParagraphs.map((p, i) => <p key={i} style={{ color: '#5b6259', marginTop: '0.9rem' }} dangerouslySetInnerHTML={{ __html: p }} />)}
-              </div>
+              <h2 className="bh-title" style={{ marginBottom: '0.3rem' }}>{brand} &mdash; your questions answered</h2>
+              {(() => {
+                let tierSeen = ''
+                return parsed.faqs.map((item, i) => {
+                  const isTierStart = item.tier !== tierSeen
+                  tierSeen = item.tier
+                  return (
+                    <div key={i}>
+                      <details className="bh-faq" style={isTierStart && i > 0 ? { marginTop: '1.4rem' } : undefined}>
+                        <summary>{item.q}</summary>
+                        <p dangerouslySetInnerHTML={{ __html: item.a }} />
+                        {item.ctaUrl && <a className="faq-cta" href={item.ctaUrl} onClick={e => e.preventDefault()}>{item.ctaText || 'Learn more'} &rarr;</a>}
+                      </details>
+                    </div>
+                  )
+                })
+              })()}
             </div>
           </div>
         </section>
       )}
 
       {resolved.main.length > 0 && (
-        <section className="bh-band">
+        <section className="bh-band paper">
           <div className="bh-wrap">
             <h2 className="bh-title">Shop {brand} by category</h2>
             <div className="bh-tile-grid">
@@ -304,7 +317,7 @@ function BrandHubPreview({ brand, parsed, resolved }) {
       )}
 
       {resolved.other.length > 0 && (
-        <section className="bh-band paper">
+        <section className="bh-band">
           <div className="bh-wrap">
             <h2 className="bh-title">Popular {brand} models</h2>
             <div className="bh-tile-grid">
@@ -334,8 +347,21 @@ function BrandHubPreview({ brand, parsed, resolved }) {
         </section>
       )}
 
-      {parsed.tradeInParagraphs.length > 0 && (
+      {parsed.whyBrandParagraphs.length > 0 && (
         <section className="bh-band">
+          <div className="bh-wrap">
+            <div className="bh-copy">
+              <h2 className="bh-title">{parsed.whyBrandHeading}</h2>
+              <div style={{ marginTop: '1rem' }}>
+                {parsed.whyBrandParagraphs.map((p, i) => <p key={i} style={{ color: '#5b6259', marginTop: '0.9rem' }} dangerouslySetInnerHTML={{ __html: p }} />)}
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {parsed.tradeInParagraphs.length > 0 && (
+        <section className="bh-band paper">
           <div className="bh-wrap">
             <div className="bh-copy">
               <h2 className="bh-title">Trade in your {brand} clubs</h2>
@@ -346,7 +372,7 @@ function BrandHubPreview({ brand, parsed, resolved }) {
         </section>
       )}
 
-      <section className="bh-band paper">
+      <section className="bh-band">
         <div className="bh-wrap">
           <h2 className="bh-title">Why choose us</h2>
           <div className="bh-why-grid">
@@ -377,32 +403,6 @@ function BrandHubPreview({ brand, parsed, resolved }) {
           </div>
         </div>
       </section>
-
-      {parsed.faqs.length > 0 && (
-        <section className="bh-band">
-          <div className="bh-wrap">
-            <div className="bh-copy">
-              <h2 className="bh-title" style={{ marginBottom: '0.3rem' }}>{brand} &mdash; your questions answered</h2>
-              {(() => {
-                let tierSeen = ''
-                return parsed.faqs.map((item, i) => {
-                  const isTierStart = item.tier !== tierSeen
-                  tierSeen = item.tier
-                  return (
-                    <div key={i}>
-                      <details className="bh-faq" style={isTierStart && i > 0 ? { marginTop: '1.4rem' } : undefined}>
-                        <summary>{item.q}</summary>
-                        <p dangerouslySetInnerHTML={{ __html: item.a }} />
-                        {item.ctaUrl && <a className="faq-cta" href={item.ctaUrl} onClick={e => e.preventDefault()}>{item.ctaText || 'Learn more'} &rarr;</a>}
-                      </details>
-                    </div>
-                  )
-                })
-              })()}
-            </div>
-          </div>
-        </section>
-      )}
 
       {parsed.guidesUrl && (
         <section className="bh-band bh-clubhouse">
