@@ -6,7 +6,7 @@ import { Fragment, useEffect, useState } from 'react'
 // it by mistake has broken the in-progress test three times. Disabled for
 // these specifically rather than hiding the row, since seeing it in the
 // list (and being able to View/Edit it) is still wanted.
-const NO_REMOVE_HANDLES = ['marketing-automation-test-page', 'marketing-automation-test']
+const NO_REMOVE_HANDLES = ['marketing-automation-test-page', 'marketing-automation-test', 'marketing-automation-test-article']
 
 // Shared "which of these have we already done" tracking list for both the
 // Brand Hub and Model Collection tools — same shape, different endpoints.
@@ -14,6 +14,10 @@ const NO_REMOVE_HANDLES = ['marketing-automation-test-page', 'marketing-automati
 // that GETs/POSTs {title, metaDescription} to it directly, without needing
 // a full doc re-push — Murray asked for this after seeing the demo.
 export default function MarketingHistoryList({ title, listEndpoint, resetEndpoint, seoEndpoint, baseUrl, onUseHandle }) {
+  // baseUrl is a flat "{prefix}{handle}" URL. Blogs need both a blog handle
+  // and article handle, so those items carry a ready-made viewUrl instead —
+  // preferred over baseUrl+handle whenever it's present.
+  const urlFor = (item) => item.viewUrl || `${baseUrl}${item.handle}`
   const [items, setItems] = useState(null)
   const [error, setError] = useState(null)
   const [resetting, setResetting] = useState(null)
@@ -38,9 +42,9 @@ export default function MarketingHistoryList({ title, listEndpoint, resetEndpoin
 
   useEffect(() => { load() }, [])
 
-  async function handleReset(handle) {
+  async function handleReset(handle, item) {
     const sure = window.confirm(
-      `This removes it from this list by clearing its template back to the theme default.\n\n${baseUrl}${handle}\n\nThe page/collection itself isn't deleted — just unassigned from this design.\n\nContinue?`
+      `This removes it from this list by clearing its template back to the theme default.\n\n${urlFor(item)}\n\nThe page/collection/article itself isn't deleted — just unassigned from this design.\n\nContinue?`
     )
     if (!sure) return
     setResetting(handle)
@@ -135,7 +139,7 @@ export default function MarketingHistoryList({ title, listEndpoint, resetEndpoin
                       {seoSavedHandle === item.handle && <span style={{ marginLeft: 8, color: '#1a7a2e', fontWeight: 600 }}>SEO saved</span>}
                     </td>
                     <td style={{ padding: '8px', display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-                      <a className="btn btn-secondary" style={{ fontSize: 12, padding: '4px 10px' }} href={`${baseUrl}${item.handle}`} target="_blank" rel="noopener noreferrer">View</a>
+                      <a className="btn btn-secondary" style={{ fontSize: 12, padding: '4px 10px' }} href={urlFor(item)} target="_blank" rel="noopener noreferrer">View</a>
                       {onUseHandle && (
                         <button className="btn btn-secondary" style={{ fontSize: 12, padding: '4px 10px' }} onClick={() => onUseHandle(item.handle)}>Edit</button>
                       )}
@@ -145,14 +149,14 @@ export default function MarketingHistoryList({ title, listEndpoint, resetEndpoin
                         </button>
                       )}
                       {NO_REMOVE_HANDLES.includes(item.handle) ? (
-                        <span style={{ fontSize: 12, padding: '4px 10px', color: '#aaa' }} title="This is the dedicated test page — Remove is disabled since it'd just get pushed to again anyway.">
-                          Test page
+                        <span style={{ fontSize: 12, padding: '4px 10px', color: '#aaa' }} title="This is the dedicated test item — Remove is disabled since it'd just get pushed to again anyway.">
+                          Test item
                         </span>
                       ) : (
                         <button
                           className="btn btn-secondary"
                           style={{ fontSize: 12, padding: '4px 10px', color: '#c0392b' }}
-                          onClick={() => handleReset(item.handle)}
+                          onClick={() => handleReset(item.handle, item)}
                           disabled={resetting === item.handle}
                         >
                           {resetting === item.handle ? 'Removing…' : 'Remove'}

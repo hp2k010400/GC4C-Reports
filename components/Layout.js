@@ -40,6 +40,7 @@ const NAV = [
     items: [
       { label: 'Model Collection Template', href: '/marketing/model-collection-template' },
       { label: 'Brand Hub Template', href: '/marketing/brand-hub-template' },
+      { label: 'Blog Post Template', href: '/marketing/blog-template' },
     ],
   },
   { label: 'Reports', href: '/' },
