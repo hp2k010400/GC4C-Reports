@@ -270,17 +270,21 @@ function TileRow({ title, items, placeholderLabels, labelImages }) {
           ? tiles.map((label, i) => {
               const img = labelImages?.[label]
               return (
-                <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                // minWidth:0 is load-bearing: grid items default to min-width:auto,
+                // which lets a full-size Shopify photo's *natural* pixel width (not
+                // its rendered aspect-ratio box) blow out the whole shared column —
+                // and every other tile in that column, in every row, grows with it.
+                <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', minWidth: 0 }}>
                   {img
-                    ? <img src={img} alt={label} style={{ aspectRatio: '4/3', objectFit: 'cover', borderRadius: 6, border: '1px dashed #cbc6b8' }} />
+                    ? <img src={img} alt={label} style={{ width: '100%', aspectRatio: '4/3', objectFit: 'cover', borderRadius: 6, border: '1px dashed #cbc6b8' }} />
                     : <div style={{ aspectRatio: '4/3', background: '#f6f4ef', borderRadius: 6, border: '1px dashed #cbc6b8' }} />}
                   <span style={{ fontSize: '0.8rem', fontWeight: 700, textAlign: 'center', color: '#1c1f1a' }}>{label}</span>
                 </div>
               )
             })
           : tiles.map((c, i) => (
-              <a key={i} href={`/collections/${c.handle}`} onClick={e => e.preventDefault()} style={{ textDecoration: 'none', color: '#1c1f1a', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                {c.image ? <img src={c.image} alt={c.label} style={{ aspectRatio: '4/3', objectFit: 'cover', borderRadius: 6, border: '1px solid #e3e0d6' }} /> : <div style={{ aspectRatio: '4/3', background: '#f6f4ef', borderRadius: 6, border: '1px solid #e3e0d6' }} />}
+              <a key={i} href={`/collections/${c.handle}`} onClick={e => e.preventDefault()} style={{ textDecoration: 'none', color: '#1c1f1a', display: 'flex', flexDirection: 'column', gap: '0.4rem', minWidth: 0 }}>
+                {c.image ? <img src={c.image} alt={c.label} style={{ width: '100%', aspectRatio: '4/3', objectFit: 'cover', borderRadius: 6, border: '1px solid #e3e0d6' }} /> : <div style={{ aspectRatio: '4/3', background: '#f6f4ef', borderRadius: 6, border: '1px solid #e3e0d6' }} />}
                 <span style={{ fontSize: '0.8rem', fontWeight: 700, textAlign: 'center' }}>{c.label}</span>
               </a>
             ))}
