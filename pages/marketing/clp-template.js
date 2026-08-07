@@ -50,6 +50,32 @@ function sectionText(text, startLabel, endLabels) {
 
 const extractUrls = (blockText) => (blockText.match(/https?:\/\/\S+/g) || [])
 
+// Real names exist in the doc for these tile sections even before real
+// links are added ("Beginners", "Ping", "G430"...) — extracting them lets
+// the design render as real placeholder tiles instead of just vanishing
+// until every link is filled in. Handles one-per-line bullets, nested
+// bullets, and comma-separated lists on one line.
+function extractLabels(blockText) {
+  const lines = blockText.split('\n').map(l => l.trim()).filter(Boolean)
+  const labels = []
+  for (const rawLine of lines) {
+    let line = rawLine.replace(/^\*+\s*/, '')
+    if (!line) continue
+    if (/^https?:\/\//.test(line)) continue
+    if (line.toUpperCase() === 'LINK') continue
+    if (/:$/.test(line)) continue // instructional intro line, e.g. "...ordered by demand:"
+    // Drop a trailing " - explanatory note" (but not a hyphen inside a word)
+    line = line.replace(/\s+-\s+.+$/, '')
+    if (line.split(',').length >= 3) {
+      // comma-separated list on one line, e.g. "G430, Qi35, Qi10, ... etc."
+      labels.push(...line.split(',').map(s => s.replace(/\betc\.?$/i, '').trim()).filter(Boolean))
+    } else {
+      labels.push(line.trim())
+    }
+  }
+  return labels
+}
+
 const SECTION_MARKERS = [
   'Hero Section', 'Most Viewed', 'Shop by Player Type', 'Shop by Brand',
   'Frequently Asked Questions', 'Shop by Model', 'Featured Collections',
@@ -102,11 +128,35 @@ function parseClpDoc(text) {
     }
   }
 
-  const mostViewedUrls = extractUrls(sectionText(text, 'Most Viewed', SECTION_MARKERS))
-  const playerTypeUrls = extractUrls(sectionText(text, 'Shop by Player Type', SECTION_MARKERS))
-  const brandUrls = extractUrls(sectionText(text, 'Shop by Brand', SECTION_MARKERS))
-  const modelUrls = extractUrls(sectionText(text, 'Shop by Model', SECTION_MARKERS))
-  const featuredUrls = extractUrls(sectionText(text, 'Featured Collections', SECTION_MARKERS))
+  // The buying guide's own heading varies by topic ("Driver Buying Guide",
+  // "Iron Buying Guide", etc.) and isn't in SECTION_MARKERS, so it has to be
+  // found by pattern up front and passed in as an end marker below — otherwise
+  // "Featured Collections" would run straight through it to "THE CLUBHOUSE".
+  const guideHeadingMatch = text.match(/^.*Buying Guide\s*$/im)
+  const buyingGuideHeading = guideHeadingMatch ? guideHeadingMatch[0].trim() : ''
+  const buyingGuideHeadingEscaped = buyingGuideHeading.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const FEATURED_END_MARKERS = buyingGuideHeading
+    ? [buyingGuideHeadingEscaped, ...SECTION_MARKERS]
+    : SECTION_MARKERS
+
+  const mostViewedBlock = sectionText(text, 'Most Viewed', SECTION_MARKERS)
+  const playerTypeBlock = sectionText(text, 'Shop by Player Type', SECTION_MARKERS)
+  const brandBlock = sectionText(text, 'Shop by Brand', SECTION_MARKERS)
+  const modelBlock = sectionText(text, 'Shop by Model', SECTION_MARKERS)
+  const featuredBlock = sectionText(text, 'Featured Collections', FEATURED_END_MARKERS)
+
+  const mostViewedUrls = extractUrls(mostViewedBlock)
+  const playerTypeUrls = extractUrls(playerTypeBlock)
+  const brandUrls = extractUrls(brandBlock)
+  const modelUrls = extractUrls(modelBlock)
+  const featuredUrls = extractUrls(featuredBlock)
+
+  // Real names the doc already has, even before real links exist — used to
+  // render actual placeholder tiles in the preview instead of an empty gap.
+  const playerTypeLabels = extractLabels(playerTypeBlock)
+  const brandLabels = extractLabels(brandBlock)
+  const modelLabels = extractLabels(modelBlock)
+  const featuredLabels = extractLabels(featuredBlock)
 
   // FAQs — same Q?/A/CTA LINK pattern as Brand Hub, no tiers this time.
   const faqBlock = sectionText(text, 'Frequently Asked Questions', SECTION_MARKERS)
@@ -131,15 +181,10 @@ function parseClpDoc(text) {
   }
   if (current && current.q) faqs.push(current)
 
-  // Buying guide: its own heading varies by topic ("Driver Buying Guide",
-  // "Iron Buying Guide", etc.), so found by pattern rather than assuming it
-  // directly follows "Featured Collections" — that section's own leftover
-  // placeholder "LINK" lines (no bullet, unlike its other items) would
-  // otherwise leak in and get mistaken for guide headings.
-  const guideHeadingMatch = text.match(/^.*Buying Guide\s*$/im)
-  const buyingGuideHeading = guideHeadingMatch ? guideHeadingMatch[0].trim() : ''
+  // Buying guide content — heading itself already found above (needed early
+  // to stop "Featured Collections" from running past it).
   const guideBlock = guideHeadingMatch
-    ? sectionText(text, buyingGuideHeading.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), ['THE CLUBHOUSE'])
+    ? sectionText(text, buyingGuideHeadingEscaped, ['THE CLUBHOUSE'])
     : ''
   const guideContentLines = guideBlock
     .split('\n')
@@ -188,6 +233,7 @@ function parseClpDoc(text) {
     handle, pageTitle, metaDescription, topic, h1, introParagraphs, trustSignals,
     browseAllLabel, browseAllUrl,
     mostViewedUrls, playerTypeUrls, brandUrls, modelUrls, featuredUrls,
+    playerTypeLabels, brandLabels, modelLabels, featuredLabels,
     faqs, buyingGuideHeading, buyingGuideSections,
     clubhouseBody, clubhouseUrl, footerLinks,
   }
@@ -197,22 +243,42 @@ const EMPTY = {
   handle: '', pageTitle: '', metaDescription: '', topic: '', h1: '', introParagraphs: [], trustSignals: [],
   browseAllLabel: '', browseAllUrl: '',
   mostViewedUrls: [], playerTypeUrls: [], brandUrls: [], modelUrls: [], featuredUrls: [],
+  playerTypeLabels: [], brandLabels: [], modelLabels: [], featuredLabels: [],
   faqs: [], buyingGuideHeading: '', buyingGuideSections: [],
   clubhouseBody: '', clubhouseUrl: '', footerLinks: [],
 }
 
-function TileRow({ title, items }) {
-  if (!items?.length) return null
+// items = real resolved tiles (real image, real /collections/ link) — used
+// whenever the doc has real URLs. placeholderLabels = names the doc already
+// has even before real links exist ("Beginners", "Ping", "G430"...) — shown
+// as unlinked placeholder tiles so the design is visible immediately rather
+// than the whole section just vanishing until every link is filled in.
+function TileRow({ title, items, placeholderLabels }) {
+  const usingPlaceholders = !items?.length && placeholderLabels?.length > 0
+  const tiles = usingPlaceholders ? placeholderLabels : items
+  if (!tiles?.length) return null
   return (
     <div style={{ marginTop: '2rem' }}>
       <h2 style={{ fontSize: '1.3rem', fontWeight: 700, textAlign: 'center' }}>{title}</h2>
+      {usingPlaceholders && (
+        <div style={{ textAlign: 'center', fontSize: 11.5, color: '#b5651d', marginTop: 4 }}>
+          Real names from the doc, shown as placeholders — no links added yet
+        </div>
+      )}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1rem', marginTop: '1rem' }}>
-        {items.map((c, i) => (
-          <a key={i} href={`/collections/${c.handle}`} onClick={e => e.preventDefault()} style={{ textDecoration: 'none', color: '#1c1f1a', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-            {c.image ? <img src={c.image} alt={c.label} style={{ aspectRatio: '4/3', objectFit: 'cover', borderRadius: 6, border: '1px solid #e3e0d6' }} /> : <div style={{ aspectRatio: '4/3', background: '#f6f4ef', borderRadius: 6, border: '1px solid #e3e0d6' }} />}
-            <span style={{ fontSize: '0.8rem', fontWeight: 700, textAlign: 'center' }}>{c.label}</span>
-          </a>
-        ))}
+        {usingPlaceholders
+          ? tiles.map((label, i) => (
+              <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                <div style={{ aspectRatio: '4/3', background: '#f6f4ef', borderRadius: 6, border: '1px dashed #cbc6b8' }} />
+                <span style={{ fontSize: '0.8rem', fontWeight: 700, textAlign: 'center', color: '#1c1f1a' }}>{label}</span>
+              </div>
+            ))
+          : tiles.map((c, i) => (
+              <a key={i} href={`/collections/${c.handle}`} onClick={e => e.preventDefault()} style={{ textDecoration: 'none', color: '#1c1f1a', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                {c.image ? <img src={c.image} alt={c.label} style={{ aspectRatio: '4/3', objectFit: 'cover', borderRadius: 6, border: '1px solid #e3e0d6' }} /> : <div style={{ aspectRatio: '4/3', background: '#f6f4ef', borderRadius: 6, border: '1px solid #e3e0d6' }} />}
+                <span style={{ fontSize: '0.8rem', fontWeight: 700, textAlign: 'center' }}>{c.label}</span>
+              </a>
+            ))}
       </div>
     </div>
   )
@@ -235,8 +301,8 @@ function ClpPreview({ parsed, resolved }) {
       )}
 
       <TileRow title={`Most viewed ${parsed.topic}`} items={resolved.mostViewed} />
-      <TileRow title="Shop by player type" items={resolved.playerType} />
-      <TileRow title="Shop by brand" items={resolved.brand} />
+      <TileRow title="Shop by player type" items={resolved.playerType} placeholderLabels={parsed.playerTypeLabels} />
+      <TileRow title="Shop by brand" items={resolved.brand} placeholderLabels={parsed.brandLabels} />
 
       {parsed.faqs.length > 0 && (
         <div style={{ marginTop: '2rem' }}>
@@ -251,8 +317,8 @@ function ClpPreview({ parsed, resolved }) {
         </div>
       )}
 
-      <TileRow title="Shop by model" items={resolved.model} />
-      <TileRow title="Featured collections" items={resolved.featured} />
+      <TileRow title="Shop by model" items={resolved.model} placeholderLabels={parsed.modelLabels} />
+      <TileRow title="Featured collections" items={resolved.featured} placeholderLabels={parsed.featuredLabels} />
 
       {parsed.buyingGuideSections.length > 0 && (
         <div style={{ marginTop: '2rem' }}>
