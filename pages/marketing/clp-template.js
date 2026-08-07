@@ -253,7 +253,7 @@ const EMPTY = {
 // has even before real links exist ("Beginners", "Ping", "G430"...) — shown
 // as unlinked placeholder tiles so the design is visible immediately rather
 // than the whole section just vanishing until every link is filled in.
-function TileRow({ title, items, placeholderLabels }) {
+function TileRow({ title, items, placeholderLabels, labelImages }) {
   const usingPlaceholders = !items?.length && placeholderLabels?.length > 0
   const tiles = usingPlaceholders ? placeholderLabels : items
   if (!tiles?.length) return null
@@ -267,12 +267,17 @@ function TileRow({ title, items, placeholderLabels }) {
       )}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1rem', marginTop: '1rem' }}>
         {usingPlaceholders
-          ? tiles.map((label, i) => (
-              <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                <div style={{ aspectRatio: '4/3', background: '#f6f4ef', borderRadius: 6, border: '1px dashed #cbc6b8' }} />
-                <span style={{ fontSize: '0.8rem', fontWeight: 700, textAlign: 'center', color: '#1c1f1a' }}>{label}</span>
-              </div>
-            ))
+          ? tiles.map((label, i) => {
+              const img = labelImages?.[label]
+              return (
+                <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                  {img
+                    ? <img src={img} alt={label} style={{ aspectRatio: '4/3', objectFit: 'cover', borderRadius: 6, border: '1px dashed #cbc6b8' }} />
+                    : <div style={{ aspectRatio: '4/3', background: '#f6f4ef', borderRadius: 6, border: '1px dashed #cbc6b8' }} />}
+                  <span style={{ fontSize: '0.8rem', fontWeight: 700, textAlign: 'center', color: '#1c1f1a' }}>{label}</span>
+                </div>
+              )
+            })
           : tiles.map((c, i) => (
               <a key={i} href={`/collections/${c.handle}`} onClick={e => e.preventDefault()} style={{ textDecoration: 'none', color: '#1c1f1a', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
                 {c.image ? <img src={c.image} alt={c.label} style={{ aspectRatio: '4/3', objectFit: 'cover', borderRadius: 6, border: '1px solid #e3e0d6' }} /> : <div style={{ aspectRatio: '4/3', background: '#f6f4ef', borderRadius: 6, border: '1px solid #e3e0d6' }} />}
@@ -284,7 +289,7 @@ function TileRow({ title, items, placeholderLabels }) {
   )
 }
 
-function ClpPreview({ parsed, resolved }) {
+function ClpPreview({ parsed, resolved, labelImages }) {
   return (
     <div style={{ fontFamily: '-apple-system, sans-serif', background: '#fff', color: '#1c1f1a', maxWidth: 900, margin: '0 auto', padding: '2.4rem 1.75rem' }}>
       <h1 style={{ fontSize: 'clamp(1.8rem, 3.4vw, 2.4rem)', fontWeight: 700, textAlign: 'center', margin: 0 }}>{parsed.h1}</h1>
@@ -301,8 +306,8 @@ function ClpPreview({ parsed, resolved }) {
       )}
 
       <TileRow title={`Most viewed ${parsed.topic}`} items={resolved.mostViewed} />
-      <TileRow title="Shop by player type" items={resolved.playerType} placeholderLabels={parsed.playerTypeLabels} />
-      <TileRow title="Shop by brand" items={resolved.brand} placeholderLabels={parsed.brandLabels} />
+      <TileRow title="Shop by player type" items={resolved.playerType} placeholderLabels={parsed.playerTypeLabels} labelImages={labelImages} />
+      <TileRow title="Shop by brand" items={resolved.brand} placeholderLabels={parsed.brandLabels} labelImages={labelImages} />
 
       {parsed.faqs.length > 0 && (
         <div style={{ marginTop: '2rem' }}>
@@ -317,8 +322,8 @@ function ClpPreview({ parsed, resolved }) {
         </div>
       )}
 
-      <TileRow title="Shop by model" items={resolved.model} placeholderLabels={parsed.modelLabels} />
-      <TileRow title="Featured collections" items={resolved.featured} placeholderLabels={parsed.featuredLabels} />
+      <TileRow title="Shop by model" items={resolved.model} placeholderLabels={parsed.modelLabels} labelImages={labelImages} />
+      <TileRow title="Featured collections" items={resolved.featured} placeholderLabels={parsed.featuredLabels} labelImages={labelImages} />
 
       {parsed.buyingGuideSections.length > 0 && (
         <div style={{ marginTop: '2rem' }}>
@@ -359,6 +364,7 @@ export default function ClpTemplate() {
   const [originalContent, setOriginalContent] = useState(null)
   const [wasCreated, setWasCreated] = useState(false)
   const [resolved, setResolved] = useState({ mostViewed: [], playerType: [], brand: [], model: [], featured: [] })
+  const [labelImages, setLabelImages] = useState({})
   const [previewLoading, setPreviewLoading] = useState(false)
   const [docUrl, setDocUrl] = useState('')
   const [docLoading, setDocLoading] = useState(false)
@@ -418,6 +424,21 @@ export default function ClpTemplate() {
         brand: other.main || [], model: other.other || [],
         featured: featuredRes.main || [],
       })
+
+      // Best-guess images for placeholder tiles (names the doc has but no
+      // real link yet) — visual polish only, never used for the real link.
+      const allLabels = [
+        ...next.playerTypeLabels, ...next.brandLabels, ...next.modelLabels, ...next.featuredLabels,
+      ]
+      if (allLabels.length) {
+        fetch('/api/marketing/resolve-label-images', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ labels: allLabels }),
+        }).then(r => r.json()).then(d => setLabelImages(d.images || {})).catch(() => {})
+      } else {
+        setLabelImages({})
+      }
     } finally {
       setPreviewLoading(false)
     }
@@ -563,7 +584,7 @@ export default function ClpTemplate() {
       {status && (
         <div className="settings-section" style={{ padding: 0, overflow: 'hidden' }}>
           <h3 className="settings-section-title" style={{ padding: '14px 18px 0' }}>Live preview (renders the real design — no Shopify writes)</h3>
-          <ClpPreview parsed={parsed} resolved={resolved} />
+          <ClpPreview parsed={parsed} resolved={resolved} labelImages={labelImages} />
         </div>
       )}
 
