@@ -2,7 +2,7 @@ name: Daily POS Email
 
 on:
   schedule:
-    - cron: '0 18 * * *'  # 7pm BST (6pm UTC) every day
+    - cron: '0 17 * * *'  # 6pm BST (5pm UTC) every day — stores closing time
 
 concurrency:
   group: daily-pos-email
