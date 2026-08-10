@@ -49,7 +49,11 @@ export default function AdjustmentsPage() {
   const [locations, setLocations]   = useState([])
   const [locationId, setLocationId] = useState('')
   const [reasons, setReasons]       = useState(DEFAULT_reasons)
-  const [reason, setReason]         = useState(DEFAULT_reasons[0])
+  // Blank by default on purpose — Neil found staff were leaving it on
+  // whatever the default happened to be (alphabetically first) instead of
+  // actively choosing one, so adjustments were getting mislabeled. Forcing
+  // a real choice (see canSubmit below) fixes that.
+  const [reason, setReason]         = useState('')
   const [notes, setNotes]           = useState('')
   const [employee, setEmployee]     = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -106,11 +110,10 @@ export default function AdjustmentsPage() {
         if (!d.codes?.length) return
         const labels = d.codes.map(c => c.label).sort((a, b) => a.localeCompare(b))
         setReasons(labels)
-        // The dropdown starts on a hardcoded fallback before this list loads —
-        // if that fallback (or a since-renamed/deleted reason) isn't a real
-        // option anymore, silently switching to it would submit a reason that
-        // no longer maps to a valid Shopify code.
-        setReason(prev => labels.includes(prev) ? prev : labels[0])
+        // If a previously-selected reason has since been renamed/deleted,
+        // clear it rather than silently falling back to some other reason —
+        // submitting requires an explicit, active choice (see canSubmit).
+        setReason(prev => labels.includes(prev) ? prev : '')
       })
       .catch(() => {})
   }, [])
@@ -192,7 +195,7 @@ export default function AdjustmentsPage() {
 
   async function handleSubmit() {
     const validLines = lines.filter(l => l.product && l.qty && parseInt(l.qty) !== 0 && !isNaN(parseInt(l.qty)))
-    if (!validLines.length || !locationId || !employee.trim()) return
+    if (!validLines.length || !locationId || !employee.trim() || !reason) return
 
     setSubmitting(true)
     setSubmitResult(null)
@@ -282,7 +285,7 @@ export default function AdjustmentsPage() {
     .filter(e => !logReasonFilter || e.reason === logReasonFilter)
 
   const validCount = lines.filter(l => l.product && l.qty && parseInt(l.qty) !== 0 && !isNaN(parseInt(l.qty))).length
-  const canSubmit = validCount > 0 && locationId && employee.trim() && !submitting
+  const canSubmit = validCount > 0 && locationId && employee.trim() && reason && !submitting
 
   // Mirrors a slim scrollbar above the table so it's visible without scrolling
   // down past the whole log first — synced to the real table's scroll position.
@@ -408,6 +411,7 @@ export default function AdjustmentsPage() {
           <div>
             <label className="form-label">Reason</label>
             <select className="form-select" value={reason} onChange={e => setReason(e.target.value)}>
+              <option value="" disabled>Select a reason…</option>
               {reasons.map(r => <option key={r} value={r}>{r}</option>)}
             </select>
           </div>
