@@ -239,7 +239,12 @@ function BrandHubPreview({ brand, parsed, resolved }) {
         .bh-band.paper { background: #fff; }
         .bh-title { font-size: 1.5rem; max-width: 46ch; margin: 0 auto; text-align: center; }
         .bh-tile-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-top: 1.5rem; }
-        .bh-tile { text-decoration: none; color: #1c1f1a; display: flex; flex-direction: column; gap: 0.5rem; }
+        /* min-width:0 is load-bearing: grid items default to min-width:auto, so a
+           real photo's *natural* pixel size (some Shopify images run 2000px+) can
+           still force the whole shared grid column to blow out to fit it, even
+           with width:100% on the img — every tile in that column, every row,
+           grows along with it. */
+        .bh-tile { text-decoration: none; color: #1c1f1a; display: flex; flex-direction: column; gap: 0.5rem; min-width: 0; }
         .bh-tile img { width: 100%; aspect-ratio: 4/3; object-fit: cover; border-radius: 6px; border: 1px solid #e3e0d6; background: #f6f4ef; }
         .bh-tile .ph { aspect-ratio: 4/3; background: #f6f4ef; border-radius: 6px; border: 1px solid #e3e0d6; }
         .bh-tile .name { font-size: 0.84rem; font-weight: 700; text-align: center; }
