@@ -376,7 +376,9 @@ function BrandHubPreview({ brand, parsed, resolved }) {
             <div className="bh-copy">
               <h2 className="bh-title">Trade in your {brand} clubs</h2>
               {parsed.tradeInParagraphs.map((p, i) => <p key={i} style={{ color: '#5b6259', marginTop: '0.9rem' }} dangerouslySetInnerHTML={{ __html: p }} />)}
-              <a className="bh-cta" href="/pages/sell-your-clubs" onClick={e => e.preventDefault()}>Trade your clubs in here</a>
+              <div style={{ textAlign: 'center' }}>
+                <a className="bh-cta" href="/pages/sell-your-clubs" onClick={e => e.preventDefault()}>Trade your clubs in here</a>
+              </div>
             </div>
           </div>
         </section>
@@ -420,7 +422,9 @@ function BrandHubPreview({ brand, parsed, resolved }) {
             <div className="bh-copy">
               <h2>Go to the clubhouse</h2>
               <p dangerouslySetInnerHTML={{ __html: parsed.guidesBody }} />
-              <a className="bh-cta" href={parsed.guidesUrl} onClick={e => e.preventDefault()}>Read our {brand} guides</a>
+              <div style={{ textAlign: 'center' }}>
+                <a className="bh-cta" href={parsed.guidesUrl} onClick={e => e.preventDefault()}>Read our {brand} guides</a>
+              </div>
             </div>
           </div>
         </section>
