@@ -250,7 +250,8 @@ function BrandHubPreview({ brand, parsed, resolved }) {
            derives height purely from width, no such ambiguity, in every
            browser going back over a decade. */
         .bh-tile { text-decoration: none; color: #1c1f1a; display: flex; flex-direction: column; gap: 0.5rem; min-width: 0; }
-        .bh-tile .frame { position: relative; width: 100%; padding-bottom: 75%; border-radius: 6px; overflow: hidden; background: #f6f4ef; border: 1px solid #e3e0d6; }
+        /* border-radius:0 matches the real site's product-card image corners (sharp, not rounded) */
+        .bh-tile .frame { position: relative; width: 100%; padding-bottom: 75%; border-radius: 0; overflow: hidden; background: #f6f4ef; border: 1px solid #e3e0d6; }
         .bh-tile .frame img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
         .bh-tile .name { font-size: 0.84rem; font-weight: 700; text-align: center; }
         .bh-tile .count { font-size: 0.65rem; font-weight: 400; color: #5b6259; margin-left: 2px; }

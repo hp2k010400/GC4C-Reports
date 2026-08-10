@@ -330,7 +330,25 @@ function Preview({ parsed, image, imageError, loadingImage }) {
   const hasContent = parsed.title || parsed.intro || parsed.faqs.length > 0
   return (
     <div className="settings-section" style={{ padding: 0, overflow: 'hidden' }}>
-      <div style={{ background: '#f6f4ef', color: '#222', fontFamily: '"Open Sans Condensed","Arial Narrow",sans-serif' }}>
+      <div className="mc-preview">
+        <style jsx>{`
+          @font-face {
+            font-family: 'Open Sans Condensed Preview';
+            src: url('https://www.golfclubs4cash.co.uk/cdn/fonts/open_sans_condensed/opensanscondensed_n4.b735817c3758cc70fda491bc4590427f285556cd.woff2') format('woff2');
+            font-weight: 400; font-style: normal; font-display: swap;
+          }
+          @font-face {
+            font-family: 'Open Sans Condensed Preview';
+            src: url('https://www.golfclubs4cash.co.uk/cdn/fonts/open_sans_condensed/opensanscondensed_n6.e25ccef8c0d23978aca642a1b6db5c9b834ebdf3.woff2') format('woff2');
+            font-weight: 600; font-style: normal; font-display: swap;
+          }
+          @font-face {
+            font-family: 'Open Sans Condensed Preview';
+            src: url('https://www.golfclubs4cash.co.uk/cdn/fonts/open_sans_condensed/opensanscondensed_n7.540ad984d87539ff9a03e07d9527f1ec85e214bc.woff2') format('woff2');
+            font-weight: 700; font-style: normal; font-display: swap;
+          }
+          .mc-preview { background: #f6f4ef; color: #222; font-family: 'Open Sans Condensed Preview', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+        `}</style>
         <div style={{ maxWidth: 900, margin: '0 auto', padding: '2.2rem 1.5rem' }}>
           <div style={{ fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#005F2C', marginBottom: 8 }}>
             {parsed.handle || 'paste-a-doc-above'}

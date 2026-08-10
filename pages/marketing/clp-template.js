@@ -283,7 +283,8 @@ function TileRow({ title, items, placeholderLabels, labelImages }) {
                 // derives height purely from width, with no such ambiguity, in
                 // every browser going back over a decade.
                 <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', minWidth: 0 }}>
-                  <div style={{ position: 'relative', width: '100%', paddingBottom: '75%', borderRadius: 6, overflow: 'hidden', background: '#f6f4ef', border: '1px dashed #cbc6b8' }}>
+                  {/* borderRadius:0 matches the real site's product-card image corners (sharp, not rounded) */}
+                  <div style={{ position: 'relative', width: '100%', paddingBottom: '75%', borderRadius: 0, overflow: 'hidden', background: '#f6f4ef', border: '1px dashed #cbc6b8' }}>
                     {img && <img src={img} alt={label} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />}
                   </div>
                   <span style={{ fontSize: '0.8rem', fontWeight: 700, textAlign: 'center', color: '#1c1f1a' }}>{label}</span>
@@ -292,7 +293,7 @@ function TileRow({ title, items, placeholderLabels, labelImages }) {
             })
           : tiles.map((c, i) => (
               <a key={i} href={`/collections/${c.handle}`} onClick={e => e.preventDefault()} style={{ textDecoration: 'none', color: '#1c1f1a', display: 'flex', flexDirection: 'column', gap: '0.4rem', minWidth: 0 }}>
-                <div style={{ position: 'relative', width: '100%', paddingBottom: '75%', borderRadius: 6, overflow: 'hidden', background: '#f6f4ef', border: '1px solid #e3e0d6' }}>
+                <div style={{ position: 'relative', width: '100%', paddingBottom: '75%', borderRadius: 0, overflow: 'hidden', background: '#f6f4ef', border: '1px solid #e3e0d6' }}>
                   {c.image && <img src={c.image} alt={c.label} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />}
                 </div>
                 <span style={{ fontSize: '0.8rem', fontWeight: 700, textAlign: 'center' }}>{c.label}</span>
@@ -305,7 +306,25 @@ function TileRow({ title, items, placeholderLabels, labelImages }) {
 
 function ClpPreview({ parsed, resolved, labelImages }) {
   return (
-    <div style={{ fontFamily: '-apple-system, sans-serif', background: '#fff', color: '#1c1f1a', maxWidth: 900, margin: '0 auto', padding: '2.4rem 1.75rem' }}>
+    <div className="clp-preview">
+      <style jsx>{`
+        @font-face {
+          font-family: 'Open Sans Condensed Preview';
+          src: url('https://www.golfclubs4cash.co.uk/cdn/fonts/open_sans_condensed/opensanscondensed_n4.b735817c3758cc70fda491bc4590427f285556cd.woff2') format('woff2');
+          font-weight: 400; font-style: normal; font-display: swap;
+        }
+        @font-face {
+          font-family: 'Open Sans Condensed Preview';
+          src: url('https://www.golfclubs4cash.co.uk/cdn/fonts/open_sans_condensed/opensanscondensed_n6.e25ccef8c0d23978aca642a1b6db5c9b834ebdf3.woff2') format('woff2');
+          font-weight: 600; font-style: normal; font-display: swap;
+        }
+        @font-face {
+          font-family: 'Open Sans Condensed Preview';
+          src: url('https://www.golfclubs4cash.co.uk/cdn/fonts/open_sans_condensed/opensanscondensed_n7.540ad984d87539ff9a03e07d9527f1ec85e214bc.woff2') format('woff2');
+          font-weight: 700; font-style: normal; font-display: swap;
+        }
+        .clp-preview { font-family: 'Open Sans Condensed Preview', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #fff; color: #1c1f1a; max-width: 900px; margin: 0 auto; padding: 2.4rem 1.75rem; box-sizing: border-box; }
+      `}</style>
       <h1 style={{ fontSize: 'clamp(1.8rem, 3.4vw, 2.4rem)', fontWeight: 700, textAlign: 'center', margin: 0 }}>{parsed.h1}</h1>
       {parsed.introParagraphs.map((p, i) => <p key={i} style={{ color: '#5b6259', marginTop: '1rem' }}>{p}</p>)}
       {parsed.trustSignals.length > 0 && (
