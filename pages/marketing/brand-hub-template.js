@@ -240,14 +240,14 @@ function BrandHubPreview({ brand, parsed, resolved }) {
         .bh-title { font-size: 1.5rem; max-width: 46ch; margin: 0 auto; text-align: center; }
         .bh-tile-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-top: 1.5rem; }
         /* min-width:0 is load-bearing: grid items default to min-width:auto, so a
-           real photo's *natural* pixel size (some Shopify images run 2000px+) can
+           real photo's natural pixel size (some Shopify images run 2000px+) can
            still force the whole shared grid column to blow out to fit it — every
            tile in that column, every row, grows along with it.
            The image box uses the old padding-bottom aspect-ratio trick, not the
-           `aspect-ratio` CSS property — aspect-ratio's interaction with CSS
-           Grid's own intrinsic-sizing pass is genuinely inconsistent and caused
-           the tiles to collapse to invisible when min-width was added. Padding-
-           bottom derives height purely from width, no such ambiguity, in every
+           aspect-ratio CSS property — its interaction with CSS Grid's own
+           intrinsic-sizing pass is genuinely inconsistent and caused the tiles
+           to collapse to invisible when min-width was added. Padding-bottom
+           derives height purely from width, no such ambiguity, in every
            browser going back over a decade. */
         .bh-tile { text-decoration: none; color: #1c1f1a; display: flex; flex-direction: column; gap: 0.5rem; min-width: 0; }
         .bh-tile .frame { position: relative; width: 100%; padding-bottom: 75%; border-radius: 6px; overflow: hidden; background: #f6f4ef; border: 1px solid #e3e0d6; }
