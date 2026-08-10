@@ -460,6 +460,14 @@ export default function ClpTemplate() {
 
   async function handlePushLive() {
     if (!targetHandle.trim()) return
+    // Guards against publishing an empty page: if the doc box was never parsed
+    // in this session (or got reset), pushing would otherwise silently go live
+    // with the page titled by its raw handle and every section blank.
+    if (!parsed.h1 && !parsed.pageTitle) {
+      setPushState('error')
+      setPushError('Nothing parsed yet — paste the doc and click "Show preview" first, then push. (Pushing now would publish an empty page.)')
+      return
+    }
     const sure = window.confirm(
       isProtectedHandle
         ? `"${targetHandle.trim()}" isn't the usual test handle — this looks like a real, live page.\n\nIt'll be visible on:\nhttps://www.golfclubs4cash.co.uk/pages/${targetHandle}\n\nContinue?`

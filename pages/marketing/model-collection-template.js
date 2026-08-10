@@ -152,6 +152,14 @@ export default function ModelCollectionTemplate() {
 
   async function handlePushLive() {
     if (!targetHandle.trim()) return
+    // Guards against publishing a blank description: if the doc box was never
+    // parsed in this session (or got reset), pushing would otherwise silently
+    // wipe a real collection's description to empty.
+    if (!parsed.title && !parsed.pageTitle) {
+      setPushState('error')
+      setPushError('Nothing parsed yet — paste the doc and click "Show preview" first, then push. (Pushing now would blank the collection description.)')
+      return
+    }
     const sure = window.confirm(
       isProtectedHandle
         ? `"${targetHandle.trim()}" isn't the usual test handle — this looks like a real, live collection.\n\nThis writes to the description field only — the grid, filters and breadcrumbs are untouched.\n\nIt'll be visible on:\nhttps://www.golfclubs4cash.co.uk/collections/${targetHandle}\n\nContinue?`

@@ -207,6 +207,14 @@ export default function BlogTemplate() {
 
   async function handlePushLive() {
     if (!targetBlogHandle.trim() || !targetHandle.trim()) return
+    // Guards against publishing an empty article: if the doc box was never
+    // parsed in this session (or got reset), pushing would otherwise silently
+    // go live with the article titled by its raw handle and no real body.
+    if (!parsed.h1 && !parsed.pageTitle) {
+      setPushState('error')
+      setPushError('Nothing parsed yet — paste the doc and click "Show preview" first, then push. (Pushing now would publish an empty article.)')
+      return
+    }
     const sure = window.confirm(
       isProtectedHandle
         ? `"${targetHandle.trim()}" isn't the usual test handle — this looks like a real, live article.\n\nIt'll be visible on:\nhttps://www.golfclubs4cash.co.uk/blogs/${targetBlogHandle}/${targetHandle}\n\nContinue?`
