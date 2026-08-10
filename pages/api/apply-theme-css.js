@@ -1,19 +1,21 @@
 /**
- * One-shot endpoint to append GC4C brand CSS to the live Shopify theme.
+ * One-shot endpoint to inject GC4C brand CSS into the live Shopify theme.
+ * Creates snippets/gc4c-brand-css.liquid and renders it from layout/theme.liquid.
  * Call once: GET /api/apply-theme-css?secret=<ACTION_SECRET>
- * Add ?dry=1 to preview what would be written without saving.
+ * Add ?dry=1 to preview without saving.
  */
 
 const STORE = process.env.SHOPIFY_STORE
 const TOKEN = process.env.SHOPIFY_ACCESS_TOKEN
 const API   = '2025-04'
 
-const BRAND_CSS = `
-/* ============================================================
-   GC4C Brand CSS — applied 2026-08 via apply-theme-css
-   Typography: H1 34px/400, body 20px, max-width 1600px
-   ============================================================ */
+const MARKER = 'gc4c-brand-css'
 
+const BRAND_CSS_SNIPPET = `{%- comment -%}
+  GC4C Brand CSS — injected 2026-08
+  Typography, product cards, blog cards, Fast Simon
+{%- endcomment -%}
+<style>
 /* ── TYPOGRAPHY ─────────────────────────────────────────── */
 h1, .h1 {
   font-size: 34px;
@@ -95,7 +97,7 @@ body, p, li, td, span {
   transform: translateY(-5px);
   box-shadow: 0 12px 24px rgba(0, 0, 0, 0.15);
 }
-`
+</style>`
 
 async function shopifyFetch(method, path, body = null) {
   const res = await fetch(`https://${STORE}/admin/api/${API}/${path}`, {
@@ -123,26 +125,26 @@ export default async function handler(req, res) {
     const live = themes.find(t => t.role === 'main')
     if (!live) return res.status(404).json({ error: 'No live theme found' })
 
-    // 2. Try to get existing custom CSS asset
-    let existing = ''
-    try {
-      const asset = await shopifyFetch('GET', `themes/${live.id}/assets.json?asset[key]=assets/custom.css`)
-      existing = asset.asset?.value || ''
-    } catch {
-      // No custom.css yet — we'll create it
-    }
+    // 2. Read theme.liquid
+    const layoutAsset = await shopifyFetch('GET', `themes/${live.id}/assets.json?asset[key]=layout/theme.liquid`)
+    const themeLiquid = layoutAsset.asset?.value || ''
+    if (!themeLiquid) return res.status(500).json({ error: 'Could not read layout/theme.liquid' })
 
-    // 3. Check if our CSS block is already there (idempotent)
-    const MARKER = '/* GC4C Brand CSS — applied 2026-08'
-    if (existing.includes(MARKER)) {
+    // 3. Check if already injected (idempotent)
+    if (themeLiquid.includes(MARKER)) {
       return res.json({
         ok: true,
-        message: 'Brand CSS already present — no changes made',
+        message: 'Brand CSS already injected — no changes made',
         theme: live.name,
       })
     }
 
-    const combined = existing + BRAND_CSS
+    // 4. Inject render tag just before </head>
+    const renderTag = `  {%- render '${MARKER}' -%}\n`
+    if (!themeLiquid.includes('</head>')) {
+      return res.status(500).json({ error: 'Could not find </head> in theme.liquid' })
+    }
+    const updatedLiquid = themeLiquid.replace('</head>', renderTag + '</head>')
 
     if (dry) {
       return res.json({
@@ -150,24 +152,33 @@ export default async function handler(req, res) {
         dry: true,
         theme: live.name,
         themeId: live.id,
-        existingLength: existing.length,
-        newLength: combined.length,
-        preview: combined.slice(-800),
+        snippetKey: `snippets/${MARKER}.liquid`,
+        renderTag,
+        themeLiquidPreview: updatedLiquid.slice(updatedLiquid.indexOf(renderTag) - 100, updatedLiquid.indexOf(renderTag) + 200),
       })
     }
 
-    // 4. Write back
+    // 5. Create the snippet
     await shopifyFetch('PUT', `themes/${live.id}/assets.json`, {
       asset: {
-        key: 'assets/custom.css',
-        value: combined,
+        key: `snippets/${MARKER}.liquid`,
+        value: BRAND_CSS_SNIPPET,
+      },
+    })
+
+    // 6. Update theme.liquid to render the snippet
+    await shopifyFetch('PUT', `themes/${live.id}/assets.json`, {
+      asset: {
+        key: 'layout/theme.liquid',
+        value: updatedLiquid,
       },
     })
 
     return res.json({
       ok: true,
-      message: `Brand CSS applied to theme "${live.name}" (ID ${live.id})`,
-      charactersAdded: BRAND_CSS.length,
+      message: `Brand CSS injected into theme "${live.name}" (ID ${live.id})`,
+      snippetCreated: `snippets/${MARKER}.liquid`,
+      renderTagAdded: renderTag.trim(),
     })
   } catch (err) {
     console.error('apply-theme-css error:', err)
