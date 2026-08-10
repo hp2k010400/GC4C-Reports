@@ -241,12 +241,17 @@ function BrandHubPreview({ brand, parsed, resolved }) {
         .bh-tile-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-top: 1.5rem; }
         /* min-width:0 is load-bearing: grid items default to min-width:auto, so a
            real photo's *natural* pixel size (some Shopify images run 2000px+) can
-           still force the whole shared grid column to blow out to fit it, even
-           with width:100% on the img — every tile in that column, every row,
-           grows along with it. */
+           still force the whole shared grid column to blow out to fit it — every
+           tile in that column, every row, grows along with it.
+           The image box uses the old padding-bottom aspect-ratio trick, not the
+           `aspect-ratio` CSS property — aspect-ratio's interaction with CSS
+           Grid's own intrinsic-sizing pass is genuinely inconsistent and caused
+           the tiles to collapse to invisible when min-width was added. Padding-
+           bottom derives height purely from width, no such ambiguity, in every
+           browser going back over a decade. */
         .bh-tile { text-decoration: none; color: #1c1f1a; display: flex; flex-direction: column; gap: 0.5rem; min-width: 0; }
-        .bh-tile img { width: 100%; aspect-ratio: 4/3; object-fit: cover; border-radius: 6px; border: 1px solid #e3e0d6; background: #f6f4ef; }
-        .bh-tile .ph { aspect-ratio: 4/3; background: #f6f4ef; border-radius: 6px; border: 1px solid #e3e0d6; }
+        .bh-tile .frame { position: relative; width: 100%; padding-bottom: 75%; border-radius: 6px; overflow: hidden; background: #f6f4ef; border: 1px solid #e3e0d6; }
+        .bh-tile .frame img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
         .bh-tile .name { font-size: 0.84rem; font-weight: 700; text-align: center; }
         .bh-tile .count { font-size: 0.65rem; font-weight: 400; color: #5b6259; margin-left: 2px; }
         .bh-cta { display: inline-block; margin-top: 1.2rem; background: #20842e; color: #fff; font-weight: 700; text-decoration: none; padding: 0.7rem 1.3rem; border-radius: 6px; font-size: 0.92rem; }
@@ -312,7 +317,7 @@ function BrandHubPreview({ brand, parsed, resolved }) {
             <div className="bh-tile-grid">
               {resolved.main.map((c, i) => (
                 <a className="bh-tile" href={`/collections/${c.handle}`} key={i} onClick={e => e.preventDefault()}>
-                  {c.image ? <img src={c.image} alt={c.label} /> : <div className="ph" />}
+                  <div className="frame">{c.image && <img src={c.image} alt={c.label} />}</div>
                   <span className="name">{c.label}{c.count ? <sup className="count">{c.count}</sup> : null}</span>
                 </a>
               ))}
@@ -328,7 +333,7 @@ function BrandHubPreview({ brand, parsed, resolved }) {
             <div className="bh-tile-grid">
               {resolved.other.map((c, i) => (
                 <a className="bh-tile" href={`/collections/${c.handle}`} key={i} onClick={e => e.preventDefault()}>
-                  {c.image ? <img src={c.image} alt={c.label} /> : <div className="ph" />}
+                  <div className="frame">{c.image && <img src={c.image} alt={c.label} />}</div>
                   <span className="name">{c.label}{c.count ? <sup className="count">{c.count}</sup> : null}</span>
                 </a>
               ))}

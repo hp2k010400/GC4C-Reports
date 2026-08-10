@@ -270,21 +270,31 @@ function TileRow({ title, items, placeholderLabels, labelImages }) {
           ? tiles.map((label, i) => {
               const img = labelImages?.[label]
               return (
-                // minWidth:0 is load-bearing: grid items default to min-width:auto,
-                // which lets a full-size Shopify photo's *natural* pixel width (not
-                // its rendered aspect-ratio box) blow out the whole shared column —
-                // and every other tile in that column, in every row, grows with it.
+                // minWidth:0 stops an oversized real photo from forcing its whole
+                // shared grid column (every tile in it, every row) out to fit it —
+                // grid items default to min-width:auto, which respects intrinsic
+                // content size unless explicitly overridden.
+                //
+                // The image box below uses the old padding-bottom aspect-ratio
+                // trick deliberately instead of the `aspect-ratio` CSS property:
+                // aspect-ratio's interaction with CSS Grid's own intrinsic-sizing
+                // pass is genuinely inconsistent (this is what caused the tiles to
+                // collapse to invisible after the minWidth fix) — padding-bottom
+                // derives height purely from width, with no such ambiguity, in
+                // every browser going back over a decade.
                 <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', minWidth: 0 }}>
-                  {img
-                    ? <img src={img} alt={label} style={{ width: '100%', aspectRatio: '4/3', objectFit: 'cover', borderRadius: 6, border: '1px dashed #cbc6b8' }} />
-                    : <div style={{ aspectRatio: '4/3', background: '#f6f4ef', borderRadius: 6, border: '1px dashed #cbc6b8' }} />}
+                  <div style={{ position: 'relative', width: '100%', paddingBottom: '75%', borderRadius: 6, overflow: 'hidden', background: '#f6f4ef', border: '1px dashed #cbc6b8' }}>
+                    {img && <img src={img} alt={label} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />}
+                  </div>
                   <span style={{ fontSize: '0.8rem', fontWeight: 700, textAlign: 'center', color: '#1c1f1a' }}>{label}</span>
                 </div>
               )
             })
           : tiles.map((c, i) => (
               <a key={i} href={`/collections/${c.handle}`} onClick={e => e.preventDefault()} style={{ textDecoration: 'none', color: '#1c1f1a', display: 'flex', flexDirection: 'column', gap: '0.4rem', minWidth: 0 }}>
-                {c.image ? <img src={c.image} alt={c.label} style={{ width: '100%', aspectRatio: '4/3', objectFit: 'cover', borderRadius: 6, border: '1px solid #e3e0d6' }} /> : <div style={{ aspectRatio: '4/3', background: '#f6f4ef', borderRadius: 6, border: '1px solid #e3e0d6' }} />}
+                <div style={{ position: 'relative', width: '100%', paddingBottom: '75%', borderRadius: 6, overflow: 'hidden', background: '#f6f4ef', border: '1px solid #e3e0d6' }}>
+                  {c.image && <img src={c.image} alt={c.label} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />}
+                </div>
                 <span style={{ fontSize: '0.8rem', fontWeight: 700, textAlign: 'center' }}>{c.label}</span>
               </a>
             ))}
