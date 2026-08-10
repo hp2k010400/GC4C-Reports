@@ -521,7 +521,11 @@ export default function BrandHubTemplate() {
       const res = await fetch('/api/marketing/brand-hub-push-live', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ handle: targetHandle.trim(), confirmHandle: targetHandle.trim(), brandName, ...parsed }),
+        // ...parsed spread FIRST: parsed also has its own `handle` field (the
+        // doc's own Suggested URL, often blank) — spreading it after the real
+        // target handle would silently overwrite what's actually typed in the
+        // box above with that, sending the wrong (or empty) handle instead.
+        body: JSON.stringify({ ...parsed, brandName, handle: targetHandle.trim(), confirmHandle: targetHandle.trim() }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
