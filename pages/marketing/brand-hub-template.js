@@ -440,7 +440,7 @@ export default function BrandHubTemplate() {
   const [brandName, setBrandName] = useState('TaylorMade')
   const [parsed, setParsed] = useState(EMPTY)
   const [status, setStatus] = useState('')
-  const [targetHandle, setTargetHandle] = useState('marketing-automation-test-page')
+  const [targetHandle, setTargetHandle] = useState('marketing-automation-test')
   const [pushState, setPushState] = useState('idle')
   const [pushError, setPushError] = useState(null)
   const [originalContent, setOriginalContent] = useState(null)
