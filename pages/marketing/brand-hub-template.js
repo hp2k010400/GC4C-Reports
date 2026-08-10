@@ -268,10 +268,8 @@ function BrandHubPreview({ brand, parsed, resolved }) {
         .bh-why-item a { font-size: 0.85rem; font-weight: 700; color: #20842e; text-decoration: underline; display: inline-block; margin-top: 0.4rem; }
         .bh-hub-links { display: flex; flex-wrap: wrap; gap: 0.7rem; justify-content: center; margin-top: 1.5rem; }
         .bh-hub-link { text-decoration: none; color: #1c1f1a; font-weight: 700; font-size: 0.9rem; padding: 0.6rem 1.1rem; border: 1px solid #e3e0d6; border-radius: 999px; }
-        .bh-clubhouse { background: #005f2c; color: #fff; }
-        .bh-clubhouse h2 { color: #fff; margin: 0; }
-        .bh-clubhouse p { color: #fff; opacity: 0.92; margin-top: 0.8rem; }
-        .bh-clubhouse .bh-cta { background: #fff; color: #005f2c; }
+        .bh-clubhouse h2 { margin: 0; }
+        .bh-clubhouse p { margin-top: 0.8rem; }
         @media (max-width: 860px) { .bh-tile-grid { grid-template-columns: repeat(2, 1fr); } }
       `}</style>
 
