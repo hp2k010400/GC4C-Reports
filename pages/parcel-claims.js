@@ -521,15 +521,11 @@ export default function ParcelClaimsPage() {
                 <th>Date</th>
                 <th>Customer</th>
                 <th>Courier</th>
-                <th style={{ textAlign: 'right' }}>Retail</th>
-                <th style={{ textAlign: 'right' }}>Cost</th>
-                <th style={{ textAlign: 'right' }}>Claim Amount</th>
-                <th>Claim Ref</th>
-                <th>Stage</th>
-                <th>Issue</th>
+                <th style={{ textAlign: 'right' }}>Retail / Cost</th>
+                <th style={{ textAlign: 'right' }}>Claim Amount / Ref</th>
+                <th>Stage / Issue</th>
                 <th>Claim Status</th>
                 <th>Notes</th>
-                <th></th>
               </tr>
             </thead>
             <tbody>
@@ -553,13 +549,17 @@ export default function ParcelClaimsPage() {
                         <div>{row.courier}</div>
                         <div style={{ fontSize: 10, color: '#aaa' }} className="sku-cell">{row.consignment_ref || '—'}</div>
                       </td>
-                      <td style={{ textAlign: 'right' }}>{editableNumber(row, 'retail')}</td>
-                      <td style={{ textAlign: 'right' }}>{editableNumber(row, 'cost')}</td>
-                      <td style={{ textAlign: 'right' }}>
-                        {editableNumber(row, 'claim_amount')}
-                        {overCap(row) && <span className="cap-warning">OVER £{CLAIM_CAP}</span>}
+                      <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+                        <div>{editableNumber(row, 'retail')}</div>
+                        <div style={{ fontSize: 10, color: '#aaa' }}>{editableNumber(row, 'cost')}</div>
                       </td>
-                      <td>{editableText(row, 'claim_ref', row.claim_ref || '—')}</td>
+                      <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+                        <div>
+                          {editableNumber(row, 'claim_amount')}
+                          {overCap(row) && <span className="cap-warning">OVER £{CLAIM_CAP}</span>}
+                        </div>
+                        <div style={{ fontSize: 10, color: '#aaa' }}>{editableText(row, 'claim_ref', row.claim_ref || '—')}</div>
+                      </td>
                       <td>
                         <select
                           className={`status-badge ${stageColour(row.stage)} editable-select`}
@@ -568,14 +568,14 @@ export default function ParcelClaimsPage() {
                         >
                           {STAGES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
                         </select>
-                      </td>
-                      <td>
+                        <br />
                         <select
                           className={`status-badge ${row.issue_type ? issueColour(row.issue_type) : ''} editable-select`}
                           value={row.issue_type || ''}
                           onChange={e => quickSelect(row, 'issue_type', e.target.value)}
+                          style={{ marginTop: 3 }}
                         >
-                          <option value="">—</option>
+                          <option value="">No issue set</option>
                           {ISSUE_TYPES.map(i => <option key={i.value} value={i.value}>{i.label}</option>)}
                         </select>
                       </td>
@@ -594,19 +594,17 @@ export default function ParcelClaimsPage() {
                           </div>
                         )}
                       </td>
-                      <td>{editableText(row, 'notes', row.notes || '—')}</td>
-                      <td>
-                        <button className="btn btn-secondary" style={{ fontSize: 11, padding: '3px 8px' }} onClick={() => deleteRow(row)}>
-                          Delete
-                        </button>
-                      </td>
+                      <td className="notes-cell">{editableText(row, 'notes', row.notes || '—')}</td>
                     </tr>
                     {isOpen && (
                       <tr>
-                        <td colSpan={13} className="expanded-detail">
+                        <td colSpan={9} className="expanded-detail">
                           <div className="return-block">
-                            <div className="return-block-header" style={{ marginBottom: 8 }}>
+                            <div className="return-block-header" style={{ marginBottom: 8, justifyContent: 'space-between', display: 'flex' }}>
                               <strong>Previous claims for {row.customer_name}</strong>
+                              <button className="btn btn-secondary" style={{ fontSize: 11, padding: '3px 8px' }} onClick={() => deleteRow(row)}>
+                                Delete this claim
+                              </button>
                             </div>
                             {historyLoading[row.id] ? (
                               <div style={{ fontSize: 12, color: '#888' }}>Loading…</div>

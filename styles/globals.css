@@ -1256,6 +1256,17 @@ tbody tr:hover td { background: #f0f9f4 !important; }
   white-space: nowrap;
 }
 
+/* --- Missing Parcels: truncated notes column (full text on click-to-edit) --- */
+.notes-cell {
+  max-width: 220px;
+}
+.notes-cell .editable-cell {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* --- Missing Parcels: click-to-edit cells --- */
 .editable-cell {
   cursor: text;
