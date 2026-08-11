@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import {
   DPD_RATE_PER_KG, COURIERS, STAGES, ISSUE_TYPES, CLAIM_STATUSES,
-  stageLabel, stageColour, issueColour, claimStatusLabel, claimStatusColour,
+  stageLabel, stageColour, stageRowBg, issueColour, claimStatusLabel, claimStatusColour,
   expectedPayout, expectedShortfall, fmtGbp, fmtDate, today,
 } from '../lib/parcelClaims'
 
@@ -402,14 +402,23 @@ export default function ParcelClaimsPage() {
       )}
 
       {/* --- Colour key (same meanings as the old sheet's two colour columns) --- */}
-      <div className="returns-legend">
-        {STAGES.map(s => (
-          <span key={s.value} className={`status-badge ${s.colour}`}>{s.label}</span>
-        ))}
-        <span style={{ margin: '0 4px', color: '#ccc' }}>|</span>
-        {ISSUE_TYPES.map(i => (
-          <span key={i.value} className={`status-badge ${i.colour}`}>{i.label}</span>
-        ))}
+      <div className="colour-key">
+        <div className="colour-key-row">
+          <span className="colour-key-title">Stage</span>
+          <div className="chip-bar">
+            {STAGES.map(s => (
+              <span key={s.value} className={`status-badge ${s.colour}`}>{s.label}</span>
+            ))}
+          </div>
+        </div>
+        <div className="colour-key-row">
+          <span className="colour-key-title">Issue</span>
+          <div className="chip-bar">
+            {ISSUE_TYPES.map(i => (
+              <span key={i.value} className={`status-badge ${i.colour}`}>{i.label}</span>
+            ))}
+          </div>
+        </div>
       </div>
 
       {/* --- Filters --- */}
@@ -555,34 +564,35 @@ export default function ParcelClaimsPage() {
               {rows.map(row => {
                 const isOpen = expanded.has(row.id)
                 const history = historyByRow[row.id]
+                const bg = stageRowBg(row.stage)
                 return (
                   <React.Fragment key={row.id}>
                     <tr>
-                      <td style={{ color: '#888', fontSize: 11, textAlign: 'center', cursor: 'pointer' }} onClick={() => toggleExpand(row)}>
+                      <td style={{ color: '#888', fontSize: 11, textAlign: 'center', cursor: 'pointer', backgroundColor: bg }} onClick={() => toggleExpand(row)}>
                         {isOpen ? '▾' : '▸'}
                       </td>
-                      <td style={{ whiteSpace: 'nowrap' }}>{editableText(row, 'date_started', fmtDate(row.date_started))}</td>
-                      <td>
+                      <td style={{ whiteSpace: 'nowrap', backgroundColor: bg }}>{editableText(row, 'date_started', fmtDate(row.date_started))}</td>
+                      <td style={{ backgroundColor: bg }}>
                         <div style={{ fontWeight: 500 }}>{editableText(row, 'customer_name', row.customer_name)}</div>
                         <div style={{ fontSize: 11, color: '#888', marginTop: 1 }}>
                           {row.email || '—'}{row.ebay_username ? ` · eBay: ${row.ebay_username}` : ''}
                         </div>
                       </td>
-                      <td>
+                      <td style={{ backgroundColor: bg }}>
                         <div>{row.courier}</div>
                         <div style={{ fontSize: 10, color: '#aaa' }} className="sku-cell">{row.consignment_ref || '—'}</div>
                       </td>
-                      <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+                      <td style={{ textAlign: 'right', whiteSpace: 'nowrap', backgroundColor: bg }}>
                         <div>{editableNumber(row, 'retail')}</div>
                         <div style={{ fontSize: 10, color: '#aaa' }}>{editableNumber(row, 'cost')}</div>
                         <div style={{ fontSize: 10, color: '#aaa' }}>{editableNumber(row, 'weight_kg', v => `${v}kg`)}</div>
                       </td>
-                      <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+                      <td style={{ textAlign: 'right', whiteSpace: 'nowrap', backgroundColor: bg }}>
                         <div>{editableNumber(row, 'claim_amount')}</div>
                         <div style={{ fontSize: 10, color: '#aaa' }}>{editableText(row, 'claim_ref', row.claim_ref || '—')}</div>
                         {shortfallInfo(row) != null && <span className="cap-warning">SHORT £{shortfallInfo(row).toFixed(2)}</span>}
                       </td>
-                      <td>
+                      <td style={{ backgroundColor: bg }}>
                         <select
                           className={`status-badge ${stageColour(row.stage)} editable-select`}
                           value={row.stage}
@@ -601,7 +611,7 @@ export default function ParcelClaimsPage() {
                           {ISSUE_TYPES.map(i => <option key={i.value} value={i.value}>{i.label}</option>)}
                         </select>
                       </td>
-                      <td>
+                      <td style={{ backgroundColor: bg }}>
                         <select
                           className={`status-badge ${claimStatusColour(row.claim_status)} editable-select`}
                           value={row.claim_status}
@@ -616,7 +626,7 @@ export default function ParcelClaimsPage() {
                           </div>
                         )}
                       </td>
-                      <td className="notes-cell">{editableText(row, 'notes', row.notes || '—')}</td>
+                      <td className="notes-cell" style={{ backgroundColor: bg }}>{editableText(row, 'notes', row.notes || '—')}</td>
                     </tr>
                     {isOpen && (
                       <tr>
