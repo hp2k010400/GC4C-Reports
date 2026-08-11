@@ -40,7 +40,9 @@ async function handleGet(req, res) {
 
   const lim = Math.min(parseInt(limit, 10) || DEFAULT_LIMIT, 500)
   const off = parseInt(offset, 10) || 0
-  query = query.order('date_started', { ascending: false }).range(off, off + lim - 1)
+  // nullsFirst: false — rows with no date (mostly historical imports where the
+  // sheet never had one) sort to the bottom instead of swamping the top.
+  query = query.order('date_started', { ascending: false, nullsFirst: false }).range(off, off + lim - 1)
 
   const { data, error, count } = await query
   if (error) return res.status(500).json({ error: error.message })
