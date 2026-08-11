@@ -8,13 +8,43 @@ import { expectedShortfall } from '../../../lib/parcelClaims'
 export default async function handler(req, res) {
   if (req.method !== 'GET') return res.status(405).end()
 
+  const { status, stage, courier, from, to, search } = req.query
   const supabase = getSupabase()
-  const { data, error } = await supabase
-    .from('parcel_claims')
-    .select('cost, claim_amount, weight_kg, stage, claim_status, courier, date_started')
-    .range(0, 19999)
 
-  if (error) return res.status(500).json({ error: error.message })
+  // Same optional filters as the list endpoint, so stats can reflect
+  // "what's on screen right now" when the user has filters applied — but
+  // with NO filters, stats stay all-time (not the default open-only list view).
+  function buildQuery() {
+    let q = supabase
+      .from('parcel_claims')
+      .select('cost, claim_amount, weight_kg, stage, claim_status, courier, date_started')
+    if (status) q = q.eq('claim_status', status)
+    if (stage) q = q.eq('stage', stage)
+    if (courier) q = q.eq('courier', courier)
+    if (from) q = q.gte('date_started', from)
+    if (to) q = q.lte('date_started', to)
+    if (search && search.trim()) {
+      const s = search.trim().replace(/[,%()]/g, '')
+      if (s) {
+        q = q.or(`customer_name.ilike.%${s}%,email.ilike.%${s}%,ebay_username.ilike.%${s}%,consignment_ref.ilike.%${s}%,claim_ref.ilike.%${s}%`)
+      }
+    }
+    return q
+  }
+
+  // Supabase/PostgREST caps any single request at 1,000 rows regardless of
+  // .range() — loop in 1,000-row pages until a page comes back short, or
+  // this silently truncates every total once the table passes 1,000 rows.
+  const PAGE_SIZE = 1000
+  let data = []
+  let offset = 0
+  while (true) {
+    const { data: page, error } = await buildQuery().range(offset, offset + PAGE_SIZE - 1)
+    if (error) return res.status(500).json({ error: error.message })
+    data = data.concat(page)
+    if (page.length < PAGE_SIZE) break
+    offset += PAGE_SIZE
+  }
 
   let openCostExposure = 0
   let totalClaimed = 0

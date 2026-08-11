@@ -141,7 +141,16 @@ export default function ParcelClaimsPage() {
   const loadStats = useCallback(async () => {
     setStatsLoading(true)
     try {
-      const res = await fetch('/api/parcel-claims/stats')
+      // Stats/chart reflect whatever filters are currently applied (status,
+      // stage, courier, date range, search) — with none set, it's all-time.
+      const params = new URLSearchParams()
+      if (statusFilter) params.set('status', statusFilter)
+      if (stageFilter) params.set('stage', stageFilter)
+      if (courierFilter) params.set('courier', courierFilter)
+      if (dateFrom) params.set('from', dateFrom)
+      if (dateTo) params.set('to', dateTo)
+      if (searchLive.trim()) params.set('search', searchLive.trim())
+      const res = await fetch(`/api/parcel-claims/stats?${params}`)
       const data = await res.json()
       if (res.ok) setStats(data)
     } catch {
@@ -149,7 +158,7 @@ export default function ParcelClaimsPage() {
     } finally {
       setStatsLoading(false)
     }
-  }, [])
+  }, [statusFilter, stageFilter, courierFilter, dateFrom, dateTo, searchLive])
 
   useEffect(() => { if (unlocked) { loadRows(); loadStats() } }, [unlocked, loadRows, loadStats])
 
@@ -341,6 +350,11 @@ export default function ParcelClaimsPage() {
       </div>
 
       {/* --- Stats --- */}
+      <div style={{ fontSize: 11, fontWeight: 700, color: '#005F2C', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>
+        {statusFilter || stageFilter || courierFilter || dateFrom || dateTo || searchLive.trim()
+          ? 'Stats below reflect your current filters'
+          : 'Stats below are all-time (no filters applied)'}
+      </div>
       <div className="stats-bar">
         <div className="stat-card">
           <div className="stat-label">Open Cost Exposure</div>
