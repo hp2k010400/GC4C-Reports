@@ -42,6 +42,15 @@ function downloadCSV(rows, filename) {
   URL.revokeObjectURL(url)
 }
 
+function daysAgo(n) {
+  return new Date(Date.now() - n * 86400000).toISOString().slice(0, 10)
+}
+
+function startOfMonth() {
+  const d = new Date()
+  return new Date(d.getFullYear(), d.getMonth(), 1).toISOString().slice(0, 10)
+}
+
 function monthLabel(ym) {
   const [y, m] = (ym || '').split('-')
   if (!y || !m) return ym
@@ -67,6 +76,8 @@ export default function ParcelClaimsPage() {
   const [stageFilter, setStageFilter] = useState('')
   const [courierFilter, setCourierFilter] = useState('')
   const [showClosed, setShowClosed] = useState(false)
+  const [dateFrom, setDateFrom] = useState('')
+  const [dateTo, setDateTo] = useState('')
   const [search, setSearch] = useState('')
   const searchDebounce = useRef(null)
   const [searchLive, setSearchLive] = useState('')
@@ -112,6 +123,8 @@ export default function ParcelClaimsPage() {
       if (stageFilter) params.set('stage', stageFilter)
       if (courierFilter) params.set('courier', courierFilter)
       if (showClosed) params.set('closed', '1')
+      if (dateFrom) params.set('from', dateFrom)
+      if (dateTo) params.set('to', dateTo)
       if (searchLive.trim()) params.set('search', searchLive.trim())
       const res = await fetch(`/api/parcel-claims?${params}`)
       const data = await res.json()
@@ -123,7 +136,7 @@ export default function ParcelClaimsPage() {
     } finally {
       setLoading(false)
     }
-  }, [statusFilter, stageFilter, courierFilter, showClosed, searchLive])
+  }, [statusFilter, stageFilter, courierFilter, showClosed, dateFrom, dateTo, searchLive])
 
   const loadStats = useCallback(async () => {
     setStatsLoading(true)
@@ -417,6 +430,25 @@ export default function ParcelClaimsPage() {
             <option value="">All couriers</option>
             {COURIERS.map(c => <option key={c} value={c}>{c}</option>)}
           </select>
+          <div className="field" style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <label style={{ fontSize: 12, color: '#888' }}>Started</label>
+            <input className="form-input" type="date" style={{ maxWidth: 140 }} value={dateFrom} max={dateTo || undefined} onChange={e => setDateFrom(e.target.value)} />
+            <span style={{ color: '#aaa' }}>–</span>
+            <input className="form-input" type="date" style={{ maxWidth: 140 }} value={dateTo} min={dateFrom || undefined} onChange={e => setDateTo(e.target.value)} />
+            {(dateFrom || dateTo) && (
+              <button className="filter-remove" onClick={() => { setDateFrom(''); setDateTo('') }} title="Clear date filter">×</button>
+            )}
+          </div>
+          {[
+            { label: '7 days', from: () => daysAgo(6) },
+            { label: '30 days', from: () => daysAgo(29) },
+            { label: '90 days', from: () => daysAgo(89) },
+            { label: 'This month', from: startOfMonth },
+          ].map(p => (
+            <button key={p.label} className="preset-btn" onClick={() => { setDateFrom(p.from()); setDateTo(today()) }}>
+              {p.label}
+            </button>
+          ))}
         </div>
       </div>
 
