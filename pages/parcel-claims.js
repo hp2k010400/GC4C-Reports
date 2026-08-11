@@ -1,16 +1,16 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import {
-  CLAIM_CAP, COURIERS, STAGES, ISSUE_TYPES, CLAIM_STATUSES,
+  DPD_RATE_PER_KG, COURIERS, STAGES, ISSUE_TYPES, CLAIM_STATUSES,
   stageLabel, stageColour, issueColour, claimStatusLabel, claimStatusColour,
-  fmtGbp, fmtDate, today,
+  expectedPayout, expectedShortfall, fmtGbp, fmtDate, today,
 } from '../lib/parcelClaims'
 
 function emptyForm() {
   return {
     date_started: today(), customer_name: '', email: '', ebay_username: '',
     courier: 'DPD', consignment_ref: '', retail: '', cost: '', claim_amount: '',
-    claim_ref: '', stage: 'investigating', issue_type: '', notes: '', handled_by: '',
+    claim_ref: '', weight_kg: '', stage: 'investigating', issue_type: '', notes: '', handled_by: '',
   }
 }
 
@@ -255,10 +255,14 @@ export default function ParcelClaimsPage() {
     }
   }
 
-  function overCap(row) {
-    const claimed = row.claim_amount != null ? row.claim_amount : row.cost
+  // Shortfall badge — only meaningful once weight is recorded (payout is
+  // weight-based, £12/kg, not a flat cap). Positive shortfall + still open = flag it.
+  function shortfallInfo(row) {
     const isClosed = row.stage === 'delivered_ok' || ['settled', 'denied'].includes(row.claim_status)
-    return !isClosed && claimed != null && claimed > CLAIM_CAP
+    if (isClosed) return null
+    const shortfall = expectedShortfall(row)
+    if (shortfall == null || shortfall <= 0) return null
+    return shortfall
   }
 
   function editableText(row, field, display) {
@@ -282,7 +286,7 @@ export default function ParcelClaimsPage() {
     )
   }
 
-  function editableNumber(row, field) {
+  function editableNumber(row, field, fmt = fmtGbp) {
     const isEditing = editing?.id === row.id && editing?.field === field
     if (isEditing) {
       return (
@@ -301,7 +305,7 @@ export default function ParcelClaimsPage() {
     }
     return (
       <span className="editable-cell" onClick={() => startEdit(row, field, row[field])}>
-        {row[field] != null ? fmtGbp(row[field]) : '—'}
+        {row[field] != null ? fmt(row[field]) : '—'}
       </span>
     )
   }
@@ -357,11 +361,14 @@ export default function ParcelClaimsPage() {
           </div>
         </div>
         <div className="stat-card">
-          <div className="stat-label">Over £{CLAIM_CAP} Cap</div>
-          <div className="stat-value" style={{ color: stats?.overCapCount > 0 ? '#dc2626' : undefined }}>
-            {stats ? stats.overCapCount : '—'}
+          <div className="stat-label">Expected Shortfall (weighed)</div>
+          <div className="stat-value" style={{ color: stats?.totalExpectedShortfall > 0 ? '#dc2626' : undefined }}>
+            {stats ? fmtGbp(stats.totalExpectedShortfall) : '—'}
           </div>
         </div>
+      </div>
+      <div style={{ fontSize: 11, color: '#999', marginTop: -6, marginBottom: 12 }}>
+        DPD pays £{DPD_RATE_PER_KG}/kg of declared or scanned weight — Expected Shortfall is cost minus that payout, for open cases where a weight has been entered.
       </div>
 
       {/* --- Running total chart --- */}
@@ -472,9 +479,13 @@ export default function ParcelClaimsPage() {
           <div className="filter-row">
             <input className="form-input" style={{ maxWidth: 130 }} type="number" step="0.01" placeholder="Retail £" value={form.retail} onChange={e => setForm(f => ({ ...f, retail: e.target.value }))} />
             <input className="form-input" style={{ maxWidth: 130 }} type="number" step="0.01" placeholder="Cost £" value={form.cost} onChange={e => setForm(f => ({ ...f, cost: e.target.value }))} />
+            <input className="form-input" style={{ maxWidth: 130 }} type="number" step="0.01" placeholder="Claim amount £" value={form.claim_amount} onChange={e => setForm(f => ({ ...f, claim_amount: e.target.value }))} />
             <div>
-              <input className="form-input" style={{ maxWidth: 130 }} type="number" step="0.01" placeholder={`Claim amount £`} value={form.claim_amount} onChange={e => setForm(f => ({ ...f, claim_amount: e.target.value }))} />
-              {form.claim_amount && Number(form.claim_amount) > CLAIM_CAP && <span className="cap-warning">OVER £{CLAIM_CAP}</span>}
+              <input className="form-input" style={{ maxWidth: 130 }} type="number" step="0.01" placeholder="Weight (kg)" value={form.weight_kg} onChange={e => setForm(f => ({ ...f, weight_kg: e.target.value }))} />
+              {form.weight_kg && form.cost && (() => {
+                const s = expectedShortfall({ weight_kg: form.weight_kg, cost: form.cost })
+                return s > 0 ? <span className="cap-warning">SHORT £{s.toFixed(2)}</span> : null
+              })()}
             </div>
           </div>
           <div className="filter-row">
@@ -521,7 +532,7 @@ export default function ParcelClaimsPage() {
                 <th>Date</th>
                 <th>Customer</th>
                 <th>Courier</th>
-                <th style={{ textAlign: 'right' }}>Retail / Cost</th>
+                <th style={{ textAlign: 'right' }}>Retail / Cost / Weight</th>
                 <th style={{ textAlign: 'right' }}>Claim Amount / Ref</th>
                 <th>Stage / Issue</th>
                 <th>Claim Status</th>
@@ -552,13 +563,12 @@ export default function ParcelClaimsPage() {
                       <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
                         <div>{editableNumber(row, 'retail')}</div>
                         <div style={{ fontSize: 10, color: '#aaa' }}>{editableNumber(row, 'cost')}</div>
+                        <div style={{ fontSize: 10, color: '#aaa' }}>{editableNumber(row, 'weight_kg', v => `${v}kg`)}</div>
                       </td>
                       <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
-                        <div>
-                          {editableNumber(row, 'claim_amount')}
-                          {overCap(row) && <span className="cap-warning">OVER £{CLAIM_CAP}</span>}
-                        </div>
+                        <div>{editableNumber(row, 'claim_amount')}</div>
                         <div style={{ fontSize: 10, color: '#aaa' }}>{editableText(row, 'claim_ref', row.claim_ref || '—')}</div>
+                        {shortfallInfo(row) != null && <span className="cap-warning">SHORT £{shortfallInfo(row).toFixed(2)}</span>}
                       </td>
                       <td>
                         <select

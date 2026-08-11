@@ -3,11 +3,11 @@ import { isValidStage, isValidIssueType, isValidClaimStatus, today } from '../..
 
 const EDITABLE_FIELDS = [
   'date_started', 'customer_name', 'email', 'ebay_username', 'courier',
-  'consignment_ref', 'retail', 'cost', 'claim_amount', 'claim_ref',
+  'consignment_ref', 'retail', 'cost', 'claim_amount', 'claim_ref', 'weight_kg',
   'stage', 'issue_type', 'claim_status', 'claim_form_sent_at',
   'claim_form_received_at', 'notes', 'handled_by',
 ]
-const NUMERIC_FIELDS = ['retail', 'cost', 'claim_amount']
+const NUMERIC_FIELDS = ['retail', 'cost', 'claim_amount', 'weight_kg']
 
 export default async function handler(req, res) {
   const { id } = req.query

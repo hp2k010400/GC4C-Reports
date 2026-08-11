@@ -75,6 +75,7 @@ async function handlePost(req, res) {
     retail: body.retail === '' || body.retail == null ? null : Number(body.retail),
     cost: body.cost === '' || body.cost == null ? null : Number(body.cost),
     claim_amount: body.claim_amount === '' || body.claim_amount == null ? null : Number(body.claim_amount),
+    weight_kg: body.weight_kg === '' || body.weight_kg == null ? null : Number(body.weight_kg),
     claim_ref: body.claim_ref?.trim() || null,
     stage: body.stage || 'investigating',
     issue_type: body.issue_type || null,

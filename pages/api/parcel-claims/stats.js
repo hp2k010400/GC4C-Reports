@@ -1,5 +1,5 @@
 import { getSupabase } from '../../../lib/supabase'
-import { CLAIM_CAP } from '../../../lib/parcelClaims'
+import { expectedShortfall } from '../../../lib/parcelClaims'
 
 // Aggregates are computed here (server-side, over a lean column selection)
 // rather than shipping all 5,000+ raw rows to the browser just to sum them —
@@ -11,7 +11,7 @@ export default async function handler(req, res) {
   const supabase = getSupabase()
   const { data, error } = await supabase
     .from('parcel_claims')
-    .select('cost, claim_amount, stage, claim_status, courier, date_started')
+    .select('cost, claim_amount, weight_kg, stage, claim_status, courier, date_started')
     .range(0, 19999)
 
   if (error) return res.status(500).json({ error: error.message })
@@ -20,7 +20,7 @@ export default async function handler(req, res) {
   let totalClaimed = 0
   let totalRecovered = 0
   let totalDenied = 0
-  let overCapCount = 0
+  let totalExpectedShortfall = 0
   const byCourier = {}
   const monthly = {} // { 'YYYY-MM': { cost: n, recovered: n } }
 
@@ -32,8 +32,8 @@ export default async function handler(req, res) {
 
     if (!isClosed) {
       openCostExposure += cost
-      const claimedForCap = claimAmount != null ? claimAmount : cost
-      if (claimedForCap > CLAIM_CAP) overCapCount += 1
+      const shortfall = expectedShortfall(r)
+      if (shortfall != null && shortfall > 0) totalExpectedShortfall += shortfall
 
       if (!byCourier[r.courier || 'Unknown']) byCourier[r.courier || 'Unknown'] = { courier: r.courier || 'Unknown', count: 0, cost: 0 }
       byCourier[r.courier || 'Unknown'].count += 1
@@ -78,7 +78,7 @@ export default async function handler(req, res) {
     totalClaimed: parseFloat(totalClaimed.toFixed(2)),
     totalRecovered: parseFloat(totalRecovered.toFixed(2)),
     totalDenied: parseFloat(totalDenied.toFixed(2)),
-    overCapCount,
+    totalExpectedShortfall: parseFloat(totalExpectedShortfall.toFixed(2)),
     byCourier: Object.values(byCourier).sort((a, b) => b.cost - a.cost),
     series,
     totalRows: data.length,
