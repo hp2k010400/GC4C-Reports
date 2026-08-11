@@ -3,7 +3,7 @@ import { isValidStage, isValidIssueType, isValidClaimStatus, today } from '../..
 
 const EDITABLE_FIELDS = [
   'date_started', 'customer_name', 'email', 'ebay_username', 'courier',
-  'consignment_ref', 'retail', 'cost', 'claim_amount', 'claim_ref', 'weight_kg',
+  'consignment_ref', 'value_tier', 'retail', 'cost', 'claim_amount', 'claim_ref', 'weight_kg',
   'stage', 'issue_type', 'claim_status', 'claim_form_sent_at',
   'claim_form_received_at', 'notes', 'handled_by',
 ]

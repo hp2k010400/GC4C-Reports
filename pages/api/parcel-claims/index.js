@@ -72,6 +72,7 @@ async function handlePost(req, res) {
     ebay_username: body.ebay_username?.trim() || null,
     courier: body.courier?.trim() || 'DPD',
     consignment_ref: body.consignment_ref?.trim() || null,
+    value_tier: body.value_tier?.trim() || null,
     retail: body.retail === '' || body.retail == null ? null : Number(body.retail),
     cost: body.cost === '' || body.cost == null ? null : Number(body.cost),
     claim_amount: body.claim_amount === '' || body.claim_amount == null ? null : Number(body.claim_amount),

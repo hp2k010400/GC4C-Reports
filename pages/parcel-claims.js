@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import {
-  DPD_RATE_PER_KG, DEFAULT_WEIGHT_KG, COURIERS, STAGES, ISSUE_TYPES, CLAIM_STATUSES,
+  DPD_RATE_PER_KG, DEFAULT_WEIGHT_KG, COURIERS, VALUE_TIERS, STAGES, ISSUE_TYPES, CLAIM_STATUSES,
   stageLabel, stageColour, stageRowBg, issueColour, claimStatusLabel, claimStatusColour,
   expectedPayout, expectedShortfall, fmtGbp, fmtDate, today,
 } from '../lib/parcelClaims'
@@ -9,7 +9,7 @@ import {
 function emptyForm() {
   return {
     date_started: today(), customer_name: '', email: '', ebay_username: '',
-    courier: 'DPD', consignment_ref: '', retail: '', cost: '', claim_amount: '',
+    courier: 'DPD', consignment_ref: '', value_tier: '', retail: '', cost: '', claim_amount: '',
     // DPD is always declared at 10kg regardless of the actual item (confirmed
     // with Phil Barron 2026-08-11) - default here, still editable for the
     // rare case DPD pays out differently.
@@ -513,6 +513,10 @@ export default function ParcelClaimsPage() {
             </select>
             <input className="form-input" placeholder="Consignment ref" value={form.consignment_ref} onChange={e => setForm(f => ({ ...f, consignment_ref: e.target.value }))} />
             <input className="form-input" placeholder="Claim ref" value={form.claim_ref} onChange={e => setForm(f => ({ ...f, claim_ref: e.target.value }))} />
+            <select className="form-select" style={{ maxWidth: 130 }} value={form.value_tier} onChange={e => setForm(f => ({ ...f, value_tier: e.target.value }))}>
+              <option value="">Value tier?</option>
+              {VALUE_TIERS.map(v => <option key={v} value={v}>{v}</option>)}
+            </select>
           </div>
           <div className="filter-row">
             <input className="form-input" style={{ maxWidth: 130 }} type="number" step="0.01" placeholder="Retail £" value={form.retail} onChange={e => setForm(f => ({ ...f, retail: e.target.value }))} />
@@ -596,7 +600,7 @@ export default function ParcelClaimsPage() {
                         </div>
                       </td>
                       <td style={{ backgroundColor: bg }}>
-                        <div>{row.courier}</div>
+                        <div>{row.courier}{row.value_tier && <span style={{ marginLeft: 5, fontSize: 10, color: '#888' }}>({row.value_tier})</span>}</div>
                         <div style={{ fontSize: 10, color: '#aaa' }} className="sku-cell">{row.consignment_ref || '—'}</div>
                       </td>
                       <td style={{ textAlign: 'right', whiteSpace: 'nowrap', backgroundColor: bg }}>
