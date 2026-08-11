@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import {
-  DPD_RATE_PER_KG, COURIERS, STAGES, ISSUE_TYPES, CLAIM_STATUSES,
+  DPD_RATE_PER_KG, DEFAULT_WEIGHT_KG, COURIERS, STAGES, ISSUE_TYPES, CLAIM_STATUSES,
   stageLabel, stageColour, stageRowBg, issueColour, claimStatusLabel, claimStatusColour,
   expectedPayout, expectedShortfall, fmtGbp, fmtDate, today,
 } from '../lib/parcelClaims'
@@ -10,7 +10,10 @@ function emptyForm() {
   return {
     date_started: today(), customer_name: '', email: '', ebay_username: '',
     courier: 'DPD', consignment_ref: '', retail: '', cost: '', claim_amount: '',
-    claim_ref: '', weight_kg: '', stage: 'investigating', issue_type: '', notes: '', handled_by: '',
+    // DPD is always declared at 10kg regardless of the actual item (confirmed
+    // with Phil Barron 2026-08-11) - default here, still editable for the
+    // rare case DPD pays out differently.
+    claim_ref: '', weight_kg: String(DEFAULT_WEIGHT_KG), stage: 'investigating', issue_type: '', notes: '', handled_by: '',
   }
 }
 
