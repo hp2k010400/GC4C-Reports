@@ -228,11 +228,14 @@ function BrandHubPreview({ brand, parsed, resolved }) {
           font-weight: 700; font-style: normal; font-display: swap;
         }
         .bh-preview { font-family: 'Open Sans Condensed Preview', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #fff; color: #1c1f1a; width: 100%; box-sizing: border-box; }
-        .bh-wrap { max-width: 960px; margin: 0 auto; padding: 0 1.75rem; box-sizing: border-box; }
+        /* 1600px matches the real site's current --container-width (verified
+           live, not the 1140px value from the older note). Tile grids use the
+           full width like real product grids; .bh-copy keeps prose readable. */
+        .bh-wrap { max-width: 1600px; margin: 0 auto; padding: 0 1.75rem; box-sizing: border-box; }
         .bh-copy { max-width: 900px; margin: 0 auto; }
         .bh-hero { padding: 2.4rem 0 1rem; }
-        .bh-hero h1 { font-size: clamp(1.9rem, 3.6vw, 2.5rem); font-weight: 700; margin: 0 auto; max-width: 20ch; text-align: center; }
-        .bh-hero p { margin-top: 1rem; color: #5b6259; font-size: 1.02rem; }
+        .bh-hero h1 { font-size: 34px; line-height: 50px; font-weight: 600; margin: 0 auto; max-width: 20ch; text-align: center; }
+        .bh-hero p { margin-top: 1rem; color: #5b6259; font-size: 20px; line-height: 32px; }
         .bh-preview p a, .bh-preview .bh-faq p a { color: #20842e; font-weight: 700; text-decoration: underline; }
         .bh-hero p + p { margin-top: 0.9rem; }
         .bh-band { padding: 2.4rem 0; border-top: 1px solid #e3e0d6; }
@@ -249,11 +252,13 @@ function BrandHubPreview({ brand, parsed, resolved }) {
            to collapse to invisible when min-width was added. Padding-bottom
            derives height purely from width, no such ambiguity, in every
            browser going back over a decade. */
-        .bh-tile { text-decoration: none; color: #1c1f1a; display: flex; flex-direction: column; gap: 0.5rem; min-width: 0; }
-        /* border-radius:0 matches the real site's product-card image corners (sharp, not rounded) */
-        .bh-tile .frame { position: relative; width: 100%; padding-bottom: 75%; border-radius: 0; overflow: hidden; background: #f6f4ef; border: 1px solid #e3e0d6; }
+        /* Card chrome (border/radius 4px/shadow/hover-lift) matches Stephen's
+           site-wide product-card spec, applied to the collection-tile equivalent. */
+        .bh-tile { text-decoration: none; color: #1c1f1a; display: flex; flex-direction: column; min-width: 0; background: #fff; border: 1px solid #d1d1d1; border-radius: 4px; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05); overflow: hidden; transition: 0.3s ease; padding-bottom: 15px; }
+        .bh-tile:hover { box-shadow: 0 12px 24px rgba(0, 0, 0, 0.15); transform: translateY(-5px) scale(1.02); }
+        .bh-tile .frame { position: relative; width: 100%; padding-bottom: 75%; background: #f6f4ef; margin-bottom: 0.6rem; }
         .bh-tile .frame img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
-        .bh-tile .name { font-size: 0.84rem; font-weight: 700; text-align: center; }
+        .bh-tile .name { font-size: 16px; font-weight: 700; text-align: center; padding: 0 15px; }
         .bh-tile .count { font-size: 0.65rem; font-weight: 400; color: #5b6259; margin-left: 2px; }
         .bh-cta { display: inline-block; margin-top: 1.2rem; background: #20842e; color: #fff; font-weight: 700; text-decoration: none; padding: 0.7rem 1.3rem; border-radius: 6px; font-size: 0.92rem; }
         .bh-faq { border-bottom: 1px solid #e3e0d6; padding: 0.9rem 0; }
@@ -261,7 +266,7 @@ function BrandHubPreview({ brand, parsed, resolved }) {
         .bh-faq summary::-webkit-details-marker { display: none; }
         .bh-faq summary::after { content: "+"; font-family: monospace; font-size: 1.2rem; color: #b5651d; flex: none; }
         .bh-faq[open] summary::after { content: "\\2212"; }
-        .bh-faq p { color: #5b6259; margin-top: 0.6rem; font-size: 0.92rem; }
+        .bh-faq p { color: #5b6259; margin-top: 0.6rem; font-size: 20px; line-height: 32px; }
         .bh-faq .faq-cta { display: inline-block; margin-top: 0.5rem; font-size: 0.85rem; font-weight: 700; color: #20842e; text-decoration: underline; }
         .bh-why-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.4rem; margin-top: 1.6rem; }
         .bh-why-item h3 { font-size: 1rem; margin: 0; }
@@ -362,7 +367,7 @@ function BrandHubPreview({ brand, parsed, resolved }) {
             <div className="bh-copy">
               <h2 className="bh-title">{parsed.whyBrandHeading}</h2>
               <div style={{ marginTop: '1rem' }}>
-                {parsed.whyBrandParagraphs.map((p, i) => <p key={i} style={{ color: '#5b6259', marginTop: '0.9rem' }} dangerouslySetInnerHTML={{ __html: p }} />)}
+                {parsed.whyBrandParagraphs.map((p, i) => <p key={i} style={{ color: '#5b6259', marginTop: '0.9rem', fontSize: 20, lineHeight: '32px' }} dangerouslySetInnerHTML={{ __html: p }} />)}
               </div>
             </div>
           </div>
@@ -374,7 +379,7 @@ function BrandHubPreview({ brand, parsed, resolved }) {
           <div className="bh-wrap">
             <div className="bh-copy">
               <h2 className="bh-title">Trade in your {brand} clubs</h2>
-              {parsed.tradeInParagraphs.map((p, i) => <p key={i} style={{ color: '#5b6259', marginTop: '0.9rem' }} dangerouslySetInnerHTML={{ __html: p }} />)}
+              {parsed.tradeInParagraphs.map((p, i) => <p key={i} style={{ color: '#5b6259', marginTop: '0.9rem', fontSize: 20, lineHeight: '32px' }} dangerouslySetInnerHTML={{ __html: p }} />)}
               <div style={{ textAlign: 'center' }}>
                 <a className="bh-cta" href="/pages/sell-your-clubs" onClick={e => e.preventDefault()}>Trade your clubs in here</a>
               </div>
@@ -420,7 +425,7 @@ function BrandHubPreview({ brand, parsed, resolved }) {
           <div className="bh-wrap">
             <div className="bh-copy">
               <h2>Go to the clubhouse</h2>
-              <p dangerouslySetInnerHTML={{ __html: parsed.guidesBody }} />
+              <p style={{ color: '#5b6259', fontSize: 20, lineHeight: '32px' }} dangerouslySetInnerHTML={{ __html: parsed.guidesBody }} />
               <div style={{ textAlign: 'center' }}>
                 <a className="bh-cta" href={parsed.guidesUrl} onClick={e => e.preventDefault()}>Read our {brand} guides</a>
               </div>

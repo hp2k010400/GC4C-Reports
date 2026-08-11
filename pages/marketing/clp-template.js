@@ -259,44 +259,42 @@ function TileRow({ title, items, placeholderLabels, labelImages }) {
   if (!tiles?.length) return null
   return (
     <div style={{ marginTop: '2rem' }}>
+      {/* Card chrome (border/radius/shadow/hover-lift) matches Stephen's site-wide
+          product-card spec, applied to the collection-tile equivalent. min-width:0
+          on .clp-tile is still load-bearing: grid items default to min-width:auto,
+          which otherwise lets one oversized real photo force its whole shared
+          column — every tile in it, every row — to blow out to fit it. */}
+      <style jsx>{`
+        .clp-tile-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-top: 1rem; }
+        .clp-tile { text-decoration: none; color: #1c1f1a; display: flex; flex-direction: column; min-width: 0; background: #fff; border: 1px solid #d1d1d1; border-radius: 4px; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05); overflow: hidden; transition: 0.3s ease; padding-bottom: 15px; }
+        .clp-tile:hover { box-shadow: 0 12px 24px rgba(0, 0, 0, 0.15); transform: translateY(-5px) scale(1.02); }
+        .clp-tile.placeholder { border-style: dashed; }
+        .clp-tile.placeholder:hover { box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05); transform: none; }
+        .clp-tile .frame { position: relative; width: 100%; padding-bottom: 75%; background: #f6f4ef; margin-bottom: 0.6rem; }
+        .clp-tile .frame img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+        .clp-tile .name { font-size: 16px; font-weight: 700; text-align: center; padding: 0 15px; }
+      `}</style>
       <h2 style={{ fontSize: '1.3rem', fontWeight: 700, textAlign: 'center' }}>{title}</h2>
       {usingPlaceholders && (
         <div style={{ textAlign: 'center', fontSize: 11.5, color: '#b5651d', marginTop: 4 }}>
           Real names from the doc, shown as placeholders — no links added yet
         </div>
       )}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1rem', marginTop: '1rem' }}>
+      <div className="clp-tile-grid">
         {usingPlaceholders
           ? tiles.map((label, i) => {
               const img = labelImages?.[label]
               return (
-                // minWidth:0 stops an oversized real photo from forcing its whole
-                // shared grid column (every tile in it, every row) out to fit it —
-                // grid items default to min-width:auto, which respects intrinsic
-                // content size unless explicitly overridden.
-                //
-                // The image box below uses the old padding-bottom aspect-ratio
-                // trick deliberately instead of the `aspect-ratio` CSS property:
-                // aspect-ratio's interaction with CSS Grid's own intrinsic-sizing
-                // pass is genuinely inconsistent (this is what caused the tiles to
-                // collapse to invisible after the minWidth fix) — padding-bottom
-                // derives height purely from width, with no such ambiguity, in
-                // every browser going back over a decade.
-                <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', minWidth: 0 }}>
-                  {/* borderRadius:0 matches the real site's product-card image corners (sharp, not rounded) */}
-                  <div style={{ position: 'relative', width: '100%', paddingBottom: '75%', borderRadius: 0, overflow: 'hidden', background: '#f6f4ef', border: '1px dashed #cbc6b8' }}>
-                    {img && <img src={img} alt={label} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />}
-                  </div>
-                  <span style={{ fontSize: '0.8rem', fontWeight: 700, textAlign: 'center', color: '#1c1f1a' }}>{label}</span>
+                <div key={i} className="clp-tile placeholder">
+                  <div className="frame">{img && <img src={img} alt={label} />}</div>
+                  <span className="name">{label}</span>
                 </div>
               )
             })
           : tiles.map((c, i) => (
-              <a key={i} href={`/collections/${c.handle}`} onClick={e => e.preventDefault()} style={{ textDecoration: 'none', color: '#1c1f1a', display: 'flex', flexDirection: 'column', gap: '0.4rem', minWidth: 0 }}>
-                <div style={{ position: 'relative', width: '100%', paddingBottom: '75%', borderRadius: 0, overflow: 'hidden', background: '#f6f4ef', border: '1px solid #e3e0d6' }}>
-                  {c.image && <img src={c.image} alt={c.label} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />}
-                </div>
-                <span style={{ fontSize: '0.8rem', fontWeight: 700, textAlign: 'center' }}>{c.label}</span>
+              <a key={i} className="clp-tile" href={`/collections/${c.handle}`} onClick={e => e.preventDefault()}>
+                <div className="frame">{c.image && <img src={c.image} alt={c.label} />}</div>
+                <span className="name">{c.label}</span>
               </a>
             ))}
       </div>
@@ -323,32 +321,40 @@ function ClpPreview({ parsed, resolved, labelImages }) {
           src: url('https://www.golfclubs4cash.co.uk/cdn/fonts/open_sans_condensed/opensanscondensed_n7.540ad984d87539ff9a03e07d9527f1ec85e214bc.woff2') format('woff2');
           font-weight: 700; font-style: normal; font-display: swap;
         }
-        .clp-preview { font-family: 'Open Sans Condensed Preview', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #fff; color: #1c1f1a; max-width: 900px; margin: 0 auto; padding: 2.4rem 1.75rem; box-sizing: border-box; }
+        /* 1600px matches the real site's current --container-width (verified
+           live, not the 1140px value from the older note). Tile grids use the
+           full width like real product grids; .clp-copy keeps prose readable. */
+        .clp-preview { font-family: 'Open Sans Condensed Preview', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #fff; color: #1c1f1a; max-width: 1600px; margin: 0 auto; padding: 2.4rem 1.75rem; box-sizing: border-box; }
+        .clp-copy { max-width: 900px; margin: 0 auto; }
+        .clp-h1 { font-size: 34px; line-height: 50px; font-weight: 600; text-align: center; margin: 0; }
+        .clp-body { font-size: 20px; line-height: 32px; }
       `}</style>
-      <h1 style={{ fontSize: 'clamp(1.8rem, 3.4vw, 2.4rem)', fontWeight: 700, textAlign: 'center', margin: 0 }}>{parsed.h1}</h1>
-      {parsed.introParagraphs.map((p, i) => <p key={i} style={{ color: '#5b6259', marginTop: '1rem' }}>{p}</p>)}
-      {parsed.trustSignals.length > 0 && (
-        <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '0.5rem 1.4rem', marginTop: '1.2rem' }}>
-          {parsed.trustSignals.map((t, i) => <span key={i} style={{ fontSize: '0.85rem', fontWeight: 700, color: '#0d3d1f' }}>&#10003; {t}</span>)}
-        </div>
-      )}
-      {parsed.browseAllUrl && (
-        <div style={{ textAlign: 'center', marginTop: '1.2rem' }}>
-          <a href={parsed.browseAllUrl} onClick={e => e.preventDefault()} style={{ background: '#20842e', color: '#fff', fontWeight: 700, padding: '0.7rem 1.3rem', borderRadius: 6, textDecoration: 'none', fontSize: '0.92rem' }}>{parsed.browseAllLabel || 'Browse all'}</a>
-        </div>
-      )}
+      <div className="clp-copy">
+        <h1 className="clp-h1">{parsed.h1}</h1>
+        {parsed.introParagraphs.map((p, i) => <p key={i} className="clp-body" style={{ color: '#5b6259', marginTop: '1rem' }}>{p}</p>)}
+        {parsed.trustSignals.length > 0 && (
+          <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '0.5rem 1.4rem', marginTop: '1.2rem' }}>
+            {parsed.trustSignals.map((t, i) => <span key={i} style={{ fontSize: '0.85rem', fontWeight: 700, color: '#0d3d1f' }}>&#10003; {t}</span>)}
+          </div>
+        )}
+        {parsed.browseAllUrl && (
+          <div style={{ textAlign: 'center', marginTop: '1.2rem' }}>
+            <a href={parsed.browseAllUrl} onClick={e => e.preventDefault()} style={{ background: '#20842e', color: '#fff', fontWeight: 700, padding: '0.7rem 1.3rem', borderRadius: 6, textDecoration: 'none', fontSize: '0.92rem' }}>{parsed.browseAllLabel || 'Browse all'}</a>
+          </div>
+        )}
+      </div>
 
       <TileRow title={`Most viewed ${parsed.topic}`} items={resolved.mostViewed} />
       <TileRow title="Shop by player type" items={resolved.playerType} placeholderLabels={parsed.playerTypeLabels} labelImages={labelImages} />
       <TileRow title="Shop by brand" items={resolved.brand} placeholderLabels={parsed.brandLabels} labelImages={labelImages} />
 
       {parsed.faqs.length > 0 && (
-        <div style={{ marginTop: '2rem' }}>
+        <div className="clp-copy" style={{ marginTop: '2rem' }}>
           <h2 style={{ fontSize: '1.3rem', fontWeight: 700, textAlign: 'center' }}>{parsed.topic} &mdash; your questions answered</h2>
           {parsed.faqs.map((f, i) => (
             <details key={i} style={{ borderBottom: '1px solid #e3e0d6', padding: '0.7rem 0' }}>
               <summary style={{ fontWeight: 700, fontSize: '0.95rem', cursor: 'pointer' }}>{f.q}</summary>
-              <p style={{ color: '#5b6259', marginTop: '0.5rem', fontSize: '0.9rem' }}>{f.a}</p>
+              <p className="clp-body" style={{ color: '#5b6259', marginTop: '0.5rem' }}>{f.a}</p>
               {f.ctaUrl && <a href={f.ctaUrl} onClick={e => e.preventDefault()} style={{ fontSize: '0.85rem', fontWeight: 700, color: '#20842e' }}>{f.ctaText || 'Learn more'} &rarr;</a>}
             </details>
           ))}
@@ -359,27 +365,29 @@ function ClpPreview({ parsed, resolved, labelImages }) {
       <TileRow title="Featured collections" items={resolved.featured} placeholderLabels={parsed.featuredLabels} labelImages={labelImages} />
 
       {parsed.buyingGuideSections.length > 0 && (
-        <div style={{ marginTop: '2rem' }}>
+        <div className="clp-copy" style={{ marginTop: '2rem' }}>
           <h2 style={{ fontSize: '1.3rem', fontWeight: 700, textAlign: 'center' }}>{parsed.buyingGuideHeading}</h2>
           {parsed.buyingGuideSections.map((s, i) => (
             <div key={i} style={{ marginTop: '1.5rem' }}>
               <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#0d3d1f' }}>{s.heading}</h3>
-              {s.paragraphs.map((p, j) => <p key={j} style={{ color: '#5b6259', marginTop: '0.6rem' }}>{p}</p>)}
+              {s.paragraphs.map((p, j) => <p key={j} className="clp-body" style={{ color: '#5b6259', marginTop: '0.6rem' }}>{p}</p>)}
             </div>
           ))}
         </div>
       )}
 
       {parsed.clubhouseUrl && (
-        <div style={{ marginTop: '2rem', background: '#005f2c', color: '#fff', padding: '2rem', borderRadius: 8 }}>
+        <div className="clp-copy" style={{ marginTop: '2rem' }}>
           <h2 style={{ margin: 0 }}>Go to the clubhouse</h2>
-          <p style={{ opacity: 0.92, marginTop: '0.8rem' }}>{parsed.clubhouseBody}</p>
-          <a href={parsed.clubhouseUrl} onClick={e => e.preventDefault()} style={{ display: 'inline-block', marginTop: '1rem', background: '#fff', color: '#005f2c', fontWeight: 700, padding: '0.7rem 1.3rem', borderRadius: 6, textDecoration: 'none' }}>Read our {parsed.topic} guides</a>
+          <p className="clp-body" style={{ color: '#5b6259', marginTop: '0.8rem' }}>{parsed.clubhouseBody}</p>
+          <div style={{ textAlign: 'center' }}>
+            <a href={parsed.clubhouseUrl} onClick={e => e.preventDefault()} style={{ display: 'inline-block', marginTop: '1rem', background: '#20842e', color: '#fff', fontWeight: 700, padding: '0.7rem 1.3rem', borderRadius: 6, textDecoration: 'none' }}>Read our {parsed.topic} guides</a>
+          </div>
         </div>
       )}
 
       {parsed.footerLinks.length > 0 && (
-        <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '0.5rem 1.4rem', marginTop: '2rem' }}>
+        <div className="clp-copy" style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '0.5rem 1.4rem', marginTop: '2rem' }}>
           {parsed.footerLinks.map((l, i) => <a key={i} href={l.url} onClick={e => e.preventDefault()} style={{ fontSize: '0.85rem', fontWeight: 700, color: '#5b6259', textDecoration: 'underline' }}>{l.label}</a>)}
         </div>
       )}
