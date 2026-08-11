@@ -375,10 +375,22 @@ export default function ParcelClaimsPage() {
       {stats?.series?.length > 1 && (
         <div className="chart-card">
           <div className="chart-card-title">Running Total — Cost vs. Recovered (cumulative, by month)</div>
-          <ResponsiveContainer width="100%" height={220}>
-            <LineChart data={stats.series} margin={{ top: 4, right: 8, left: 0, bottom: 4 }}>
+          <ResponsiveContainer width="100%" height={240}>
+            <LineChart data={stats.series} margin={{ top: 4, right: 8, left: 0, bottom: 20 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
-              <XAxis dataKey="month" tickFormatter={monthLabel} tick={{ fontSize: 11, fill: '#999' }} axisLine={false} tickLine={false} />
+              <XAxis
+                dataKey="month"
+                tickFormatter={monthLabel}
+                tick={{ fontSize: 11, fill: '#999' }}
+                axisLine={false}
+                tickLine={false}
+                angle={-40}
+                textAnchor="end"
+                height={40}
+                // With years of monthly history now imported, showing every tick
+                // overlaps — thin them out to roughly one label per quarter.
+                interval={Math.max(0, Math.ceil(stats.series.length / 16) - 1)}
+              />
               <YAxis tickFormatter={v => `£${Math.round(v / 1000)}k`} tick={{ fontSize: 11, fill: '#999' }} axisLine={false} tickLine={false} width={48} />
               <Tooltip formatter={(v, name) => [fmtGbp(v), name]} labelFormatter={monthLabel} />
               <Legend wrapperStyle={{ fontSize: 12 }} />
