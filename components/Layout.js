@@ -20,7 +20,13 @@ const NAV = [
       { label: 'Fulfillments', href: '/fulfillments' },
     ],
   },
-  { label: 'Returns', href: '/returns' },
+  {
+    label: 'Returns',
+    items: [
+      { label: 'Return Patterns', href: '/returns' },
+      { label: 'Missing Parcels', href: '/parcel-claims' },
+    ],
+  },
   {
     label: 'POS',
     items: [

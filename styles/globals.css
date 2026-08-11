@@ -1218,6 +1218,114 @@ tbody tr:hover td { background: #f0f9f4 !important; }
 .pattern-frequent   { background: #ede9fe; color: #7c3aed; }
 .pattern-low        { background: #d4edda; color: #16a34a; }
 
+/* --- Missing Parcels: stage badges — matches the legacy sheet's colour
+   key (Clear/Orange/Red/Purple/Green/Beige) so status reads the same way --- */
+.stage-clear   { background: #f3f4f6; color: #4b5563; border: 1px solid #d8dbe0; }
+.stage-orange  { background: #ffedd5; color: #c2410c; }
+.stage-red     { background: #fde8e8; color: #dc2626; }
+.stage-purple  { background: #ede9fe; color: #7c3aed; }
+.stage-green   { background: #d4edda; color: #16a34a; }
+.stage-beige   { background: #f2e8d5; color: #92703a; }
+
+/* --- Missing Parcels: issue-type badges — matches the legacy sheet's
+   second colour key (Lime/Light Blue/Yellow/Grey/Sky Blue) --- */
+.issue-lime        { background: #ecfccb; color: #4d7c0f; }
+.issue-light-blue   { background: #dbeafe; color: #1e40af; }
+.issue-yellow       { background: #fef9c3; color: #a16207; }
+.issue-grey         { background: #e5e7eb; color: #374151; }
+.issue-sky-blue     { background: #e0f2fe; color: #0369a1; }
+
+/* --- Missing Parcels: claim-form pipeline badges --- */
+.claim-na        { background: #f0f2f5; color: #888; }
+.claim-required  { background: #fde8e8; color: #dc2626; }
+.claim-sent      { background: #e8f0fe; color: #1a56c4; }
+.claim-received  { background: #ede9fe; color: #7c3aed; }
+.claim-settled   { background: #d4edda; color: #16a34a; }
+.claim-denied    { background: #f0f0f0; color: #666; }
+
+/* --- Missing Parcels: £120 cap flag --- */
+.cap-warning {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  background: #fde8e8;
+  color: #dc2626;
+  white-space: nowrap;
+}
+
+/* --- Missing Parcels: click-to-edit cells --- */
+.editable-cell {
+  cursor: text;
+  border-radius: 4px;
+  padding: 2px 4px;
+  margin: -2px -4px;
+}
+.editable-cell:hover {
+  background: #f0f9f4;
+  outline: 1px dashed #b8dfc9;
+}
+.editable-input {
+  width: 100%;
+  padding: 3px 5px;
+  border: 1.5px solid #005F2C;
+  border-radius: 4px;
+  font-size: 12px;
+  font-family: inherit;
+  outline: none;
+}
+.editable-select {
+  border: none;
+  background: transparent;
+  font: inherit;
+  cursor: pointer;
+  padding: 0;
+}
+
+/* --- Missing Parcels: filter chip bar --- */
+.chip-bar {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.chip-btn {
+  background: white;
+  border: 1.5px solid #d4d4d4;
+  color: #555;
+  padding: 5px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+.chip-btn:hover { border-color: #005F2C; color: #005F2C; }
+.chip-btn.active {
+  background: #005F2C;
+  border-color: #005F2C;
+  color: white;
+}
+
+/* --- Missing Parcels: chart card --- */
+.chart-card {
+  background: white;
+  border: 1px solid #e4e4e4;
+  border-radius: 10px;
+  padding: 16px 20px;
+  margin-bottom: 16px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+}
+.chart-card-title {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #666;
+  margin-bottom: 10px;
+}
+
 /* Column sub-labels */
 .col-sub {
   font-size: 9px;
