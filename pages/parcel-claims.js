@@ -587,6 +587,12 @@ export default function ParcelClaimsPage() {
                         >
                           {CLAIM_STATUSES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
                         </select>
+                        {(row.claim_form_sent_at || row.claim_form_received_at) && (
+                          <div style={{ fontSize: 10, color: '#888', marginTop: 2, whiteSpace: 'nowrap' }}>
+                            {row.claim_form_sent_at && <div>Sent: {fmtDate(row.claim_form_sent_at)}</div>}
+                            {row.claim_form_received_at && <div>Received: {fmtDate(row.claim_form_received_at)}</div>}
+                          </div>
+                        )}
                       </td>
                       <td>{editableText(row, 'notes', row.notes || '—')}</td>
                       <td>
