@@ -17,6 +17,29 @@ function fmtPeriod(period, granularity) {
 const HEAD_BG = '#dce6f1' // light blue, matches the old sheet's pivot table header shade
 const TOTAL_BG = '#dce6f1'
 
+// Cost heatmap — the higher a month's cost relative to the priciest month in
+// view, the deeper the red, so expensive periods jump out at a glance.
+function costHeat(value, max) {
+  if (!max || !value) return undefined
+  const ratio = Math.min(value / max, 1)
+  return `rgba(220, 38, 38, ${(0.08 + ratio * 0.34).toFixed(2)})`
+}
+
+const HV_BG = '#fdecea' // pale red/amber — higher-value, higher-risk claims
+const LV_BG = '#eafaf0' // pale green — lower-value claims
+
+// Light brand-ish tints per courier so the columns are easy to tell apart at
+// a glance rather than a wall of identical numbers.
+const COURIER_BG = {
+  DPD: '#fde8e8',
+  FedEx: '#f3effc',
+  UPS: '#fdf3e3',
+  'Royal Mail': '#fde8ee',
+  Evri: '#ecebfa',
+  Other: '#f0f2f5',
+  '(blank)': '#f5f5f5',
+}
+
 function downloadCSV(csv, filename) {
   const blob = new Blob([csv], { type: 'text/csv' })
   const url = URL.createObjectURL(blob)
@@ -82,7 +105,9 @@ export default function ParcelClaimsReport() {
       {loading && <div className="state-box"><div className="spinner" />Loading report…</div>}
       {error && <div className="state-box error">Error: {error}</div>}
 
-      {data && !loading && (
+      {data && !loading && (() => {
+        const maxCost = Math.max(0, ...data.rows.map(r => r.cost))
+        return (
         <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start', overflowX: 'auto', paddingBottom: 8 }}>
           {/* --- Cost Summary --- */}
           <div className="chart-card" style={{ flex: '1 1 0', minWidth: 260, margin: 0 }}>
@@ -102,7 +127,7 @@ export default function ParcelClaimsReport() {
                     <tr key={r.period}>
                       <td>{fmtPeriod(r.period, data.granularity)}</td>
                       <td style={{ textAlign: 'right' }}>{fmtGbp(r.retail)}</td>
-                      <td style={{ textAlign: 'right' }}>{fmtGbp(r.cost)}</td>
+                      <td style={{ textAlign: 'right', background: costHeat(r.cost, maxCost) }}>{fmtGbp(r.cost)}</td>
                       <td style={{ textAlign: 'right' }}>{fmtGbp(r.claimAmount)}</td>
                     </tr>
                   ))}
@@ -125,10 +150,10 @@ export default function ParcelClaimsReport() {
                 <thead>
                   <tr style={{ background: HEAD_BG }}>
                     <th>{gLabel}</th>
-                    <th style={{ textAlign: 'right' }}>HV</th>
-                    <th style={{ textAlign: 'right' }}>LV</th>
-                    <th style={{ textAlign: 'right' }}>HV %</th>
-                    <th style={{ textAlign: 'right' }}>LV %</th>
+                    <th style={{ textAlign: 'right', background: HV_BG }}>HV</th>
+                    <th style={{ textAlign: 'right', background: LV_BG }}>LV</th>
+                    <th style={{ textAlign: 'right', background: HV_BG }}>HV %</th>
+                    <th style={{ textAlign: 'right', background: LV_BG }}>LV %</th>
                     <th style={{ textAlign: 'right' }}>Grand Total</th>
                   </tr>
                 </thead>
@@ -138,10 +163,10 @@ export default function ParcelClaimsReport() {
                     return (
                       <tr key={r.period}>
                         <td>{fmtPeriod(r.period, data.granularity)}</td>
-                        <td style={{ textAlign: 'right' }}>{r.hv || ''}</td>
-                        <td style={{ textAlign: 'right' }}>{r.lv || ''}</td>
-                        <td style={{ textAlign: 'right' }}>{tagged ? `${Math.round((r.hv / tagged) * 100)}%` : ''}</td>
-                        <td style={{ textAlign: 'right' }}>{tagged ? `${Math.round((r.lv / tagged) * 100)}%` : ''}</td>
+                        <td style={{ textAlign: 'right', background: HV_BG }}>{r.hv || ''}</td>
+                        <td style={{ textAlign: 'right', background: LV_BG }}>{r.lv || ''}</td>
+                        <td style={{ textAlign: 'right', background: HV_BG }}>{tagged ? `${Math.round((r.hv / tagged) * 100)}%` : ''}</td>
+                        <td style={{ textAlign: 'right', background: LV_BG }}>{tagged ? `${Math.round((r.lv / tagged) * 100)}%` : ''}</td>
                         <td style={{ textAlign: 'right' }}>{tagged}</td>
                       </tr>
                     )
@@ -167,7 +192,7 @@ export default function ParcelClaimsReport() {
                 <thead>
                   <tr style={{ background: HEAD_BG }}>
                     <th>{gLabel}</th>
-                    {data.couriers.map(c => <th key={c} style={{ textAlign: 'right' }}>{c}</th>)}
+                    {data.couriers.map(c => <th key={c} style={{ textAlign: 'right', background: COURIER_BG[c] }}>{c}</th>)}
                     <th style={{ textAlign: 'right' }}>Grand Total</th>
                   </tr>
                 </thead>
@@ -175,7 +200,7 @@ export default function ParcelClaimsReport() {
                   {data.rows.map(r => (
                     <tr key={r.period}>
                       <td>{fmtPeriod(r.period, data.granularity)}</td>
-                      {data.couriers.map(c => <td key={c} style={{ textAlign: 'right' }}>{r.byCourier[c] || ''}</td>)}
+                      {data.couriers.map(c => <td key={c} style={{ textAlign: 'right', background: COURIER_BG[c] }}>{r.byCourier[c] || ''}</td>)}
                       <td style={{ textAlign: 'right' }}>{r.count}</td>
                     </tr>
                   ))}
@@ -189,7 +214,8 @@ export default function ParcelClaimsReport() {
             </div>
           </div>
         </div>
-      )}
+        )
+      })()}
     </div>
   )
 }
