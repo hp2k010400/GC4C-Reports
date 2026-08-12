@@ -9,8 +9,46 @@ export default async function handler(req, res) {
   return res.status(405).json({ error: 'Method not allowed' })
 }
 
+// Scans the whole table (paginated past PostgREST's 1,000-row cap) and finds
+// every raw email/eBay/name value that belongs to a customer with 2+ claims
+// — deliberately ignores whatever filters are currently active, since "is
+// this person a serial claimer" should look at their full history, not just
+// what's on screen right now.
+async function findRepeatCustomerValues(supabase) {
+  const PAGE_SIZE = 1000
+  let all = []
+  let offset = 0
+  while (true) {
+    const { data: page, error } = await supabase
+      .from('parcel_claims')
+      .select('email, ebay_username, customer_name')
+      .range(offset, offset + PAGE_SIZE - 1)
+    if (error) throw error
+    all = all.concat(page)
+    if (page.length < PAGE_SIZE) break
+    offset += PAGE_SIZE
+  }
+
+  const groups = new Map() // lowercased identity -> { count, values: Set of raw case variants }
+  for (const r of all) {
+    const raw = (r.email || r.ebay_username || r.customer_name || '').trim()
+    if (!raw) continue
+    const key = raw.toLowerCase()
+    if (!groups.has(key)) groups.set(key, { count: 0, values: new Set() })
+    const g = groups.get(key)
+    g.count += 1
+    g.values.add(raw)
+  }
+
+  const repeatValues = []
+  for (const g of groups.values()) {
+    if (g.count >= 2) repeatValues.push(...g.values)
+  }
+  return repeatValues
+}
+
 async function handleGet(req, res) {
-  const { status, stage, courier, search, from, to, closed, limit, offset } = req.query
+  const { status, stage, courier, search, from, to, closed, repeatOnly, limit, offset } = req.query
   const supabase = getSupabase()
 
   let query = supabase.from('parcel_claims').select('*', { count: 'exact' })
@@ -36,6 +74,23 @@ async function handleGet(req, res) {
         `customer_name.ilike.%${q}%,email.ilike.%${q}%,ebay_username.ilike.%${q}%,consignment_ref.ilike.%${q}%,claim_ref.ilike.%${q}%`
       )
     }
+  }
+
+  if (repeatOnly === '1') {
+    let repeatValues
+    try {
+      repeatValues = await findRepeatCustomerValues(supabase)
+    } catch (err) {
+      return res.status(500).json({ error: err.message })
+    }
+    if (repeatValues.length === 0) {
+      return res.status(200).json({ rows: [], total: 0 })
+    }
+    // Escape commas/parens so they can't break the or-filter list, then match
+    // against whichever of the three fields the value actually came from.
+    const escaped = repeatValues.map(v => v.replace(/[,()]/g, '')).filter(Boolean)
+    const csv = escaped.map(v => `"${v}"`).join(',')
+    query = query.or(`email.in.(${csv}),ebay_username.in.(${csv}),customer_name.in.(${csv})`)
   }
 
   const lim = Math.min(parseInt(limit, 10) || DEFAULT_LIMIT, 500)

@@ -82,6 +82,7 @@ export default function ParcelClaimsPage() {
   const [stageFilter, setStageFilter] = useState('')
   const [courierFilter, setCourierFilter] = useState('')
   const [showClosed, setShowClosed] = useState(false)
+  const [repeatOnly, setRepeatOnly] = useState(false)
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
   const [search, setSearch] = useState('')
@@ -129,6 +130,7 @@ export default function ParcelClaimsPage() {
       if (stageFilter) params.set('stage', stageFilter)
       if (courierFilter) params.set('courier', courierFilter)
       if (showClosed) params.set('closed', '1')
+      if (repeatOnly) params.set('repeatOnly', '1')
       if (dateFrom) params.set('from', dateFrom)
       if (dateTo) params.set('to', dateTo)
       if (searchLive.trim()) params.set('search', searchLive.trim())
@@ -142,7 +144,7 @@ export default function ParcelClaimsPage() {
     } finally {
       setLoading(false)
     }
-  }, [statusFilter, stageFilter, courierFilter, showClosed, dateFrom, dateTo, searchLive])
+  }, [statusFilter, stageFilter, courierFilter, showClosed, repeatOnly, dateFrom, dateTo, searchLive])
 
   const loadStats = useCallback(async () => {
     setStatsLoading(true)
@@ -457,6 +459,13 @@ export default function ParcelClaimsPage() {
           </button>
           <button className="btn btn-secondary" style={{ fontSize: 12, padding: '4px 10px' }} onClick={() => setShowClosed(s => !s)}>
             {showClosed ? 'Showing all (incl. closed)' : 'Show closed too'}
+          </button>
+          <button
+            className={`chip-btn${repeatOnly ? ' active' : ''}`}
+            onClick={() => setRepeatOnly(s => !s)}
+            title="Customers with 2+ claims, matched by email, eBay username, or name"
+          >
+            Serial Claimers
           </button>
           <input
             className="search-input"
