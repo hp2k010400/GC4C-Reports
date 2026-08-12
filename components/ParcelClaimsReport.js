@@ -98,10 +98,13 @@ export default function ParcelClaimsReport() {
               {tagged === 0 ? (
                 <div style={{ fontSize: 13, color: '#999' }}>No claims tagged yet</div>
               ) : (
-                <>
-                  <div style={{ fontSize: 13, padding: '2px 0' }}>HV: {current.hv} ({pct(current.hv, tagged)})</div>
-                  <div style={{ fontSize: 13, padding: '2px 0' }}>LV: {current.lv} ({pct(current.lv, tagged)})</div>
-                </>
+                <table className="inner-table">
+                  <thead><tr><th>Tier</th><th style={{ textAlign: 'right' }}>Count</th><th style={{ textAlign: 'right' }}>%</th></tr></thead>
+                  <tbody>
+                    <tr><td>HV</td><td style={{ textAlign: 'right' }}>{current.hv}</td><td style={{ textAlign: 'right' }}>{pct(current.hv, tagged)}</td></tr>
+                    <tr><td>LV</td><td style={{ textAlign: 'right' }}>{current.lv}</td><td style={{ textAlign: 'right' }}>{pct(current.lv, tagged)}</td></tr>
+                  </tbody>
+                </table>
               )}
             </div>
 
@@ -110,9 +113,14 @@ export default function ParcelClaimsReport() {
               {Object.keys(current.byCourier).length === 0 ? (
                 <div style={{ fontSize: 13, color: '#999' }}>No claims yet</div>
               ) : (
-                Object.entries(current.byCourier).sort((a, b) => b[1] - a[1]).map(([c, n]) => (
-                  <div key={c} style={{ fontSize: 13, padding: '2px 0' }}>{c}: {n}</div>
-                ))
+                <table className="inner-table">
+                  <thead><tr><th>Courier</th><th style={{ textAlign: 'right' }}>Count</th></tr></thead>
+                  <tbody>
+                    {Object.entries(current.byCourier).sort((a, b) => b[1] - a[1]).map(([c, n]) => (
+                      <tr key={c}><td>{c}</td><td style={{ textAlign: 'right' }}>{n}</td></tr>
+                    ))}
+                  </tbody>
+                </table>
               )}
             </div>
 
@@ -121,12 +129,17 @@ export default function ParcelClaimsReport() {
               {current.count === 0 ? (
                 <div style={{ fontSize: 13, color: '#999' }}>No claims yet</div>
               ) : (
-                STAGES.map(s => current.byStage[s.value] ? (
-                  <div key={s.value} style={{ fontSize: 13, padding: '2px 0' }}>
-                    <span className={`status-badge ${s.colour}`} style={{ marginRight: 6 }}>{s.label}</span>
-                    {current.byStage[s.value]}
-                  </div>
-                ) : null)
+                <table className="inner-table">
+                  <thead><tr><th>Stage</th><th style={{ textAlign: 'right' }}>Count</th></tr></thead>
+                  <tbody>
+                    {STAGES.map(s => current.byStage[s.value] ? (
+                      <tr key={s.value}>
+                        <td><span className={`status-badge ${s.colour}`}>{s.label}</span></td>
+                        <td style={{ textAlign: 'right' }}>{current.byStage[s.value]}</td>
+                      </tr>
+                    ) : null)}
+                  </tbody>
+                </table>
               )}
             </div>
 
@@ -135,12 +148,17 @@ export default function ParcelClaimsReport() {
               {current.count === 0 ? (
                 <div style={{ fontSize: 13, color: '#999' }}>No claims yet</div>
               ) : (
-                CLAIM_STATUSES.map(s => current.byClaimStatus[s.value] ? (
-                  <div key={s.value} style={{ fontSize: 13, padding: '2px 0' }}>
-                    <span className={`status-badge ${s.colour}`} style={{ marginRight: 6 }}>{s.label}</span>
-                    {current.byClaimStatus[s.value]}
-                  </div>
-                ) : null)
+                <table className="inner-table">
+                  <thead><tr><th>Status</th><th style={{ textAlign: 'right' }}>Count</th></tr></thead>
+                  <tbody>
+                    {CLAIM_STATUSES.map(s => current.byClaimStatus[s.value] ? (
+                      <tr key={s.value}>
+                        <td><span className={`status-badge ${s.colour}`}>{s.label}</span></td>
+                        <td style={{ textAlign: 'right' }}>{current.byClaimStatus[s.value]}</td>
+                      </tr>
+                    ) : null)}
+                  </tbody>
+                </table>
               )}
             </div>
           </div>
