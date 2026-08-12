@@ -127,22 +127,31 @@ export default function ParcelClaimsReport() {
                     <th>{gLabel}</th>
                     <th style={{ textAlign: 'right' }}>HV</th>
                     <th style={{ textAlign: 'right' }}>LV</th>
+                    <th style={{ textAlign: 'right' }}>HV %</th>
+                    <th style={{ textAlign: 'right' }}>LV %</th>
                     <th style={{ textAlign: 'right' }}>Grand Total</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {data.rows.map(r => (
-                    <tr key={r.period}>
-                      <td>{fmtPeriod(r.period, data.granularity)}</td>
-                      <td style={{ textAlign: 'right' }}>{r.hv || ''}</td>
-                      <td style={{ textAlign: 'right' }}>{r.lv || ''}</td>
-                      <td style={{ textAlign: 'right' }}>{r.hv + r.lv}</td>
-                    </tr>
-                  ))}
+                  {data.rows.map(r => {
+                    const tagged = r.hv + r.lv
+                    return (
+                      <tr key={r.period}>
+                        <td>{fmtPeriod(r.period, data.granularity)}</td>
+                        <td style={{ textAlign: 'right' }}>{r.hv || ''}</td>
+                        <td style={{ textAlign: 'right' }}>{r.lv || ''}</td>
+                        <td style={{ textAlign: 'right' }}>{tagged ? `${Math.round((r.hv / tagged) * 100)}%` : ''}</td>
+                        <td style={{ textAlign: 'right' }}>{tagged ? `${Math.round((r.lv / tagged) * 100)}%` : ''}</td>
+                        <td style={{ textAlign: 'right' }}>{tagged}</td>
+                      </tr>
+                    )
+                  })}
                   <tr style={{ fontWeight: 700, background: TOTAL_BG }}>
                     <td>Grand Total</td>
                     <td style={{ textAlign: 'right' }}>{data.grand.hv}</td>
                     <td style={{ textAlign: 'right' }}>{data.grand.lv}</td>
+                    <td style={{ textAlign: 'right' }}>{data.grand.hv + data.grand.lv ? `${Math.round((data.grand.hv / (data.grand.hv + data.grand.lv)) * 100)}%` : ''}</td>
+                    <td style={{ textAlign: 'right' }}>{data.grand.hv + data.grand.lv ? `${Math.round((data.grand.lv / (data.grand.hv + data.grand.lv)) * 100)}%` : ''}</td>
                     <td style={{ textAlign: 'right' }}>{data.grand.hv + data.grand.lv}</td>
                   </tr>
                 </tbody>
