@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import {
-  DPD_RATE_PER_KG, DEFAULT_WEIGHT_KG, COURIERS, VALUE_TIERS, STAGES, ISSUE_TYPES, CLAIM_STATUSES,
+  DEFAULT_WEIGHT_KG, COURIERS, VALUE_TIERS, STAGES, ISSUE_TYPES, CLAIM_STATUSES,
   stageLabel, stageColour, stageRowBg, issueColour, claimStatusLabel, claimStatusColour,
   expectedPayout, expectedShortfall, fmtGbp, fmtDate, today,
 } from '../lib/parcelClaims'
@@ -385,7 +385,7 @@ export default function ParcelClaimsPage() {
         </div>
       </div>
       <div style={{ fontSize: 11, color: '#999', marginTop: -6, marginBottom: 12 }}>
-        DPD pays £{DPD_RATE_PER_KG}/kg of declared or scanned weight — Expected Shortfall is cost minus that payout, for open cases where a weight has been entered.
+        Open Cost Exposure = money tied up in unresolved cases · Claimed = sent to DPD, awaiting an outcome · Recovered = actually paid back · Denied = lost for good · Expected Shortfall = what you'll likely never get back even once DPD pays out
       </div>
 
       {/* --- Running total chart --- */}
