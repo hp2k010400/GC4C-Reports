@@ -495,10 +495,25 @@ export default function ClpTemplate() {
       setPushError('Nothing parsed yet — paste the doc and click "Show preview" first, then push. (Pushing now would publish an empty page.)')
       return
     }
+    // Checked live, right before the confirm — catches a handle typo/mismatch
+    // before it happens. Shopify doesn't error on a colliding handle, it
+    // silently appends "-1" and creates an orphaned duplicate instead of
+    // updating the page actually meant.
+    let check = { exists: false }
+    try {
+      const checkRes = await fetch(`/api/marketing/check-page?handle=${encodeURIComponent(targetHandle.trim())}`)
+      check = await checkRes.json()
+    } catch {
+      // If the check itself fails, fall through to the push's own real
+      // create-or-update logic rather than blocking on a lookup failure.
+    }
+    const statusLine = check.exists
+      ? `Found an existing page: "${check.title}"${check.templateSuffix && check.templateSuffix !== 'clp' ? ` — currently using a DIFFERENT template ("${check.templateSuffix}"); pushing will switch it to the CLP design` : ''}.\nThis will UPDATE that page.`
+      : `⚠️ No page currently exists at this handle.\nThis will CREATE A NEW page — if you expected this to update an existing one, stop and check the handle matches the real live URL exactly.`
     const sure = window.confirm(
       isProtectedHandle
-        ? `"${targetHandle.trim()}" isn't the usual test handle — this looks like a real, live page.\n\nIt'll be visible on:\nhttps://www.golfclubs4cash.co.uk/pages/${targetHandle}\n\nContinue?`
-        : `This writes to the page's metafields and assigns the shared CLP template.\n\nIt'll be visible on:\nhttps://www.golfclubs4cash.co.uk/pages/${targetHandle}\n\nContinue?`
+        ? `"${targetHandle.trim()}" isn't the usual test handle — this looks like a real, live page.\n\n${statusLine}\n\nIt'll be visible on:\nhttps://www.golfclubs4cash.co.uk/pages/${targetHandle}\n\nContinue?`
+        : `${statusLine}\n\nIt'll be visible on:\nhttps://www.golfclubs4cash.co.uk/pages/${targetHandle}\n\nContinue?`
     )
     if (!sure) return
     setPushState('pushing')
