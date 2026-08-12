@@ -5,6 +5,7 @@ import {
   stageLabel, stageColour, stageRowBg, issueColour, claimStatusLabel, claimStatusColour,
   expectedPayout, expectedShortfall, fmtGbp, fmtDate, today,
 } from '../lib/parcelClaims'
+import ParcelClaimsReport from '../components/ParcelClaimsReport'
 
 function emptyForm() {
   return {
@@ -61,6 +62,8 @@ function monthLabel(ym) {
 }
 
 export default function ParcelClaimsPage() {
+  const [view, setView] = useState('claims') // 'claims' | 'report'
+
   // --- Password gate (no persistence — same pattern as /adjustments) ---
   const [unlocked, setUnlocked] = useState(false)
   const [gatePassword, setGatePassword] = useState('')
@@ -351,6 +354,14 @@ export default function ParcelClaimsPage() {
       <div className="page-sub">
         Lost/missing courier claims — track status, cost exposure, and what's actually been recovered from DPD.
       </div>
+
+      <div className="chip-bar" style={{ marginBottom: 16 }}>
+        <button className={`chip-btn${view === 'claims' ? ' active' : ''}`} onClick={() => setView('claims')}>Claims</button>
+        <button className={`chip-btn${view === 'report' ? ' active' : ''}`} onClick={() => setView('report')}>Report</button>
+      </div>
+
+      {view === 'report' && <ParcelClaimsReport />}
+      {view === 'claims' && <>
 
       {/* --- Stats --- */}
       <div style={{ fontSize: 11, fontWeight: 700, color: '#005F2C', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>
@@ -700,6 +711,7 @@ export default function ParcelClaimsPage() {
           </table>
         </div>
       )}
+      </>}
     </div>
   )
 }
