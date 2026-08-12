@@ -3,11 +3,31 @@ import { getSupabase } from '../../../lib/supabase'
 // Powers the "Report" view on the Missing Parcels page — replaces the old
 // sheet's "Missing Parcels Calc" pivot tabs (Monthly Cost/HV-LV/Courier
 // Summary) with the same breakdowns, selectable by day/week/month.
+// Collapses the sheet's many typo'd/one-off courier spellings ("DPD(WAR)",
+// "DPD/ Aramex", stray phone numbers typed into the wrong column, etc.) into
+// the small clean set the old Calc tab actually showed columns for.
+function normalizeCourier(raw) {
+  if (!raw || !raw.trim()) return '(blank)'
+  const s = raw.trim().toLowerCase()
+  if (s.includes('dpd')) return 'DPD'
+  if (s.includes('fedex')) return 'FedEx'
+  if (s.includes('ups')) return 'UPS'
+  if (s.includes('royal mail')) return 'Royal Mail'
+  if (s.includes('hermes') || s.includes('evri')) return 'Evri'
+  return 'Other'
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'GET') return res.status(405).end()
 
   const granularity = ['day', 'week', 'month'].includes(req.query.granularity) ? req.query.granularity : 'month'
   const supabase = getSupabase()
+
+  // Matches the old sheet's Calc tab, which only ever covered the current
+  // year — not full history back to 2021.
+  const currentYear = new Date().getFullYear()
+  const yearStart = `${currentYear}-01-01`
+  const yearEnd = `${currentYear}-12-31`
 
   // Same 1,000-row PostgREST cap applies here as everywhere else — page through.
   const PAGE_SIZE = 1000
@@ -17,6 +37,8 @@ export default async function handler(req, res) {
     const { data: page, error } = await supabase
       .from('parcel_claims')
       .select('date_started, retail, cost, claim_amount, courier, value_tier, stage, claim_status')
+      .gte('date_started', yearStart)
+      .lte('date_started', yearEnd)
       .range(offset, offset + PAGE_SIZE - 1)
     if (error) return res.status(500).json({ error: error.message })
     data = data.concat(page)
@@ -66,7 +88,7 @@ export default async function handler(req, res) {
     else if (vt === 'LV') bucket.lv += 1
     else if (vt) bucket.otherValueTier += 1
 
-    const courier = r.courier || 'Unknown'
+    const courier = normalizeCourier(r.courier)
     courierSet.add(courier)
     bucket.byCourier[courier] = (bucket.byCourier[courier] || 0) + 1
 
@@ -92,11 +114,14 @@ export default async function handler(req, res) {
     for (const [s, n] of Object.entries(row.byClaimStatus)) grand.byClaimStatus[s] = (grand.byClaimStatus[s] || 0) + n
   }
 
+  const courierOrder = ['DPD', 'FedEx', 'UPS', 'Royal Mail', 'Evri', 'Other', '(blank)']
+  const couriers = [...courierSet].sort((a, b) => courierOrder.indexOf(a) - courierOrder.indexOf(b))
+
   res.status(200).json({
     granularity,
     rows,
     grand,
-    couriers: [...courierSet].sort(),
+    couriers,
     noDateCount,
   })
 }
