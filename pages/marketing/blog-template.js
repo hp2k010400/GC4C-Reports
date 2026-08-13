@@ -114,21 +114,7 @@ function parseBlogDoc(text, tables = []) {
   let nextTableIndex = 0
   const rest = bodyLines.slice(restStart)
   for (let i = 0; i < rest.length; i++) {
-    const { text: rawLine, tabbed } = rest[i]
-
-    if (tabbed) continue // consumed as part of the table run below, on its first line
-
-    // A run of tab-prefixed lines right after this one = a table happened
-    // here. Consume the whole run and attach the next real table by order.
-    if (i + 1 < rest.length && rest[i + 1].tabbed) {
-      let j = i + 1
-      while (j < rest.length && rest[j].tabbed) j++
-      const table = tables[nextTableIndex]
-      nextTableIndex++
-      if (table && current) (current.tables || (current.tables = [])).push(table)
-      i = j - 1
-      continue
-    }
+    const { text: rawLine } = rest[i]
 
     if (/^(Sources|Additional sources):?$/i.test(rawLine)) { inSources = true; continue }
     if (inSources) {
@@ -157,6 +143,35 @@ function parseBlogDoc(text, tables = []) {
       current.paragraphs.push(rawLine)
     } else {
       introParagraphs.push(rawLine)
+    }
+
+    // A colon-ending line (excluded from heading detection above) that
+    // still has a real table waiting introduces that table. Google's
+    // plain-text export doesn't reliably tab-prefix every cell of a real
+    // table — trying to detect "a run of tab-prefixed lines" fragmented
+    // one doc's 5 real tables into 79 false runs, which silently exhausted
+    // all 5 real tables within the very first heading's worth of runs and
+    // left every other table-intro sentence with nothing, dumping all 5
+    // tables into one section instead of the one each was actually written
+    // under. Fix: since the real table's own dimensions are already known
+    // (from the accurate HTML extraction), just consume exactly that many
+    // of the following non-empty lines as its flattened cell content —
+    // verified byte-for-byte against the real table object before relying
+    // on this — and discard them (the real table object is used instead).
+    // Pushed into the SAME paragraphs array, right after the intro
+    // sentence that was just pushed above — not a separate `tables` array
+    // rendered after every paragraph — so a section with a table midway
+    // through its copy renders the table at that exact point instead of
+    // dumping every table in the section to the bottom (Murray/the agency
+    // flagged this by name: "tables to match the positioning within the
+    // copy, instead of all being at the bottom").
+    if (/:$/.test(rawLine) && nextTableIndex < tables.length) {
+      const table = tables[nextTableIndex]
+      nextTableIndex++
+      if (current) current.paragraphs.push({ table })
+      const cellCount = table.reduce((n, row) => n + row.length, 0)
+      let consumed = 0
+      while (consumed < cellCount && i + 1 < rest.length) { i++; consumed++ }
     }
   }
 
@@ -244,18 +259,21 @@ function BlogPreview({ parsed, resolved }) {
                   <img src={resolved.sectionImages[i]} alt={s.heading} />
                 </div>
               )}
-              {s.paragraphs.map((p, j) => <p key={j} dangerouslySetInnerHTML={{ __html: p }} />)}
-              {(s.tables || []).map((table, t) => (
-                <div key={t} className="gc4c-table-wrap">
-                  <table>
-                    <thead><tr>{table[0].map((c, k) => <th key={k}>{c}</th>)}</tr></thead>
-                    <tbody>
-                      {table.slice(1).map((row, r) => (
-                        <tr key={r}>{row.map((c, k) => <td key={k}>{c}</td>)}</tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+              {s.paragraphs.map((p, j) => (
+                typeof p === 'string'
+                  ? <p key={j} dangerouslySetInnerHTML={{ __html: p }} />
+                  : (
+                    <div key={j} className="gc4c-table-wrap">
+                      <table>
+                        <thead><tr>{p.table[0].map((c, k) => <th key={k}>{c}</th>)}</tr></thead>
+                        <tbody>
+                          {p.table.slice(1).map((row, r) => (
+                            <tr key={r}>{row.map((c, k) => <td key={k}>{c}</td>)}</tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )
               ))}
             </div>
           )
@@ -341,8 +359,12 @@ export default function BlogTemplate() {
       } : {}
 
       // Sections that already came with real embedded data (a table) or a
-      // known real image have no sensible product-photo match.
-      const queries = isFinalRound ? [] : next.sections.map(s => (s.tables?.length ? null : s.heading)).filter(Boolean)
+      // known real image have no sensible product-photo match. paragraphs
+      // is now a mixed array (string prose | {table} markers pushed at
+      // their real document position) — hasTable checks for any non-string
+      // entry rather than a separate tables array.
+      const hasTable = s => (s.paragraphs || []).some(p => typeof p !== 'string')
+      const queries = isFinalRound ? [] : next.sections.map(s => (hasTable(s) ? null : s.heading)).filter(Boolean)
       const res = await fetch('/api/marketing/blog-resolve-images', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -352,7 +374,7 @@ export default function BlogTemplate() {
       if (res.ok) {
         const images = data.images || []
         let qi = 0
-        const sectionImages = next.sections.map(s => (s.tables?.length || isFinalRound ? null : images[qi++]))
+        const sectionImages = next.sections.map(s => (hasTable(s) || isFinalRound ? null : images[qi++]))
         next.sections.forEach((s, i) => {
           if (byHeading[s.heading]) sectionImages[i] = byHeading[s.heading]
         })
@@ -468,7 +490,7 @@ export default function BlogTemplate() {
   function buildLinkMap() {
     const links = []
     parsed.introParagraphs.forEach(p => links.push(...extractInlineLinks('Intro', p)))
-    parsed.sections.forEach(s => s.paragraphs.forEach(p => links.push(...extractInlineLinks(s.heading, p))))
+    parsed.sections.forEach(s => s.paragraphs.forEach(p => { if (typeof p === 'string') links.push(...extractInlineLinks(s.heading, p)) }))
     return links
   }
 
