@@ -75,6 +75,13 @@ export default async function handler(req, res) {
       // Explicit null clears any image left over from an earlier push
       // (before this fix) — omitting the field would just leave it as is.
       image: null,
+      // Was only being set on create, never on update — an article that
+      // happened to already be unpublished (e.g. a stale test article from
+      // before this field existed) would silently stay unpublished on every
+      // future push, reporting success while 404ing live with no way to
+      // tell short of checking Shopify directly. "Push Live" should always
+      // mean live.
+      isPublished: true,
     }
 
     let article
