@@ -49,6 +49,7 @@ export default async function handler(req, res) {
         image: original.image || null,
         metafields: [
           { namespace: 'global', key: 'description_tag', type: 'single_line_text_field', value: original.description_tag || '' },
+          { namespace: 'global', key: 'title_tag', type: 'single_line_text_field', value: original.title_tag || '' },
         ],
       },
     })

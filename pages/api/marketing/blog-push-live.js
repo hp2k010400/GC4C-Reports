@@ -38,6 +38,7 @@ export default async function handler(req, res) {
             id title body summary tags templateSuffix
             image { url altText }
             mf_description: metafield(namespace: "global", key: "description_tag") { value }
+            mf_title_tag: metafield(namespace: "global", key: "title_tag") { value }
           }
         }
       }
@@ -69,14 +70,22 @@ export default async function handler(req, res) {
     // full-width hero" with no way to decouple the two using its own
     // settings — Harry didn't want the hero. Real product photos already
     // live inside the body content itself for visual interest.
+    // article.title drives BOTH the visible on-page H1 and the browser
+    // tab/<title> by default, with no separate field for each — a doc that
+    // deliberately gives a short on-page H1 ("The Final Round") and a
+    // longer, keyword-heavy SEO title as two different fields would
+    // otherwise show the SEO title as the page heading. The global.title_tag
+    // metafield (same pattern as description_tag) decouples them: article
+    // title stays the real H1, title_tag carries the SEO-optimised one.
     const articleInput = {
-      title: title || h1,
+      title: h1 || title,
       body: bodyHtml,
       summary: excerpt || '',
       tags: (tags || []),
       templateSuffix: TEMPLATE_SUFFIX,
       metafields: [
         { namespace: 'global', key: 'description_tag', type: 'single_line_text_field', value: metaDescription || '' },
+        { namespace: 'global', key: 'title_tag', type: 'single_line_text_field', value: title || h1 || '' },
       ],
       // Explicit null clears any image left over from an earlier push
       // (before this fix) — omitting the field would just leave it as is.
@@ -101,6 +110,7 @@ export default async function handler(req, res) {
         templateSuffix: existing.templateSuffix || '',
         image: existing.image ? { url: existing.image.url, altText: existing.image.altText || '' } : null,
         description_tag: existing.mf_description?.value || '',
+        title_tag: existing.mf_title_tag?.value || '',
       }
       const update = await shopifyGraphQL(`
         mutation($id: ID!, $article: ArticleUpdateInput!) {
