@@ -60,19 +60,24 @@ export default async function handler(req, res) {
       : await Promise.all((sections || []).map(s => (s.image ? Promise.resolve(s.image) : resolveProductImage(s.heading))))
     const featuredImageUrl = (!skipAutoImages && featuredImageHint) ? await resolveProductImage(featuredImageHint) : null
 
+    // heroImage now goes to article.image below, not into the body — the
+    // theme's own native article hero renders it correctly (checked live:
+    // matches the real aspect ratio properly, not the giant/broken crop
+    // originally feared with a non-widescreen image), so also rendering it
+    // inside the body via buildBlogBodyHtml's heroImage slot just duplicated
+    // it — the same photo appeared twice, once native, once in the body.
     const bodyHtml = buildBlogBodyHtml({
-      subtitle, heroImage, introParagraphs, sources,
+      subtitle, introParagraphs, sources,
       sections: (sections || []).map((s, i) => ({ ...s, image: sectionImages[i] || null })),
     })
 
-    // By default no article.image: the theme's stock article section ties
+    // No article.image by default: the theme's stock article section ties
     // "has a featured image" directly to "show it as a giant full-width
-    // hero" with no way to decouple the two using its own settings, which
-    // is why the body's own .gc4c-hero exists as an alternative. When a real
-    // heroImage IS provided though, it's also the right "featured image" for
-    // this article (needed for related-post cards, social/OG previews etc
-    // elsewhere on the site) — set it too in that case and note the risk of
-    // it appearing twice (theme hero + body hero) so it can be checked.
+    // hero" with no way to decouple the two using its own settings. When a
+    // real heroImage IS provided, it's the right "featured image" for this
+    // article anyway (needed for related-post cards, social/OG previews
+    // elsewhere on the site) and the theme renders it correctly — that's
+    // handled entirely natively now, see the buildBlogBodyHtml call above.
     // article.title drives BOTH the visible on-page H1 and the browser
     // tab/<title> by default, with no separate field for each — a doc that
     // deliberately gives a short on-page H1 ("The Final Round") and a
