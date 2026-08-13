@@ -192,22 +192,32 @@ function BlogPreview({ parsed, resolved }) {
         }
         @font-face {
           font-family: 'Open Sans Condensed Preview';
+          src: url('https://www.golfclubs4cash.co.uk/cdn/fonts/open_sans_condensed/opensanscondensed_n6.e25ccef8c0d23978aca642a1b6db5c9b834ebdf3.woff2') format('woff2');
+          font-weight: 600; font-style: normal; font-display: swap;
+        }
+        @font-face {
+          font-family: 'Open Sans Condensed Preview';
           src: url('https://www.golfclubs4cash.co.uk/cdn/fonts/open_sans_condensed/opensanscondensed_n7.540ad984d87539ff9a03e07d9527f1ec85e214bc.woff2') format('woff2');
           font-weight: 700; font-style: normal; font-display: swap;
         }
         .blog-preview { font-family: 'Open Sans Condensed Preview', -apple-system, sans-serif; background: #fff; color: #1c1f1a; max-width: 700px; margin: 0 auto; padding: 2.4rem 1.75rem; }
-        .blog-preview h1 { font-size: clamp(1.8rem, 3.4vw, 2.3rem); font-weight: 700; margin: 0 0 1.5rem; text-align: center; }
+        .blog-preview h1 { font-size: 34px; line-height: 50px; font-weight: 600; margin: 0 0 1.5rem; text-align: center; }
         .gc4c-post .gc4c-subtitle { font-size: 1.15rem; color: #5b6259; text-align: center; margin: -1rem 0 1.5rem; font-style: italic; }
         .gc4c-post .gc4c-hero { max-width: 100%; margin: 0 0 2rem; border-radius: 14px; overflow: hidden; border: 1px solid #e3e0d6; box-shadow: 0 8px 24px rgba(13,61,31,0.08); }
         .gc4c-post .gc4c-hero img { width: 100%; display: block; }
-        .gc4c-post .gc4c-lede { font-size: 1.1rem; line-height: 1.75; color: #3f4640; }
+        .gc4c-post .gc4c-lede { font-size: 20px; line-height: 32px; color: #3f4640; }
         .gc4c-post .gc4c-section { margin-top: 2.8rem; padding-top: 2.2rem; border-top: 1px solid #e3e0d6; }
         .gc4c-post .gc4c-section:first-of-type { margin-top: 2rem; }
         .gc4c-post h2 { font-size: 1.45rem; font-weight: 700; color: #0d3d1f; margin: 0 0 1.1rem; letter-spacing: -0.01em; text-align: center; }
-        .gc4c-post h3 { font-size: 1.2rem; font-weight: 700; color: #0d3d1f; margin: 1.8rem 0 0.9rem; letter-spacing: -0.01em; }
+        .gc4c-post h3 { font-size: 1.2rem; font-weight: 700; color: #0d3d1f; margin: 1.8rem 0 0.9rem; letter-spacing: -0.01em; text-align: center; }
         .gc4c-post .gc4c-img-frame { max-width: 400px; margin: 0 auto 1.5rem; border-radius: 14px; overflow: hidden; border: 1px solid #e3e0d6; background: #f6f4ef; box-shadow: 0 8px 24px rgba(13,61,31,0.08); }
         .gc4c-post .gc4c-img-frame img { width: 100%; aspect-ratio: 4/3; object-fit: cover; display: block; }
-        .gc4c-post p { font-size: 1rem; line-height: 1.75; color: #333; margin-top: 1rem; }
+        /* .natural = a real pre-composed graphic (an infographic, not a
+           photo) — never force-crop these to a fixed ratio, just cap the
+           width and let height follow the source's own proportions. */
+        .gc4c-post .gc4c-img-frame.natural { max-width: 460px; }
+        .gc4c-post .gc4c-img-frame.natural img { aspect-ratio: auto; height: auto; }
+        .gc4c-post p { font-size: 20px; line-height: 32px; color: #333; margin-top: 1rem; }
         .gc4c-post p a, .gc4c-post .gc4c-lede a { color: #20842e; font-weight: 700; text-decoration: underline; }
         .gc4c-post .gc4c-table-wrap { margin-top: 1.4rem; overflow-x: auto; border: 1px solid #e3e0d6; border-radius: 10px; }
         .gc4c-post table { width: 100%; border-collapse: collapse; font-size: 0.92rem; }
@@ -230,7 +240,9 @@ function BlogPreview({ parsed, resolved }) {
             <div key={i} className="gc4c-section">
               <Tag>{s.heading}</Tag>
               {(resolved.sectionImages || [])[i] && (
-                <div className="gc4c-img-frame"><img src={resolved.sectionImages[i]} alt={s.heading} /></div>
+                <div className={'gc4c-img-frame' + (resolved.sectionImages[i].includes('extreme-weather-golf') ? ' natural' : '')}>
+                  <img src={resolved.sectionImages[i]} alt={s.heading} />
+                </div>
               )}
               {s.paragraphs.map((p, j) => <p key={j} dangerouslySetInnerHTML={{ __html: p }} />)}
               {(s.tables || []).map((table, t) => (
