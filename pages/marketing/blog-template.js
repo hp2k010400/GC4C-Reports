@@ -417,9 +417,15 @@ export default function BlogTemplate() {
           subtitle: parsed.subtitle,
           heroImage: resolved.heroImage,
           introParagraphs: parsed.introParagraphs,
-          sections: parsed.sections,
+          // Merge in the images already resolved for the preview — sending
+          // parsed.sections bare meant the server never saw them and had to
+          // auto-resolve every section itself, including ones (like a real
+          // embedded infographic) that should never go through a product
+          // search at all.
+          sections: parsed.sections.map((s, i) => ({ ...s, image: (resolved.sectionImages || [])[i] || null })),
           sources: parsed.sources,
           featuredImageHint: parsed.featuredImageHint,
+          skipAutoImages: parsed.h1 === 'The Final Round',
         }),
       })
       const data = await res.json()

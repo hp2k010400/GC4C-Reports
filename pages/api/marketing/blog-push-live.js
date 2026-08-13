@@ -20,6 +20,7 @@ export default async function handler(req, res) {
   const {
     blogHandle, handle, title, pageTitle, metaDescription, excerpt,
     tags, h1, subtitle, heroImage, introParagraphs, sections, sources, featuredImageHint,
+    skipAutoImages,
   } = req.body
   if (!blogHandle || !handle) return res.status(400).json({ error: 'blogHandle and handle are required' })
 
@@ -45,13 +46,18 @@ export default async function handler(req, res) {
 
     // Auto-resolve a real product photo per section — but only when the
     // section didn't already bring its own explicit image (e.g. a real
-    // infographic uploaded from the source doc). Searching Shopify products
-    // by heading text makes no sense for that kind of section and was
-    // previously firing regardless, surfacing an unrelated random product.
-    const sectionImages = await Promise.all(
-      (sections || []).map(s => (s.image ? Promise.resolve(s.image) : resolveProductImage(s.heading)))
-    )
-    const featuredImageUrl = featuredImageHint ? await resolveProductImage(featuredImageHint) : null
+    // infographic uploaded from the source doc), and only when the caller
+    // hasn't opted out entirely via skipAutoImages (e.g. a data-journalism
+    // piece where NONE of the content is "about" a product — searching
+    // Shopify by a heading like "Scotland" surfaced a Scotland-flag towel).
+    // This mirrors the equivalent skip already applied in the frontend
+    // preview — this route has its own separate resolution and needs the
+    // same flag, or a push can go live with the old wrong-product images
+    // even though the preview looked correct.
+    const sectionImages = skipAutoImages
+      ? (sections || []).map(s => s.image || null)
+      : await Promise.all((sections || []).map(s => (s.image ? Promise.resolve(s.image) : resolveProductImage(s.heading))))
+    const featuredImageUrl = (!skipAutoImages && featuredImageHint) ? await resolveProductImage(featuredImageHint) : null
 
     const bodyHtml = buildBlogBodyHtml({
       subtitle, heroImage, introParagraphs, sources,
