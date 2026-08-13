@@ -203,7 +203,7 @@ function BlogPreview({ parsed, resolved }) {
         .blog-preview { font-family: 'Open Sans Condensed Preview', -apple-system, sans-serif; background: #fff; color: #1c1f1a; max-width: 700px; margin: 0 auto; padding: 2.4rem 1.75rem; }
         .blog-preview h1 { font-size: 34px; line-height: 50px; font-weight: 600; margin: 0 0 1.5rem; text-align: center; }
         .gc4c-post .gc4c-subtitle { font-size: 1.15rem; color: #5b6259; text-align: center; margin: -1rem 0 1.5rem; font-style: italic; }
-        .gc4c-post .gc4c-hero { max-width: 100%; margin: 0 0 2rem; border-radius: 14px; overflow: hidden; border: 1px solid #e3e0d6; box-shadow: 0 8px 24px rgba(13,61,31,0.08); }
+        .gc4c-post .gc4c-hero { max-width: 100%; margin: 0 0 2rem; }
         .gc4c-post .gc4c-hero img { width: 100%; display: block; }
         .gc4c-post .gc4c-lede { font-size: 20px; line-height: 32px; color: #3f4640; }
         .gc4c-post .gc4c-section { margin-top: 2.8rem; padding-top: 2.2rem; border-top: 1px solid #e3e0d6; }
