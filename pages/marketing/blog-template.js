@@ -344,7 +344,12 @@ export default function BlogTemplate() {
         next.sections.forEach((s, i) => {
           if (byHeading[s.heading]) sectionImages[i] = byHeading[s.heading]
         })
-        setResolved({ sectionImages, featuredImageUrl: isFinalRound ? null : (images[queries.length] || null) })
+        // Real hero photo, now that a proper full-resolution source exists —
+        // cropped to Murray's 1920x480 spec and uploaded to Shopify Files.
+        const heroImage = isFinalRound
+          ? 'https://cdn.shopify.com/s/files/1/0559/0450/1875/files/extreme-weather-golf-hero-banner.jpg?v=1786624314'
+          : null
+        setResolved({ sectionImages, heroImage, featuredImageUrl: isFinalRound ? null : (images[queries.length] || null) })
       }
     } finally {
       setPreviewLoading(false)
