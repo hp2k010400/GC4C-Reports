@@ -60,16 +60,16 @@ export default async function handler(req, res) {
       : await Promise.all((sections || []).map(s => (s.image ? Promise.resolve(s.image) : resolveProductImage(s.heading))))
     const featuredImageUrl = (!skipAutoImages && featuredImageHint) ? await resolveProductImage(featuredImageHint) : null
 
-    // heroImage (a wide, deliberately cinematic banner) and featuredImage
-    // (a normal ~3:2 photo matching every other real article's card
-    // thumbnail/social preview) are genuinely different images doing
-    // different jobs now — heroImage renders inside the body itself,
-    // featuredImage drives article.image below. They only duplicated
-    // visually back when the SAME image was used for both (the theme's
-    // native hero from article.image, plus this body render) — with two
-    // different images there's nothing to duplicate.
+    // article.image drives the theme's OWN native full-width feature-image
+    // block at the top of the article (sections/article.liquid, both design
+    // options) — it renders at the image's *native* aspect ratio stretched
+    // to full page width, with no crop. A ~4:3 photo (featuredImage) at
+    // full viewport width comes out enormous and square-ish; a wide ~4:1
+    // banner (heroImage) renders as the correct slim banner. So heroImage
+    // now drives article.image, and the body no longer renders its own
+    // separate .gc4c-hero — the native slot IS the hero, one image, not two.
     const bodyHtml = buildBlogBodyHtml({
-      subtitle, heroImage, introParagraphs, sources,
+      subtitle, introParagraphs, sources,
       sections: (sections || []).map((s, i) => ({ ...s, image: sectionImages[i] || null })),
     })
     // article.title drives BOTH the visible on-page H1 and the browser
@@ -89,14 +89,14 @@ export default async function handler(req, res) {
         { namespace: 'global', key: 'description_tag', type: 'single_line_text_field', value: metaDescription || '' },
         { namespace: 'global', key: 'title_tag', type: 'single_line_text_field', value: title || h1 || '' },
       ],
-      // article.image is used for related-post card thumbnails and social/OG
-      // previews site-wide, where every other real article uses a normal
-      // landscape ~3:2 photo (e.g. 2784x1856) — a wide 4:1 hero banner crop
-      // looks wrong there, so featuredImage (a separate, properly-proportioned
-      // image) is preferred when given, falling back to heroImage for docs
-      // that only have the one image. Explicit null clears any image left
-      // over from an earlier push when neither is given.
-      image: (featuredImage || heroImage) ? { url: featuredImage || heroImage } : null,
+      // See note above the buildBlogBodyHtml call — heroImage is what the
+      // theme's native full-width feature-image block actually needs
+      // (renders at native aspect ratio, so a wide banner is correct; a
+      // normal ~3:2 photo blows up to an oversized square there). Falls
+      // back to featuredImage for docs with no wide banner at all. Explicit
+      // null clears any image left over from an earlier push when neither
+      // is given.
+      image: (heroImage || featuredImage) ? { url: heroImage || featuredImage } : null,
       // Was only being set on create, never on update — an article that
       // happened to already be unpublished (e.g. a stale test article from
       // before this field existed) would silently stay unpublished on every
