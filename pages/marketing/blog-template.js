@@ -263,7 +263,7 @@ function BlogPreview({ parsed, resolved }) {
         {parsed.sources && parsed.sources.length > 0 && (
           <div className="gc4c-sources">
             <h3>Sources</h3>
-            <ol>{parsed.sources.map((s, i) => <li key={i}>{s}</li>)}</ol>
+            <ol>{parsed.sources.map((s, i) => <li key={i} dangerouslySetInnerHTML={{ __html: s }} />)}</ol>
           </div>
         )}
       </div>
