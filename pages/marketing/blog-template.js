@@ -215,7 +215,7 @@ function BlogPreview({ parsed, resolved }) {
         /* .natural = a real pre-composed graphic (an infographic, not a
            photo) — never force-crop these to a fixed ratio, just cap the
            width and let height follow the source's own proportions. */
-        .gc4c-post .gc4c-img-frame.natural { max-width: 460px; }
+        .gc4c-post .gc4c-img-frame.natural { max-width: 100%; }
         .gc4c-post .gc4c-img-frame.natural img { aspect-ratio: auto; height: auto; }
         .gc4c-post p { font-size: 20px; line-height: 32px; color: #333; margin-top: 1rem; }
         .gc4c-post p a, .gc4c-post .gc4c-lede a { color: #20842e; font-weight: 700; text-decoration: underline; }

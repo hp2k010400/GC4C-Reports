@@ -19,7 +19,7 @@ export default async function handler(req, res) {
 
   const {
     blogHandle, handle, title, pageTitle, metaDescription, excerpt,
-    tags, h1, subtitle, heroImage, introParagraphs, sections, sources, featuredImageHint,
+    tags, h1, subtitle, heroImage, featuredImage, introParagraphs, sections, sources, featuredImageHint,
     skipAutoImages,
   } = req.body
   if (!blogHandle || !handle) return res.status(400).json({ error: 'blogHandle and handle are required' })
@@ -60,24 +60,18 @@ export default async function handler(req, res) {
       : await Promise.all((sections || []).map(s => (s.image ? Promise.resolve(s.image) : resolveProductImage(s.heading))))
     const featuredImageUrl = (!skipAutoImages && featuredImageHint) ? await resolveProductImage(featuredImageHint) : null
 
-    // heroImage now goes to article.image below, not into the body — the
-    // theme's own native article hero renders it correctly (checked live:
-    // matches the real aspect ratio properly, not the giant/broken crop
-    // originally feared with a non-widescreen image), so also rendering it
-    // inside the body via buildBlogBodyHtml's heroImage slot just duplicated
-    // it — the same photo appeared twice, once native, once in the body.
+    // heroImage (a wide, deliberately cinematic banner) and featuredImage
+    // (a normal ~3:2 photo matching every other real article's card
+    // thumbnail/social preview) are genuinely different images doing
+    // different jobs now — heroImage renders inside the body itself,
+    // featuredImage drives article.image below. They only duplicated
+    // visually back when the SAME image was used for both (the theme's
+    // native hero from article.image, plus this body render) — with two
+    // different images there's nothing to duplicate.
     const bodyHtml = buildBlogBodyHtml({
-      subtitle, introParagraphs, sources,
+      subtitle, heroImage, introParagraphs, sources,
       sections: (sections || []).map((s, i) => ({ ...s, image: sectionImages[i] || null })),
     })
-
-    // No article.image by default: the theme's stock article section ties
-    // "has a featured image" directly to "show it as a giant full-width
-    // hero" with no way to decouple the two using its own settings. When a
-    // real heroImage IS provided, it's the right "featured image" for this
-    // article anyway (needed for related-post cards, social/OG previews
-    // elsewhere on the site) and the theme renders it correctly — that's
-    // handled entirely natively now, see the buildBlogBodyHtml call above.
     // article.title drives BOTH the visible on-page H1 and the browser
     // tab/<title> by default, with no separate field for each — a doc that
     // deliberately gives a short on-page H1 ("The Final Round") and a
@@ -95,9 +89,14 @@ export default async function handler(req, res) {
         { namespace: 'global', key: 'description_tag', type: 'single_line_text_field', value: metaDescription || '' },
         { namespace: 'global', key: 'title_tag', type: 'single_line_text_field', value: title || h1 || '' },
       ],
-      // Explicit null clears any image left over from an earlier push when
-      // no heroImage is given — omitting the field would just leave it as is.
-      image: heroImage ? { url: heroImage } : null,
+      // article.image is used for related-post card thumbnails and social/OG
+      // previews site-wide, where every other real article uses a normal
+      // landscape ~3:2 photo (e.g. 2784x1856) — a wide 4:1 hero banner crop
+      // looks wrong there, so featuredImage (a separate, properly-proportioned
+      // image) is preferred when given, falling back to heroImage for docs
+      // that only have the one image. Explicit null clears any image left
+      // over from an earlier push when neither is given.
+      image: (featuredImage || heroImage) ? { url: featuredImage || heroImage } : null,
       // Was only being set on create, never on update — an article that
       // happened to already be unpublished (e.g. a stale test article from
       // before this field existed) would silently stay unpublished on every
