@@ -65,11 +65,14 @@ export default async function handler(req, res) {
       sections: (sections || []).map((s, i) => ({ ...s, image: sectionImages[i] || null })),
     })
 
-    // Deliberately not setting article.image: the theme's stock article
-    // section ties "has a featured image" directly to "show it as a giant
-    // full-width hero" with no way to decouple the two using its own
-    // settings — Harry didn't want the hero. Real product photos already
-    // live inside the body content itself for visual interest.
+    // By default no article.image: the theme's stock article section ties
+    // "has a featured image" directly to "show it as a giant full-width
+    // hero" with no way to decouple the two using its own settings, which
+    // is why the body's own .gc4c-hero exists as an alternative. When a real
+    // heroImage IS provided though, it's also the right "featured image" for
+    // this article (needed for related-post cards, social/OG previews etc
+    // elsewhere on the site) — set it too in that case and note the risk of
+    // it appearing twice (theme hero + body hero) so it can be checked.
     // article.title drives BOTH the visible on-page H1 and the browser
     // tab/<title> by default, with no separate field for each — a doc that
     // deliberately gives a short on-page H1 ("The Final Round") and a
@@ -80,16 +83,16 @@ export default async function handler(req, res) {
     const articleInput = {
       title: h1 || title,
       body: bodyHtml,
-      summary: excerpt || '',
+      summary: excerpt || subtitle || '',
       tags: (tags || []),
       templateSuffix: TEMPLATE_SUFFIX,
       metafields: [
         { namespace: 'global', key: 'description_tag', type: 'single_line_text_field', value: metaDescription || '' },
         { namespace: 'global', key: 'title_tag', type: 'single_line_text_field', value: title || h1 || '' },
       ],
-      // Explicit null clears any image left over from an earlier push
-      // (before this fix) — omitting the field would just leave it as is.
-      image: null,
+      // Explicit null clears any image left over from an earlier push when
+      // no heroImage is given — omitting the field would just leave it as is.
+      image: heroImage ? { url: heroImage } : null,
       // Was only being set on create, never on update — an article that
       // happened to already be unpublished (e.g. a stale test article from
       // before this field existed) would silently stay unpublished on every
