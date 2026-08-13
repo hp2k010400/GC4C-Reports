@@ -325,6 +325,23 @@ export default function BlogTemplate() {
         const images = data.images || []
         let qi = 0
         const sectionImages = next.sections.map(s => (s.tables?.length ? null : images[qi++]))
+
+        // One-off: "The Final Round" (Murray's extreme-weather PR piece) has
+        // two real infographics embedded in the source doc, already uploaded
+        // to Shopify Files. Not a generic feature — just gets them showing
+        // in the preview immediately rather than only appearing at push time.
+        if (next.h1 === 'The Final Round') {
+          const byHeading = {
+            'The UK locations to experience the most disruption':
+              'https://cdn.shopify.com/s/files/1/0559/0450/1875/files/extreme-weather-golf-uk-regions.jpg?v=1786621731',
+            'Where is extreme weather forecast to impact golfers the most in the future':
+              'https://cdn.shopify.com/s/files/1/0559/0450/1875/files/extreme-weather-golf-2040-forecast.jpg?v=1786621734',
+          }
+          next.sections.forEach((s, i) => {
+            if (byHeading[s.heading]) sectionImages[i] = byHeading[s.heading]
+          })
+        }
+
         setResolved({ sectionImages, featuredImageUrl: images[queries.length] || null })
       }
     } finally {
