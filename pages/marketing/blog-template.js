@@ -25,67 +25,151 @@ const SAFE_TEST_HANDLES = ['marketing-automation-test-page', 'marketing-automati
 //   <paragraph(s)>
 //   ...
 
+// label may be a single string or an array of synonyms to try in order —
+// agency-produced docs don't always use Murray's exact wording (e.g. "Meta
+// title" instead of "Page Title").
 function getField(text, label) {
-  const m = text.match(new RegExp('^' + label + ':\\s*(.*)$', 'm'))
-  return m ? m[1].trim() : ''
+  const labels = Array.isArray(label) ? label : [label]
+  for (const l of labels) {
+    const m = text.match(new RegExp('^' + l + ':\\s*(.*)$', 'im'))
+    if (m) return m[1].trim()
+  }
+  return ''
 }
 
-function parseBlogDoc(text) {
-  const suggestedMatch = text.match(/^Suggested URL:\s*\n?(https?:\/\/\S+)/m)
+const META_LABEL_RE = /^(Suggested URL|Page Title|Meta [Tt]itle|Meta [Dd]escription|Excerpt|Tags|Featured image|Images|Links):/i
+
+// tables: pre-extracted real <table> data from the doc's HTML export (see
+// fetch-google-doc.js), in document order — [[ [cell,...], ... ], ...].
+// Google's plain-text export renders every table cell as its own line,
+// tab-prefixed except the very first cell in the whole table, with no other
+// structural marker — column count varies per table, so it can't be
+// reconstructed from the plain text alone. Instead, a run of consecutive
+// tab-prefixed lines is treated as "a table happened here" and matched to
+// the next unused entry in `tables`, in the same order both exports share.
+function parseBlogDoc(text, tables = []) {
+  const suggestedMatch = text.match(/^Suggested URL:\s*\n?(https?:\/\/\S+)/im)
   const suggestedUrl = suggestedMatch ? suggestedMatch[1] : ''
   const urlParts = suggestedUrl.replace(/\?$/, '').split('/blogs/')[1] || ''
   const [blogHandle, articleHandleRaw] = urlParts.split('/')
   const articleHandle = (articleHandleRaw || '').split('?')[0]
 
-  const pageTitle = getField(text, 'Page Title')
-  const metaDescription = getField(text, 'Meta Description')
+  const pageTitle = getField(text, ['Page Title', 'Meta title'])
+  const metaDescription = getField(text, ['Meta Description', 'Meta description'])
   const excerpt = getField(text, 'Excerpt')
   const tagsRaw = getField(text, 'Tags')
   const tags = tagsRaw ? tagsRaw.split(',').map(t => t.trim()).filter(Boolean) : []
   const featuredImageHint = getField(text, 'Featured image')
 
-  // Body starts after the metadata block — first line that isn't one of
-  // the known label lines and isn't blank.
-  const metaLabels = /^(Suggested URL|Page Title|Meta Description|Excerpt|Tags|Featured image|Images|Links)/
-  const lines = text.split('\n').map(l => l.trim())
-  let bodyStart = 0
-  for (let i = 0; i < lines.length; i++) {
-    if (lines[i] && !metaLabels.test(lines[i]) && !/^https?:\/\//.test(lines[i])) {
-      bodyStart = i
-      break
+  // Google Docs' plain-text export litters paragraph breaks with lone
+  // zero-width-space characters (U+200B) as their own "line" — invisible,
+  // but not blank, so they'd otherwise slip past a blank-line filter and,
+  // being short with no ending punctuation, get misread as headings (one
+  // doc alone had 24 of these, each becoming a bogus one-character section).
+  const ZWSP_CHARS = [0x200b, 0x200c, 0x200d, 0xfeff].map(c => String.fromCharCode(c)).join('')
+  const ZWSP_RE = new RegExp('[' + ZWSP_CHARS + ']', 'g')
+  const rawLines = text.split('\n').map(l => l.replace(ZWSP_RE, ''))
+  const trimmedLines = rawLines.map(l => l.trim())
+
+  // Body starts right after the LAST recognized metadata field — not "the
+  // first line that isn't a label", since some docs (agency-produced ones
+  // especially) have a title/label block above the metadata (e.g.
+  // "GOLFCLUBS4CASH / THE FINAL ROUND / ONSITE COPY") that isn't real page
+  // content and would otherwise get mistaken for the H1.
+  let bodyStart = -1
+  for (let i = 0; i < trimmedLines.length; i++) {
+    if (META_LABEL_RE.test(trimmedLines[i])) bodyStart = i + 1
+  }
+  if (bodyStart === -1) {
+    // No metadata fields recognized at all — fall back to the old
+    // heuristic (first non-blank, non-URL line).
+    bodyStart = 0
+    for (let i = 0; i < trimmedLines.length; i++) {
+      if (trimmedLines[i] && !/^https?:\/\//.test(trimmedLines[i])) { bodyStart = i; break }
     }
   }
-  const bodyLines = lines.slice(bodyStart).filter(Boolean)
 
-  const h1 = bodyLines[0] || pageTitle
+  // Keep raw-vs-trimmed in lockstep while dropping blanks, so table
+  // detection (which needs the untrimmed leading tab) still lines up.
+  const bodyLines = []
+  for (let i = bodyStart; i < trimmedLines.length; i++) {
+    if (trimmedLines[i]) bodyLines.push({ text: trimmedLines[i], tabbed: rawLines[i].startsWith('\t') })
+  }
+
+  // Explicit "H1:" prefix takes priority; falls back to just using the
+  // first body line for docs that don't label it.
+  const h1Match = bodyLines[0] && bodyLines[0].text.match(/^H1:\s*(.+)$/i)
+  const h1 = h1Match ? h1Match[1].trim() : (bodyLines[0]?.text || pageTitle)
+  // Optional "Subtext:" line right after the H1 — a subtitle, not body prose.
+  let restStart = 1
+  let subtitle = ''
+  const subtextMatch = bodyLines[1] && bodyLines[1].text.match(/^Subtext:\s*(.+)$/i)
+  if (subtextMatch) { subtitle = subtextMatch[1].trim(); restStart = 2 }
+
   const introParagraphs = []
   const sections = []
+  const sources = []
   let current = null
-  for (const line of bodyLines.slice(1)) {
-    // Heuristic: a heading is a short line with no sentence-ending
-    // punctuation; everything else is body prose belonging to whichever
-    // section (or the intro, before the first heading) came before it.
-    const isHeading = line.length < 80 && !/[.!?]$/.test(line) && !/^(CTA LINK|Q\??\s*[-:])/i.test(line)
+  let inSources = false
+  let nextTableIndex = 0
+  const rest = bodyLines.slice(restStart)
+  for (let i = 0; i < rest.length; i++) {
+    const { text: rawLine, tabbed } = rest[i]
+
+    if (tabbed) continue // consumed as part of the table run below, on its first line
+
+    // A run of tab-prefixed lines right after this one = a table happened
+    // here. Consume the whole run and attach the next real table by order.
+    if (i + 1 < rest.length && rest[i + 1].tabbed) {
+      let j = i + 1
+      while (j < rest.length && rest[j].tabbed) j++
+      const table = tables[nextTableIndex]
+      nextTableIndex++
+      if (table && current) (current.tables || (current.tables = [])).push(table)
+      i = j - 1
+      continue
+    }
+
+    if (/^(Sources|Additional sources):?$/i.test(rawLine)) { inSources = true; continue }
+    if (inSources) {
+      // Numbered citation lines ("1. England Golf (July 2026)") — strip the
+      // leading number, keep the rest.
+      const cited = rawLine.replace(/^\d+\.\s*/, '')
+      if (cited) sources.push(cited)
+      continue
+    }
+
+    // Explicit "H2:"/"H3:" prefix takes priority; falls back to the old
+    // heuristic (short line, no ending punctuation = heading, level 2) for
+    // docs that don't use explicit H-labels. A trailing colon is excluded
+    // from the fallback specifically — that's the shape of a sentence
+    // introducing a table or list ("The 10 popular locations...:"), not a
+    // real heading, and would otherwise strand the table that follows in
+    // a spurious section of its own instead of the real one it belongs to.
+    const hMatch = rawLine.match(/^H([23]):\s*(.+)$/i)
+    const isHeading = hMatch
+      ? true
+      : rawLine.length < 80 && !/[.!?:]$/.test(rawLine) && !/^(CTA LINK|Q\??\s*[-:])/i.test(rawLine)
     if (isHeading) {
-      current = { heading: line, paragraphs: [] }
+      current = { heading: hMatch ? hMatch[2].trim() : rawLine, level: hMatch ? Number(hMatch[1]) : 2, paragraphs: [] }
       sections.push(current)
     } else if (current) {
-      current.paragraphs.push(line)
+      current.paragraphs.push(rawLine)
     } else {
-      introParagraphs.push(line)
+      introParagraphs.push(rawLine)
     }
   }
 
   return {
     blogHandle: blogHandle || '', articleHandle: articleHandle || '',
     pageTitle, metaDescription, excerpt, tags, featuredImageHint,
-    h1, introParagraphs, sections,
+    h1, subtitle, introParagraphs, sections, sources,
   }
 }
 
 const EMPTY = {
   blogHandle: '', articleHandle: '', pageTitle: '', metaDescription: '', excerpt: '', tags: [],
-  featuredImageHint: '', h1: '', introParagraphs: [], sections: [],
+  featuredImageHint: '', h1: '', subtitle: '', introParagraphs: [], sections: [], sources: [],
 }
 
 function extractInlineLinks(section, text) {
@@ -113,29 +197,63 @@ function BlogPreview({ parsed, resolved }) {
         }
         .blog-preview { font-family: 'Open Sans Condensed Preview', -apple-system, sans-serif; background: #fff; color: #1c1f1a; max-width: 700px; margin: 0 auto; padding: 2.4rem 1.75rem; }
         .blog-preview h1 { font-size: clamp(1.8rem, 3.4vw, 2.3rem); font-weight: 700; margin: 0 0 1.5rem; text-align: center; }
+        .gc4c-post .gc4c-subtitle { font-size: 1.15rem; color: #5b6259; text-align: center; margin: -1rem 0 1.5rem; font-style: italic; }
+        .gc4c-post .gc4c-hero { max-width: 100%; margin: 0 0 2rem; border-radius: 14px; overflow: hidden; border: 1px solid #e3e0d6; box-shadow: 0 8px 24px rgba(13,61,31,0.08); }
+        .gc4c-post .gc4c-hero img { width: 100%; display: block; }
         .gc4c-post .gc4c-lede { font-size: 1.1rem; line-height: 1.75; color: #3f4640; }
         .gc4c-post .gc4c-section { margin-top: 2.8rem; padding-top: 2.2rem; border-top: 1px solid #e3e0d6; }
         .gc4c-post .gc4c-section:first-of-type { margin-top: 2rem; }
         .gc4c-post h2 { font-size: 1.45rem; font-weight: 700; color: #0d3d1f; margin: 0 0 1.1rem; letter-spacing: -0.01em; text-align: center; }
+        .gc4c-post h3 { font-size: 1.2rem; font-weight: 700; color: #0d3d1f; margin: 1.8rem 0 0.9rem; letter-spacing: -0.01em; }
         .gc4c-post .gc4c-img-frame { max-width: 400px; margin: 0 auto 1.5rem; border-radius: 14px; overflow: hidden; border: 1px solid #e3e0d6; background: #f6f4ef; box-shadow: 0 8px 24px rgba(13,61,31,0.08); }
         .gc4c-post .gc4c-img-frame img { width: 100%; aspect-ratio: 4/3; object-fit: cover; display: block; }
         .gc4c-post p { font-size: 1rem; line-height: 1.75; color: #333; margin-top: 1rem; }
         .gc4c-post p a, .gc4c-post .gc4c-lede a { color: #20842e; font-weight: 700; text-decoration: underline; }
+        .gc4c-post .gc4c-table-wrap { margin-top: 1.4rem; overflow-x: auto; border: 1px solid #e3e0d6; border-radius: 10px; }
+        .gc4c-post table { width: 100%; border-collapse: collapse; font-size: 0.92rem; }
+        .gc4c-post table th { background: #f6f4ef; color: #0d3d1f; font-weight: 700; text-align: left; padding: 0.65rem 0.9rem; border-bottom: 2px solid #e3e0d6; }
+        .gc4c-post table td { padding: 0.6rem 0.9rem; border-bottom: 1px solid #e3e0d6; }
+        .gc4c-post table tr:last-child td { border-bottom: none; }
+        .gc4c-post .gc4c-sources { margin-top: 2.8rem; padding-top: 1.4rem; border-top: 1px solid #e3e0d6; font-size: 0.85rem; color: #5b6259; }
+        .gc4c-post .gc4c-sources ol { margin: 0; padding-left: 1.2rem; }
       `}</style>
       <h1>{parsed.h1}</h1>
       <div className="gc4c-post">
+        {resolved.heroImage && <div className="gc4c-hero"><img src={resolved.heroImage} alt="" /></div>}
+        {parsed.subtitle && <p className="gc4c-subtitle">{parsed.subtitle}</p>}
         {parsed.introParagraphs.map((p, i) => (
           <p key={i} className={i === 0 ? 'gc4c-lede' : ''} dangerouslySetInnerHTML={{ __html: p }} />
         ))}
-        {parsed.sections.map((s, i) => (
-          <div key={i} className="gc4c-section">
-            <h2>{s.heading}</h2>
-            {(resolved.sectionImages || [])[i] && (
-              <div className="gc4c-img-frame"><img src={resolved.sectionImages[i]} alt={s.heading} /></div>
-            )}
-            {s.paragraphs.map((p, j) => <p key={j} dangerouslySetInnerHTML={{ __html: p }} />)}
+        {parsed.sections.map((s, i) => {
+          const Tag = s.level === 3 ? 'h3' : 'h2'
+          return (
+            <div key={i} className="gc4c-section">
+              <Tag>{s.heading}</Tag>
+              {(resolved.sectionImages || [])[i] && (
+                <div className="gc4c-img-frame"><img src={resolved.sectionImages[i]} alt={s.heading} /></div>
+              )}
+              {s.paragraphs.map((p, j) => <p key={j} dangerouslySetInnerHTML={{ __html: p }} />)}
+              {(s.tables || []).map((table, t) => (
+                <div key={t} className="gc4c-table-wrap">
+                  <table>
+                    <thead><tr>{table[0].map((c, k) => <th key={k}>{c}</th>)}</tr></thead>
+                    <tbody>
+                      {table.slice(1).map((row, r) => (
+                        <tr key={r}>{row.map((c, k) => <td key={k}>{c}</td>)}</tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ))}
+            </div>
+          )
+        })}
+        {parsed.sources && parsed.sources.length > 0 && (
+          <div className="gc4c-sources">
+            <h3>Sources</h3>
+            <ol>{parsed.sources.map((s, i) => <li key={i}>{s}</li>)}</ol>
           </div>
-        ))}
+        )}
       </div>
     </div>
   )
@@ -151,11 +269,13 @@ export default function BlogTemplate() {
   const [pushError, setPushError] = useState(null)
   const [originalContent, setOriginalContent] = useState(null)
   const [wasCreated, setWasCreated] = useState(false)
-  const [resolved, setResolved] = useState({ sectionImages: [], featuredImageUrl: null })
+  const [resolved, setResolved] = useState({ sectionImages: [], featuredImageUrl: null, heroImage: null })
   const [previewLoading, setPreviewLoading] = useState(false)
   const [docUrl, setDocUrl] = useState('')
   const [docLoading, setDocLoading] = useState(false)
   const [docLoadError, setDocLoadError] = useState(null)
+  const [docTables, setDocTables] = useState([])
+  const [docImages, setDocImages] = useState([])
   const isProtectedHandle = !SAFE_TEST_HANDLES.includes(targetHandle.trim())
 
   async function handleLoadFromUrl() {
@@ -171,6 +291,8 @@ export default function BlogTemplate() {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
       setDocText(data.text)
+      setDocTables(data.tables || [])
+      setDocImages(data.images || [])
     } catch (err) {
       setDocLoadError(err.message)
     } finally {
@@ -179,7 +301,7 @@ export default function BlogTemplate() {
   }
 
   async function handleParse() {
-    const next = parseBlogDoc(docText)
+    const next = parseBlogDoc(docText, docTables)
     setParsed(next)
     setStatus('Loaded ' + new Date().toLocaleTimeString())
     setPushState('idle')
@@ -189,7 +311,10 @@ export default function BlogTemplate() {
     if (next.articleHandle) setTargetHandle(next.articleHandle)
     setPreviewLoading(true)
     try {
-      const queries = next.sections.map(s => s.heading)
+      // Sections that already came with real embedded data (a table) have
+      // no sensible product-photo match — a data table isn't "about" any
+      // one product. Only search for sections without one.
+      const queries = next.sections.map(s => (s.tables?.length ? null : s.heading)).filter(Boolean)
       const res = await fetch('/api/marketing/blog-resolve-images', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -198,7 +323,9 @@ export default function BlogTemplate() {
       const data = await res.json()
       if (res.ok) {
         const images = data.images || []
-        setResolved({ sectionImages: images.slice(0, queries.length), featuredImageUrl: images[queries.length] || null })
+        let qi = 0
+        const sectionImages = next.sections.map(s => (s.tables?.length ? null : images[qi++]))
+        setResolved({ sectionImages, featuredImageUrl: images[queries.length] || null })
       }
     } finally {
       setPreviewLoading(false)
@@ -251,8 +378,11 @@ export default function BlogTemplate() {
           excerpt: parsed.excerpt,
           tags: parsed.tags,
           h1: parsed.h1,
+          subtitle: parsed.subtitle,
+          heroImage: resolved.heroImage,
           introParagraphs: parsed.introParagraphs,
           sections: parsed.sections,
+          sources: parsed.sources,
           featuredImageHint: parsed.featuredImageHint,
         }),
       })

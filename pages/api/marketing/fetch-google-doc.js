@@ -1,4 +1,5 @@
 import { extractDocLinks, linkifyText } from '../../../lib/doc-links.js'
+import { extractDocTables } from '../../../lib/doc-tables.js'
 
 // Fetches a Google Doc's plain-text export server-side (avoids the browser
 // CORS block on docs.google.com, and saves a manual copy/paste round trip).
@@ -22,6 +23,7 @@ export default async function handler(req, res) {
     let text = await resp.text()
 
     let images = []
+    let tables = []
     try {
       const htmlResp = await fetch(`https://docs.google.com/document/d/${docId}/export?format=html`)
       if (htmlResp.ok) {
@@ -37,12 +39,13 @@ export default async function handler(req, res) {
 
         const links = extractDocLinks(html)
         text = linkifyText(text, links)
+        tables = extractDocTables(html)
       }
     } catch {
-      // Reference images/links are a nice-to-have — never fail the whole load over them.
+      // Reference images/links/tables are a nice-to-have — never fail the whole load over them.
     }
 
-    return res.status(200).json({ text, images })
+    return res.status(200).json({ text, images, tables })
   } catch (err) {
     return res.status(500).json({ error: err.message })
   }

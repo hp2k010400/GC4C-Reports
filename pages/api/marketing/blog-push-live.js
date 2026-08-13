@@ -19,7 +19,7 @@ export default async function handler(req, res) {
 
   const {
     blogHandle, handle, title, pageTitle, metaDescription, excerpt,
-    tags, h1, introParagraphs, sections, featuredImageHint,
+    tags, h1, subtitle, heroImage, introParagraphs, sections, sources, featuredImageHint,
   } = req.body
   if (!blogHandle || !handle) return res.status(400).json({ error: 'blogHandle and handle are required' })
 
@@ -43,14 +43,18 @@ export default async function handler(req, res) {
     `, { q: `handle:${handle}` })
     const existing = found.articles.nodes[0]
 
-    // Resolve real product photos for each section, and the featured image, in parallel.
-    const [sectionImages, featuredImageUrl] = await Promise.all([
-      Promise.all((sections || []).map(s => resolveProductImage(s.heading))),
-      featuredImageHint ? resolveProductImage(featuredImageHint) : Promise.resolve(null),
-    ])
+    // Auto-resolve a real product photo per section — but only when the
+    // section didn't already bring its own explicit image (e.g. a real
+    // infographic uploaded from the source doc). Searching Shopify products
+    // by heading text makes no sense for that kind of section and was
+    // previously firing regardless, surfacing an unrelated random product.
+    const sectionImages = await Promise.all(
+      (sections || []).map(s => (s.image ? Promise.resolve(s.image) : resolveProductImage(s.heading)))
+    )
+    const featuredImageUrl = featuredImageHint ? await resolveProductImage(featuredImageHint) : null
 
     const bodyHtml = buildBlogBodyHtml({
-      introParagraphs,
+      subtitle, heroImage, introParagraphs, sources,
       sections: (sections || []).map((s, i) => ({ ...s, image: sectionImages[i] || null })),
     })
 
