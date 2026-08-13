@@ -311,10 +311,26 @@ export default function BlogTemplate() {
     if (next.articleHandle) setTargetHandle(next.articleHandle)
     setPreviewLoading(true)
     try {
-      // Sections that already came with real embedded data (a table) have
-      // no sensible product-photo match — a data table isn't "about" any
-      // one product. Only search for sections without one.
-      const queries = next.sections.map(s => (s.tables?.length ? null : s.heading)).filter(Boolean)
+      // "The Final Round" (Murray's extreme-weather PR piece) has three real
+      // infographics embedded directly in the source doc, already uploaded
+      // to Shopify Files — none of its content is "about" a product, so
+      // searching Shopify by heading text (which was matching country names
+      // like "Scotland" to a Scotland-flag towel) makes no sense anywhere in
+      // this article. One-off wiring, not a generic feature — placements
+      // confirmed directly against the real doc's own layout, not guessed.
+      const isFinalRound = next.h1 === 'The Final Round'
+      const byHeading = isFinalRound ? {
+        'How extreme weather is impacting golf in the UK':
+          'https://cdn.shopify.com/s/files/1/0559/0450/1875/files/extreme-weather-golf-uk-map-banner.jpg?v=1786621757',
+        'The UK locations to experience the most disruption':
+          'https://cdn.shopify.com/s/files/1/0559/0450/1875/files/extreme-weather-golf-uk-regions.jpg?v=1786621731',
+        'Where is extreme weather forecast to impact golfers the most in the future':
+          'https://cdn.shopify.com/s/files/1/0559/0450/1875/files/extreme-weather-golf-2040-forecast.jpg?v=1786621734',
+      } : {}
+
+      // Sections that already came with real embedded data (a table) or a
+      // known real image have no sensible product-photo match.
+      const queries = isFinalRound ? [] : next.sections.map(s => (s.tables?.length ? null : s.heading)).filter(Boolean)
       const res = await fetch('/api/marketing/blog-resolve-images', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -324,25 +340,11 @@ export default function BlogTemplate() {
       if (res.ok) {
         const images = data.images || []
         let qi = 0
-        const sectionImages = next.sections.map(s => (s.tables?.length ? null : images[qi++]))
-
-        // One-off: "The Final Round" (Murray's extreme-weather PR piece) has
-        // two real infographics embedded in the source doc, already uploaded
-        // to Shopify Files. Not a generic feature — just gets them showing
-        // in the preview immediately rather than only appearing at push time.
-        if (next.h1 === 'The Final Round') {
-          const byHeading = {
-            'The UK locations to experience the most disruption':
-              'https://cdn.shopify.com/s/files/1/0559/0450/1875/files/extreme-weather-golf-uk-regions.jpg?v=1786621731',
-            'Where is extreme weather forecast to impact golfers the most in the future':
-              'https://cdn.shopify.com/s/files/1/0559/0450/1875/files/extreme-weather-golf-2040-forecast.jpg?v=1786621734',
-          }
-          next.sections.forEach((s, i) => {
-            if (byHeading[s.heading]) sectionImages[i] = byHeading[s.heading]
-          })
-        }
-
-        setResolved({ sectionImages, featuredImageUrl: images[queries.length] || null })
+        const sectionImages = next.sections.map(s => (s.tables?.length || isFinalRound ? null : images[qi++]))
+        next.sections.forEach((s, i) => {
+          if (byHeading[s.heading]) sectionImages[i] = byHeading[s.heading]
+        })
+        setResolved({ sectionImages, featuredImageUrl: isFinalRound ? null : (images[queries.length] || null) })
       }
     } finally {
       setPreviewLoading(false)
