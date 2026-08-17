@@ -99,6 +99,7 @@ export default async function handler(req, res) {
           adjustment: parseInt(item.adjustment),
           newQuantity: item.expectedNewQuantity ?? resultChanges[i]?.quantityAfterChange ?? null,
           cost: item.cost ?? '',
+          salePrice: item.salePrice ?? '',
           reason, notes: notes || '', employee: employee.trim(),
         })
       })

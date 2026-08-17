@@ -8,6 +8,7 @@ const VARIANT_BY_SKU = `
           id
           sku
           title
+          price
           product {
             id
             title
@@ -35,7 +36,7 @@ async function fetchInventory(variant) {
     .map(l => ({ locationId: l.location_id, locationName: locMap[l.location_id] || String(l.location_id), available: l.available ?? 0 }))
     .sort((a, b) => a.locationName.localeCompare(b.locationName))
   const cost = itemData.inventory_item?.cost ?? ''
-  return { sku: variant.sku, productTitle: variant.product.title, variantTitle: variant.title !== 'Default Title' ? variant.title : '', inventoryItemId, inventory, cost }
+  return { sku: variant.sku, productTitle: variant.product.title, variantTitle: variant.title !== 'Default Title' ? variant.title : '', inventoryItemId, inventory, cost, price: variant.price ?? '' }
 }
 
 export default async function handler(req, res) {

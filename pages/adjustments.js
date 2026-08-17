@@ -212,6 +212,7 @@ export default function AdjustmentsPage() {
           variantTitle: line.product.variantTitle || '',
           locationName: selectedLoc?.name || locationId,
           cost: line.product.cost ?? '',
+          salePrice: line.product.price ?? '',
           // Computed the same way the on-screen "Stock: X → Y" preview is —
           // more reliable than parsing it back out of Shopify's mutation response.
           expectedNewQuantity: locStock ? locStock.available + parseInt(line.qty) : null,
@@ -252,6 +253,7 @@ export default function AdjustmentsPage() {
       Location: submitResult.locationName,
       Adjustment: parseInt(l.qty),
       'Cost Price': l.product.cost ?? '',
+      'Sales Price': l.product.price ?? '',
       Reason: reason,
       Notes: notes,
       Employee: employee,
@@ -271,6 +273,7 @@ export default function AdjustmentsPage() {
       'Adjustment': e.adjustment,
       'New Qty': e.newQuantity ?? '',
       'Cost Price': e.cost ?? '',
+      'Sales Price': e.salePrice ?? '',
       'Reason': e.reason,
       'Notes': e.notes,
     }))
@@ -641,7 +644,7 @@ export default function AdjustmentsPage() {
                           'Employee': le.employee, 'SKU': le.sku,
                           'Product': le.productTitle + (le.variantTitle ? ` — ${le.variantTitle}` : ''),
                           'Location': le.locationName, 'Adjustment': le.adjustment,
-                          'New Qty': le.newQuantity ?? '', 'Cost Price': le.cost ?? '', 'Reason': le.reason, 'Notes': le.notes,
+                          'New Qty': le.newQuantity ?? '', 'Cost Price': le.cost ?? '', 'Sales Price': le.salePrice ?? '', 'Reason': le.reason, 'Notes': le.notes,
                         })), `adjustment-${e.adjustmentNumber || e.sku}-${e.timestamp.slice(0,10)}.csv`)
                       }}>
                       CSV
