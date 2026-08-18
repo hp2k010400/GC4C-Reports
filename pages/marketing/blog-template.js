@@ -244,8 +244,8 @@ function BlogPreview({ parsed, resolved }) {
         .gc4c-post .gc4c-section:first-of-type { margin-top: 2rem; }
         .gc4c-post h2 { font-size: 1.45rem; font-weight: 700; color: #0d3d1f; margin: 0 0 1.1rem; letter-spacing: -0.01em; text-align: center; }
         .gc4c-post h3 { font-size: 1.2rem; font-weight: 700; color: #0d3d1f; margin: 1.8rem 0 0.9rem; letter-spacing: -0.01em; text-align: center; }
-        .gc4c-post .gc4c-img-frame { max-width: 400px; margin: 0 auto 1.5rem; border-radius: 14px; overflow: hidden; border: 1px solid #e3e0d6; background: #f6f4ef; box-shadow: 0 8px 24px rgba(13,61,31,0.08); }
-        .gc4c-post .gc4c-img-frame img { width: 100%; aspect-ratio: 4/3; object-fit: cover; display: block; }
+        .gc4c-post .gc4c-img-frame { max-width: 555px; margin: 0 auto 1.5rem; border-radius: 14px; overflow: hidden; border: 1px solid #e3e0d6; background: #f6f4ef; box-shadow: 0 8px 24px rgba(13,61,31,0.08); }
+        .gc4c-post .gc4c-img-frame img { width: 100%; aspect-ratio: 3/2; object-fit: cover; display: block; }
         /* .natural = a real pre-composed graphic (an infographic, not a
            photo) — never force-crop these to a fixed ratio, just cap the
            width and let height follow the source's own proportions. */
@@ -403,7 +403,16 @@ export default function BlogTemplate() {
         const heroImage = isFinalRound
           ? 'https://cdn.shopify.com/s/files/1/0559/0450/1875/files/extreme-weather-golf-hero-banner.jpg?v=1786624314'
           : null
-        setResolved(r => ({ ...r, sectionImages, heroImage, featuredImageUrl: isFinalRound ? null : (images[queries.length] || null) }))
+        const featuredImageUrl = isFinalRound ? null : (images[queries.length] || null)
+        // Numbered checklist headings never get their own auto-matched
+        // photo (a heading like "3. The serial number" isn't a product
+        // name) — but a doc explicitly asking for "Images: product
+        // images" alongside a real "Featured image:" hint still wants
+        // something relevant shown, not every section left bare. Mirrors
+        // the same fallback blog-push-live.js applies for real on push —
+        // this is what the preview should actually match.
+        const finalSectionImages = sectionImages.map((img, i) => (img || hasTable(next.sections[i]) ? img : featuredImageUrl))
+        setResolved(r => ({ ...r, sectionImages: finalSectionImages, heroImage, featuredImageUrl }))
       }
 
       // Some docs have real hyperlinks already woven into the body text.
@@ -665,6 +674,17 @@ export default function BlogTemplate() {
             <span style={{ color: '#888' }}>{label}</span><span>{value || '—'}</span>
           </div>
         ))}
+        {/* This drives article.image on Shopify (backend field, card
+            thumbnails, OG/social preview) — it doesn't render inline in
+            the body itself, so it needs its own preview here or there's
+            no way to see it before pushing. Was being resolved correctly
+            all along and then silently never shown anywhere. */}
+        <div style={{ display: 'grid', gridTemplateColumns: '160px 1fr', gap: 8, fontSize: 13, padding: '4px 0', alignItems: 'center' }}>
+          <span style={{ color: '#888' }}>Featured image (resolved)</span>
+          {resolved.featuredImageUrl
+            ? <img src={resolved.featuredImageUrl} alt="" style={{ maxWidth: 160, maxHeight: 120, borderRadius: 6, display: 'block' }} />
+            : <span>{previewLoading ? 'Resolving…' : '— (no match found for the hint above)'}</span>}
+        </div>
       </div>
     </div>
   )

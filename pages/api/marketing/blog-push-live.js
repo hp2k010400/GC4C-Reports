@@ -61,6 +61,20 @@ export default async function handler(req, res) {
       ? (sections || []).map(s => s.image || null)
       : await Promise.all((sections || []).map(s => (s.image ? Promise.resolve(s.image) : resolveProductImage(s.heading))))
     const featuredImageUrl = (!skipAutoImages && featuredImageHint) ? await resolveProductImage(featuredImageHint) : null
+    // Numbered checklist headings never get their own auto-matched photo
+    // (marketing-products.js — "3. The serial number" isn't a product
+    // name), but a doc that explicitly asks for "Images: product images"
+    // alongside a real "Featured image" hint clearly wants something
+    // relevant shown, not every section left bare. Falls back to that one
+    // verified, doc-approved photo — never a per-heading guess — and only
+    // for sections with neither their own match nor a table (a table
+    // doesn't need a product photo next to it).
+    const hasTable = s => (s.paragraphs || []).some(p => typeof p !== 'string')
+    const finalSectionImages = sectionImages.map((img, i) => {
+      if (img) return img
+      if (hasTable(sections[i] || {})) return null
+      return featuredImageUrl
+    })
 
     // Some docs have real hyperlinks already embedded in the body text
     // (woven in upstream from the doc's own HTML export). Others instead
@@ -88,7 +102,7 @@ export default async function handler(req, res) {
     // separate .gc4c-hero — the native slot IS the hero, one image, not two.
     const bodyHtml = buildBlogBodyHtml({
       subtitle, introParagraphs: linkedIntro, sources,
-      sections: linkedSections.map((s, i) => ({ ...s, image: sectionImages[i] || null })),
+      sections: linkedSections.map((s, i) => ({ ...s, image: finalSectionImages[i] || null })),
     })
     // article.title drives BOTH the visible on-page H1 and the browser
     // tab/<title> by default, with no separate field for each — a doc that
@@ -117,10 +131,17 @@ export default async function handler(req, res) {
       // theme's native full-width feature-image block actually needs
       // (renders at native aspect ratio, so a wide banner is correct; a
       // normal ~3:2 photo blows up to an oversized square there). Falls
-      // back to featuredImage for docs with no wide banner at all. Explicit
-      // null clears any image left over from an earlier push when neither
-      // is given.
-      image: (heroImage || featuredImage) ? { url: heroImage || featuredImage } : null,
+      // back to featuredImage (an explicit client-provided image) and
+      // then featuredImageUrl — the doc's own "Featured image:" hint,
+      // resolved just above — for docs with neither of those. That last
+      // fallback was being computed and then silently thrown away: this
+      // field only ever checked heroImage/featuredImage, so a doc with a
+      // real "Featured image: scotty cameron putter" hint that correctly
+      // resolved to a real product photo still ended up with no image at
+      // all on Shopify, because nothing ever read featuredImageUrl here.
+      // Explicit null clears any image left over from an earlier push
+      // when none of the three apply.
+      image: (heroImage || featuredImage || featuredImageUrl) ? { url: heroImage || featuredImage || featuredImageUrl } : null,
       // Was only being set on create, never on update — an article that
       // happened to already be unpublished (e.g. a stale test article from
       // before this field existed) would silently stay unpublished on every
