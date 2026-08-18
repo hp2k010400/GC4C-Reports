@@ -47,6 +47,7 @@ export default async function handler(req, res) {
         tags: original.tags || [],
         templateSuffix: original.templateSuffix || '',
         image: original.image || null,
+        author: original.author ? { name: original.author } : undefined,
         metafields: [
           { namespace: 'global', key: 'description_tag', type: 'single_line_text_field', value: original.description_tag || '' },
           { namespace: 'global', key: 'title_tag', type: 'single_line_text_field', value: original.title_tag || '' },

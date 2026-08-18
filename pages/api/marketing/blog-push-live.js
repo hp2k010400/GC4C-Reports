@@ -38,6 +38,7 @@ export default async function handler(req, res) {
           nodes {
             id title body summary tags templateSuffix
             image { url altText }
+            author { name }
             mf_description: metafield(namespace: "global", key: "description_tag") { value }
             mf_title_tag: metafield(namespace: "global", key: "title_tag") { value }
           }
@@ -101,6 +102,12 @@ export default async function handler(req, res) {
       body: bodyHtml,
       summary: excerpt || subtitle || '',
       tags: (tags || []),
+      // Every article this tool pushes is Murray's copy — set on both
+      // create and update (was create-only before, and hardcoded to
+      // "GolfClubs4Cash" there rather than a real byline), so re-pushing
+      // an update doesn't leave whatever author the article happened to
+      // have before untouched.
+      author: { name: 'Murray Davies' },
       templateSuffix: TEMPLATE_SUFFIX,
       metafields: [
         { namespace: 'global', key: 'description_tag', type: 'single_line_text_field', value: metaDescription || '' },
@@ -133,6 +140,7 @@ export default async function handler(req, res) {
         tags: existing.tags,
         templateSuffix: existing.templateSuffix || '',
         image: existing.image ? { url: existing.image.url, altText: existing.image.altText || '' } : null,
+        author: existing.author?.name || '',
         description_tag: existing.mf_description?.value || '',
         title_tag: existing.mf_title_tag?.value || '',
       }
@@ -161,7 +169,6 @@ export default async function handler(req, res) {
           handle,
           blogId,
           isPublished: true,
-          author: { name: 'GolfClubs4Cash' },
         },
       })
       const errors = create.articleCreate.userErrors
