@@ -25,6 +25,22 @@ const SAFE_TEST_HANDLES = ['marketing-automation-test-page', 'marketing-automati
 //   <paragraph(s)>
 //   ...
 
+// Different docs mark heading level two different ways — a "H1: " prefix
+// (the agency-produced piece) or a "<text> - H1" trailing suffix (a plain
+// text draft), sometimes with an en/em dash instead of a hyphen. Checks
+// prefix first, then suffix; returns null (not a marked heading) if
+// neither matches, e.g. for the H2/H3 fallback heuristic to run instead.
+// levels restricts which numbers count (H1 lookup only wants "1"; the
+// body loop only wants "2" or "3").
+function matchHeadingMarker(line, levels) {
+  const levelPattern = levels.join('')
+  const prefix = line.match(new RegExp('^H([' + levelPattern + ']):\\s*(.+)$', 'i'))
+  if (prefix) return { level: Number(prefix[1]), text: prefix[2].trim() }
+  const suffix = line.match(new RegExp('^(.+?)\\s*[-–—]\\s*[Hh]([' + levelPattern + '])$'))
+  if (suffix) return { level: Number(suffix[2]), text: suffix[1].trim() }
+  return null
+}
+
 // label may be a single string or an array of synonyms to try in order —
 // agency-produced docs don't always use Murray's exact wording (e.g. "Meta
 // title" instead of "Page Title").
@@ -96,10 +112,12 @@ function parseBlogDoc(text, tables = []) {
     if (trimmedLines[i]) bodyLines.push({ text: trimmedLines[i], tabbed: rawLines[i].startsWith('\t') })
   }
 
-  // Explicit "H1:" prefix takes priority; falls back to just using the
-  // first body line for docs that don't label it.
-  const h1Match = bodyLines[0] && bodyLines[0].text.match(/^H1:\s*(.+)$/i)
-  const h1 = h1Match ? h1Match[1].trim() : (bodyLines[0]?.text || pageTitle)
+  // Explicit "H1:" prefix or "<text> - H1" suffix takes priority; falls
+  // back to just using the first body line for docs that don't label it
+  // at all — but a marker that isn't stripped shows up literally in the
+  // live H1 ("...The 2026 Guide - h1"), so this has to catch both forms.
+  const h1Match = bodyLines[0] && matchHeadingMarker(bodyLines[0].text, [1])
+  const h1 = h1Match ? h1Match.text : (bodyLines[0]?.text || pageTitle)
   // Optional "Subtext:" line right after the H1 — a subtitle, not body prose.
   let restStart = 1
   let subtitle = ''
@@ -125,19 +143,20 @@ function parseBlogDoc(text, tables = []) {
       continue
     }
 
-    // Explicit "H2:"/"H3:" prefix takes priority; falls back to the old
-    // heuristic (short line, no ending punctuation = heading, level 2) for
-    // docs that don't use explicit H-labels. A trailing colon is excluded
-    // from the fallback specifically — that's the shape of a sentence
-    // introducing a table or list ("The 10 popular locations...:"), not a
-    // real heading, and would otherwise strand the table that follows in
-    // a spurious section of its own instead of the real one it belongs to.
-    const hMatch = rawLine.match(/^H([23]):\s*(.+)$/i)
+    // Explicit "H2:"/"H3:" prefix or "<text> - H2"/"<text> - H3" suffix
+    // takes priority; falls back to the old heuristic (short line, no
+    // ending punctuation = heading, level 2) for docs that don't use
+    // explicit H-labels at all. A trailing colon is excluded from the
+    // fallback specifically — that's the shape of a sentence introducing
+    // a table or list ("The 10 popular locations...:"), not a real
+    // heading, and would otherwise strand the table that follows in a
+    // spurious section of its own instead of the real one it belongs to.
+    const hMatch = matchHeadingMarker(rawLine, [2, 3])
     const isHeading = hMatch
       ? true
       : rawLine.length < 80 && !/[.!?:]$/.test(rawLine) && !/^(CTA LINK|Q\??\s*[-:])/i.test(rawLine)
     if (isHeading) {
-      current = { heading: hMatch ? hMatch[2].trim() : rawLine, level: hMatch ? Number(hMatch[1]) : 2, paragraphs: [] }
+      current = { heading: hMatch ? hMatch.text : rawLine, level: hMatch ? hMatch.level : 2, paragraphs: [] }
       sections.push(current)
     } else if (current) {
       current.paragraphs.push(rawLine)
