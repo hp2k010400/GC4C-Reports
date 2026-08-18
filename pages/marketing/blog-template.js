@@ -385,14 +385,20 @@ export default function BlogTemplate() {
       // entry rather than a separate tables array.
       const hasTable = s => (s.paragraphs || []).some(p => typeof p !== 'string')
       const queries = isFinalRound ? [] : next.sections.map(s => (hasTable(s) ? null : s.heading)).filter(Boolean)
+      const fallbackNeeded = next.sections.filter(s => !hasTable(s)).length
       const res = await fetch('/api/marketing/blog-resolve-images', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ queries: [...queries, next.featuredImageHint] }),
+        body: JSON.stringify({
+          queries,
+          poolQuery: isFinalRound ? null : next.featuredImageHint,
+          poolCount: fallbackNeeded + 1,
+        }),
       })
       const data = await res.json()
       if (res.ok) {
         const images = data.images || []
+        const pool = data.pool || []
         let qi = 0
         const sectionImages = next.sections.map(s => (hasTable(s) || isFinalRound ? null : images[qi++]))
         next.sections.forEach((s, i) => {
@@ -403,15 +409,25 @@ export default function BlogTemplate() {
         const heroImage = isFinalRound
           ? 'https://cdn.shopify.com/s/files/1/0559/0450/1875/files/extreme-weather-golf-hero-banner.jpg?v=1786624314'
           : null
-        const featuredImageUrl = isFinalRound ? null : (images[queries.length] || null)
+        const featuredImageUrl = pool[0] || null
         // Numbered checklist headings never get their own auto-matched
         // photo (a heading like "3. The serial number" isn't a product
         // name) — but a doc explicitly asking for "Images: product
         // images" alongside a real "Featured image:" hint still wants
-        // something relevant shown, not every section left bare. Mirrors
-        // the same fallback blog-push-live.js applies for real on push —
-        // this is what the preview should actually match.
-        const finalSectionImages = sectionImages.map((img, i) => (img || hasTable(next.sections[i]) ? img : featuredImageUrl))
+        // something relevant shown, not every section left bare. A POOL
+        // of different real photos, not one reused everywhere — reusing a
+        // single resolved URL made five different checklist sections show
+        // the exact same picture, which read as broken. Mirrors the same
+        // fallback blog-push-live.js applies for real on push.
+        let poolIndex = 1
+        const finalSectionImages = sectionImages.map((img, i) => {
+          if (img) return img
+          if (hasTable(next.sections[i])) return null
+          if (!pool.length) return null
+          const url = pool[poolIndex % pool.length]
+          poolIndex++
+          return url
+        })
         setResolved(r => ({ ...r, sectionImages: finalSectionImages, heroImage, featuredImageUrl }))
       }
 

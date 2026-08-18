@@ -1,5 +1,5 @@
 import { shopifyGraphQL } from '../../../lib/shopify.js'
-import { resolveProductImage } from '../../../lib/marketing-products.js'
+import { resolveProductImage, resolveProductImagePool } from '../../../lib/marketing-products.js'
 import { buildBlogBodyHtml } from '../../../lib/marketing-blog-html.js'
 import { autoLinkBrandMentions } from '../../../lib/marketing-brand-links.js'
 
@@ -60,20 +60,33 @@ export default async function handler(req, res) {
     const sectionImages = skipAutoImages
       ? (sections || []).map(s => s.image || null)
       : await Promise.all((sections || []).map(s => (s.image ? Promise.resolve(s.image) : resolveProductImage(s.heading))))
-    const featuredImageUrl = (!skipAutoImages && featuredImageHint) ? await resolveProductImage(featuredImageHint) : null
     // Numbered checklist headings never get their own auto-matched photo
     // (marketing-products.js — "3. The serial number" isn't a product
     // name), but a doc that explicitly asks for "Images: product images"
     // alongside a real "Featured image" hint clearly wants something
-    // relevant shown, not every section left bare. Falls back to that one
-    // verified, doc-approved photo — never a per-heading guess — and only
-    // for sections with neither their own match nor a table (a table
-    // doesn't need a product photo next to it).
+    // relevant shown, not every section left bare. A pool of DIFFERENT
+    // real photos for the same hint, not one photo reused everywhere —
+    // the first version of this fix used a single resolved URL for every
+    // fallback section, which meant five different checklist items ("The
+    // milling", "Stamping and fonts", "The serial number"...) all showed
+    // the exact same picture, reading as broken rather than correct. Every
+    // photo in the pool still comes from the one safe, doc-approved query
+    // — this isn't back to per-heading guessing, just not the same single
+    // result reused every time.
     const hasTable = s => (s.paragraphs || []).some(p => typeof p !== 'string')
+    const fallbackNeeded = sectionImages.filter((img, i) => !img && !hasTable(sections[i] || {})).length
+    const imagePool = (!skipAutoImages && featuredImageHint)
+      ? await resolveProductImagePool(featuredImageHint, fallbackNeeded + 1)
+      : []
+    const featuredImageUrl = imagePool[0] || null
+    let poolIndex = 1
     const finalSectionImages = sectionImages.map((img, i) => {
       if (img) return img
       if (hasTable(sections[i] || {})) return null
-      return featuredImageUrl
+      if (!imagePool.length) return null
+      const url = imagePool[poolIndex % imagePool.length]
+      poolIndex++
+      return url
     })
 
     // Some docs have real hyperlinks already embedded in the body text
