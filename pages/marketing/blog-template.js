@@ -265,11 +265,12 @@ function BlogPreview({ parsed, resolved }) {
       <div className="gc4c-post">
         {resolved.heroImage && <div className="gc4c-hero"><img src={resolved.heroImage} alt="" /></div>}
         {parsed.subtitle && <p className="gc4c-subtitle">{parsed.subtitle}</p>}
-        {parsed.introParagraphs.map((p, i) => (
+        {(resolved.linkedIntro || parsed.introParagraphs).map((p, i) => (
           <p key={i} className={i === 0 ? 'gc4c-lede' : ''} dangerouslySetInnerHTML={{ __html: p }} />
         ))}
         {parsed.sections.map((s, i) => {
           const Tag = s.level === 3 ? 'h3' : 'h2'
+          const sectionParagraphs = (resolved.linkedSections && resolved.linkedSections[i]) || s.paragraphs
           return (
             <div key={i} className="gc4c-section">
               <Tag>{s.heading}</Tag>
@@ -278,7 +279,7 @@ function BlogPreview({ parsed, resolved }) {
                   <img src={resolved.sectionImages[i]} alt={s.heading} />
                 </div>
               )}
-              {s.paragraphs.map((p, j) => (
+              {sectionParagraphs.map((p, j) => (
                 typeof p === 'string'
                   ? <p key={j} dangerouslySetInnerHTML={{ __html: p }} />
                   : (
@@ -318,7 +319,7 @@ export default function BlogTemplate() {
   const [pushError, setPushError] = useState(null)
   const [originalContent, setOriginalContent] = useState(null)
   const [wasCreated, setWasCreated] = useState(false)
-  const [resolved, setResolved] = useState({ sectionImages: [], featuredImageUrl: null, heroImage: null })
+  const [resolved, setResolved] = useState({ sectionImages: [], featuredImageUrl: null, heroImage: null, linkedIntro: null, linkedSections: null })
   const [previewLoading, setPreviewLoading] = useState(false)
   const [docUrl, setDocUrl] = useState('')
   const [docLoading, setDocLoading] = useState(false)
@@ -402,7 +403,27 @@ export default function BlogTemplate() {
         const heroImage = isFinalRound
           ? 'https://cdn.shopify.com/s/files/1/0559/0450/1875/files/extreme-weather-golf-hero-banner.jpg?v=1786624314'
           : null
-        setResolved({ sectionImages, heroImage, featuredImageUrl: isFinalRound ? null : (images[queries.length] || null) })
+        setResolved(r => ({ ...r, sectionImages, heroImage, featuredImageUrl: isFinalRound ? null : (images[queries.length] || null) }))
+      }
+
+      // Some docs have real hyperlinks already woven into the body text.
+      // Others instead carry an explicit instruction with none embedded at
+      // all ("Link to any product specific models or any mention of
+      // brands etc, search results if n/a") — mirrors what blog-push-live
+      // does for real on push, so the preview shows the same links the
+      // live article will actually get instead of surprising you after
+      // the fact.
+      const linkRes = await fetch('/api/marketing/blog-resolve-links', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          introParagraphs: next.introParagraphs,
+          sections: next.sections.map(s => s.paragraphs),
+        }),
+      })
+      const linkData = await linkRes.json()
+      if (linkRes.ok) {
+        setResolved(r => ({ ...r, linkedIntro: linkData.introParagraphs, linkedSections: linkData.sections }))
       }
     } finally {
       setPreviewLoading(false)
@@ -507,9 +528,17 @@ export default function BlogTemplate() {
   }
 
   function buildLinkMap() {
+    // Reads the resolved (linked) paragraphs when available, not the raw
+    // parsed ones — a doc with no real inline hyperlinks of its own still
+    // gets brand mentions auto-linked (see blog-resolve-links), and this
+    // map should show those too, not just links the doc happened to embed.
     const links = []
-    parsed.introParagraphs.forEach(p => links.push(...extractInlineLinks('Intro', p)))
-    parsed.sections.forEach(s => s.paragraphs.forEach(p => { if (typeof p === 'string') links.push(...extractInlineLinks(s.heading, p)) }))
+    const introSource = resolved.linkedIntro || parsed.introParagraphs
+    introSource.forEach(p => links.push(...extractInlineLinks('Intro', p)))
+    parsed.sections.forEach((s, i) => {
+      const source = (resolved.linkedSections && resolved.linkedSections[i]) || s.paragraphs
+      source.forEach(p => { if (typeof p === 'string') links.push(...extractInlineLinks(s.heading, p)) })
+    })
     return links
   }
 

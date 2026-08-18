@@ -1,6 +1,7 @@
 import { shopifyGraphQL } from '../../../lib/shopify.js'
 import { resolveProductImage } from '../../../lib/marketing-products.js'
 import { buildBlogBodyHtml } from '../../../lib/marketing-blog-html.js'
+import { autoLinkBrandMentions } from '../../../lib/marketing-brand-links.js'
 
 // Writes directly to the article's native fields (title, body, summary,
 // tags, image) rather than metafields + a custom section — the theme's own
@@ -60,6 +61,22 @@ export default async function handler(req, res) {
       : await Promise.all((sections || []).map(s => (s.image ? Promise.resolve(s.image) : resolveProductImage(s.heading))))
     const featuredImageUrl = (!skipAutoImages && featuredImageHint) ? await resolveProductImage(featuredImageHint) : null
 
+    // Some docs have real hyperlinks already embedded in the body text
+    // (woven in upstream from the doc's own HTML export). Others instead
+    // carry an explicit instruction with no inline links of their own at
+    // all ("Link to any product specific models or any mention of brands
+    // etc, search results if n/a") — the linking is meant to happen at
+    // page-build time. This covers that case unconditionally: it only
+    // ever ADDS a link to a real brand mention that has none yet (it skips
+    // anything already inside a real <a> tag), so it's safe to run on
+    // every push, not just ones that ask for it by name.
+    const brandLinkState = [new Set(), new Map()]
+    const linkedIntro = await autoLinkBrandMentions(introParagraphs || [], ...brandLinkState)
+    const linkedSections = []
+    for (const s of (sections || [])) {
+      linkedSections.push({ ...s, paragraphs: await autoLinkBrandMentions(s.paragraphs || [], ...brandLinkState) })
+    }
+
     // article.image drives the theme's OWN native full-width feature-image
     // block at the top of the article (sections/article.liquid, both design
     // options) — it renders at the image's *native* aspect ratio stretched
@@ -69,8 +86,8 @@ export default async function handler(req, res) {
     // now drives article.image, and the body no longer renders its own
     // separate .gc4c-hero — the native slot IS the hero, one image, not two.
     const bodyHtml = buildBlogBodyHtml({
-      subtitle, introParagraphs, sources,
-      sections: (sections || []).map((s, i) => ({ ...s, image: sectionImages[i] || null })),
+      subtitle, introParagraphs: linkedIntro, sources,
+      sections: linkedSections.map((s, i) => ({ ...s, image: sectionImages[i] || null })),
     })
     // article.title drives BOTH the visible on-page H1 and the browser
     // tab/<title> by default, with no separate field for each — a doc that
