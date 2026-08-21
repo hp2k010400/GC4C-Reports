@@ -71,6 +71,11 @@ function parseBrandHubDoc(text) {
 
   const pageTitle = get('SEO Page Title')
   const metaDescription = get('SEO Meta Description')
+  // Not an embedded image (real docs like this one carry none) — an
+  // instruction to go find one: "One of the clubs in the collections or
+  // the specific model". Acted on in handleParse once the real category
+  // tiles are resolved, rather than parsed further here.
+  const featuredImageHint = get('Page Featured image')
   const suggestedLine = (text.match(/^Suggested URL\(s?\):\s*([\s\S]*?)$/m) || [])[1] || ''
   const firstUrl = (suggestedLine.match(/https?:\/\/\S+/) || [])[0] || ''
   const handle = firstUrl.split('/').filter(Boolean).pop() || ''
@@ -147,7 +152,7 @@ function parseBrandHubDoc(text) {
   const guidesUrl = guidesUrlGlobal
 
   return {
-    handle, pageTitle, metaDescription, h1, heroParagraphs,
+    handle, pageTitle, metaDescription, h1, heroParagraphs, featuredImageHint,
     whyBrandHeading, whyBrandParagraphs,
     mainCategoryUrls, otherCategoryUrls, otherBrandHubUrls,
     faqs, tradeInParagraphs, guidesUrl, guidesBody,
@@ -444,7 +449,7 @@ function BrandHubPreview({ brand, parsed, resolved }) {
 }
 
 const EMPTY = {
-  handle: '', pageTitle: '', metaDescription: '', h1: '', heroParagraphs: [],
+  handle: '', pageTitle: '', metaDescription: '', h1: '', heroParagraphs: [], featuredImageHint: '',
   whyBrandHeading: '', whyBrandParagraphs: [], mainCategoryUrls: [], otherCategoryUrls: [], otherBrandHubUrls: [],
   faqs: [], tradeInParagraphs: [], guidesUrl: '', guidesBody: '',
 }
@@ -543,7 +548,20 @@ export default function BrandHubTemplate() {
         }),
       })
       const data = await res.json()
-      if (res.ok) setResolved({ main: data.main, other: data.other, otherBrandHubs: data.otherBrandHubs })
+      if (res.ok) {
+        setResolved({ main: data.main, other: data.other, otherBrandHubs: data.otherBrandHubs })
+        // "Page Featured image: One of the clubs in the collections or the
+        // specific model" — an instruction, not an embedded image (this doc
+        // format never pastes one in). The main/other category tiles are
+        // already real, brand-specific product photos resolved seconds ago
+        // for the grid below — reusing the first one as the hero satisfies
+        // the instruction exactly, with no extra Shopify search needed.
+        // Never overrides a hero the user already picked by hand.
+        if (next.featuredImageHint && !heroImageUrl) {
+          const firstReal = [...(data.main || []), ...(data.other || [])].find(c => c.image)
+          if (firstReal) setHeroImageUrl(firstReal.image)
+        }
+      }
     } finally {
       setPreviewLoading(false)
     }
