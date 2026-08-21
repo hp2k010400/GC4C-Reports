@@ -210,7 +210,7 @@ function buildLinkMap(brand, parsed, resolved) {
   return links
 }
 
-function BrandHubPreview({ brand, parsed, resolved }) {
+function BrandHubPreview({ brand, parsed, resolved, heroImageUrl }) {
   const tiers = []
   for (const f of parsed.faqs) if (!tiers.includes(f.tier)) tiers.push(f.tier)
 
@@ -289,7 +289,7 @@ function BrandHubPreview({ brand, parsed, resolved }) {
 
       <section className="bh-hero">
         {heroImageUrl && (
-          <div className="bh-hero-image"><img src={heroImageUrl} alt={brandName} /></div>
+          <div className="bh-hero-image"><img src={heroImageUrl} alt={brand} /></div>
         )}
         <div className="bh-wrap">
           <div className="bh-copy">
@@ -760,7 +760,7 @@ export default function BrandHubTemplate() {
       {status && (
         <div className="settings-section" style={{ padding: 0, overflow: 'hidden' }}>
           <h3 className="settings-section-title" style={{ padding: '14px 18px 0' }}>Live preview (renders the real design — no Shopify writes)</h3>
-          <BrandHubPreview brand={brandName} parsed={parsed} resolved={resolved} />
+          <BrandHubPreview brand={brandName} parsed={parsed} resolved={resolved} heroImageUrl={heroImageUrl} />
         </div>
       )}
 
