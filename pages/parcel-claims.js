@@ -10,7 +10,7 @@ import ParcelClaimsReport from '../components/ParcelClaimsReport'
 function emptyForm() {
   return {
     date_started: today(), customer_name: '', email: '', ebay_username: '',
-    courier: 'DPD', consignment_ref: '', value_tier: '', retail: '', cost: '', claim_amount: '',
+    courier: 'DPD', consignment_ref: '', value_tier: '', retail: '', cost: '', claim_amount: '', recovered_amount: '',
     // DPD is always declared at 10kg regardless of the actual item (confirmed
     // with Phil Barron 2026-08-11) - default here, still editable for the
     // rare case DPD pays out differently.
@@ -22,11 +22,11 @@ function toCSV(rows) {
   if (!rows.length) return ''
   const headers = [
     'Date', 'Name', 'Email', 'eBay Username', 'Courier', 'Consignment Ref',
-    'Retail', 'Cost', 'Claim Amount', 'Claim Ref', 'Stage', 'Issue', 'Claim Status', 'Notes',
+    'Retail', 'Cost', 'Claim Amount', 'Recovered Amount', 'Claim Ref', 'Stage', 'Issue', 'Claim Status', 'Notes',
   ]
   const lines = rows.map(r => [
     r.date_started, r.customer_name, r.email, r.ebay_username, r.courier, r.consignment_ref,
-    r.retail, r.cost, r.claim_amount, r.claim_ref, stageLabel(r.stage),
+    r.retail, r.cost, r.claim_amount, r.recovered_amount, r.claim_ref, stageLabel(r.stage),
     r.issue_type ? (ISSUE_TYPES.find(i => i.value === r.issue_type)?.label || r.issue_type) : '',
     claimStatusLabel(r.claim_status), r.notes,
   ])
@@ -404,7 +404,7 @@ export default function ParcelClaimsPage() {
       {/* --- Running total chart --- */}
       {stats?.series?.length > 1 && (
         <div className="chart-card">
-          <div className="chart-card-title">Running Total — Cost vs. Recovered (cumulative, by month)</div>
+          <div className="chart-card-title">Running Total — Cost vs. Recovered ({new Date().getFullYear()}, Jan–Dec, resets each January)</div>
           <ResponsiveContainer width="100%" height={240}>
             <LineChart data={stats.series} margin={{ top: 4, right: 8, left: 0, bottom: 20 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
@@ -542,6 +542,7 @@ export default function ParcelClaimsPage() {
             <input className="form-input" style={{ maxWidth: 130 }} type="number" step="0.01" placeholder="Retail £" value={form.retail} onChange={e => setForm(f => ({ ...f, retail: e.target.value }))} />
             <input className="form-input" style={{ maxWidth: 130 }} type="number" step="0.01" placeholder="Cost £" value={form.cost} onChange={e => setForm(f => ({ ...f, cost: e.target.value }))} />
             <input className="form-input" style={{ maxWidth: 130 }} type="number" step="0.01" placeholder="Claim amount £" value={form.claim_amount} onChange={e => setForm(f => ({ ...f, claim_amount: e.target.value }))} />
+            <input className="form-input" style={{ maxWidth: 130 }} type="number" step="0.01" placeholder="Recovered £" value={form.recovered_amount} onChange={e => setForm(f => ({ ...f, recovered_amount: e.target.value }))} />
             <div>
               <input className="form-input" style={{ maxWidth: 130 }} type="number" step="0.01" placeholder="Weight (kg)" value={form.weight_kg} onChange={e => setForm(f => ({ ...f, weight_kg: e.target.value }))} />
               {form.weight_kg && form.cost && (() => {
@@ -595,7 +596,7 @@ export default function ParcelClaimsPage() {
                 <th>Customer</th>
                 <th>Courier</th>
                 <th style={{ textAlign: 'right' }}>Retail / Cost / Weight</th>
-                <th style={{ textAlign: 'right' }}>Claim Amount / Ref</th>
+                <th style={{ textAlign: 'right' }}>Claim / Recovered / Ref</th>
                 <th>Stage / Issue</th>
                 <th>Claim Status</th>
                 <th>Notes</th>
@@ -630,6 +631,7 @@ export default function ParcelClaimsPage() {
                       </td>
                       <td style={{ textAlign: 'right', whiteSpace: 'nowrap', backgroundColor: bg }}>
                         <div>{editableNumber(row, 'claim_amount')}</div>
+                        <div style={{ fontSize: 10, color: '#16a34a' }}>{editableNumber(row, 'recovered_amount')}</div>
                         <div style={{ fontSize: 10, color: '#aaa' }}>{editableText(row, 'claim_ref', row.claim_ref || '—')}</div>
                         {shortfallInfo(row) != null && <span className="cap-warning">SHORT £{shortfallInfo(row).toFixed(2)}</span>}
                       </td>

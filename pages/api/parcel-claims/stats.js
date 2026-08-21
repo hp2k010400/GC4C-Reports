@@ -17,7 +17,7 @@ export default async function handler(req, res) {
   function buildQuery() {
     let q = supabase
       .from('parcel_claims')
-      .select('cost, claim_amount, weight_kg, stage, claim_status, courier, date_started')
+      .select('cost, claim_amount, recovered_amount, weight_kg, stage, claim_status, courier, date_started')
     if (status) q = q.eq('claim_status', status)
     if (stage) q = q.eq('stage', stage)
     if (courier) q = q.eq('courier', courier)
@@ -52,12 +52,23 @@ export default async function handler(req, res) {
   let totalDenied = 0
   let totalExpectedShortfall = 0
   const byCourier = {}
+
+  // Running-total chart always spans the current calendar year, Jan-Dec,
+  // resetting to zero each January — not an ever-growing total since 2021.
+  const currentYear = new Date().getFullYear()
   const monthly = {} // { 'YYYY-MM': { cost: n, recovered: n } }
+  for (let m = 1; m <= 12; m++) {
+    const key = `${currentYear}-${String(m).padStart(2, '0')}`
+    monthly[key] = { month: key, cost: 0, recovered: 0 }
+  }
 
   for (const r of data) {
     const cost = Number(r.cost) || 0
     const claimAmount = r.claim_amount != null ? Number(r.claim_amount) : null
-    const recoveredValue = claimAmount != null ? claimAmount : cost
+    // What actually got paid back — a dedicated field since DPD doesn't
+    // always settle for the full claimed amount. Falls back to claim_amount
+    // (then cost) for rows that predate this field.
+    const recoveredValue = r.recovered_amount != null ? Number(r.recovered_amount) : (claimAmount != null ? claimAmount : cost)
     const isClosed = r.stage === 'delivered_ok' || ['settled', 'denied'].includes(r.claim_status)
 
     if (!isClosed) {
@@ -81,8 +92,7 @@ export default async function handler(req, res) {
     }
 
     const month = (r.date_started || '').slice(0, 7)
-    if (month) {
-      if (!monthly[month]) monthly[month] = { month, cost: 0, recovered: 0 }
+    if (month && monthly[month]) {
       monthly[month].cost += cost
       if (r.claim_status === 'settled') monthly[month].recovered += recoveredValue
     }
