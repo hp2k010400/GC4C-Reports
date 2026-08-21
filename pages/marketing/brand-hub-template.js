@@ -234,6 +234,8 @@ function BrandHubPreview({ brand, parsed, resolved }) {
         .bh-wrap { max-width: 1600px; margin: 0 auto; padding: 0 1.75rem; box-sizing: border-box; }
         .bh-copy { max-width: 900px; margin: 0 auto; }
         .bh-hero { padding: 2.4rem 0 1rem; }
+        .bh-hero-image { width: 100%; height: 480px; overflow: hidden; margin-bottom: 1.5rem; }
+        .bh-hero-image img { width: 100%; height: 100%; object-fit: cover; display: block; }
         .bh-hero h1 { font-size: 34px; line-height: 50px; font-weight: 600; margin: 0 auto; max-width: 20ch; text-align: center; }
         .bh-hero p { margin-top: 1rem; color: #5b6259; font-size: 20px; line-height: 32px; }
         .bh-preview p a, .bh-preview .bh-faq p a { color: #20842e; font-weight: 700; text-decoration: underline; }
@@ -256,7 +258,7 @@ function BrandHubPreview({ brand, parsed, resolved }) {
            site-wide product-card spec, applied to the collection-tile equivalent. */
         .bh-tile { text-decoration: none; color: #1c1f1a; display: flex; flex-direction: column; min-width: 0; background: #fff; border: 1px solid #d1d1d1; border-radius: 4px; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05); overflow: hidden; transition: 0.3s ease; padding-bottom: 15px; }
         .bh-tile:hover { box-shadow: 0 12px 24px rgba(0, 0, 0, 0.15); transform: translateY(-5px) scale(1.02); }
-        .bh-tile .frame { position: relative; width: 100%; padding-bottom: 75%; background: #f6f4ef; margin-bottom: 0.6rem; }
+        .bh-tile .frame { position: relative; width: 100%; padding-bottom: 55%; background: #f6f4ef; margin-bottom: 0.6rem; }
         .bh-tile .frame img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
         .bh-tile .name { font-size: 16px; font-weight: 700; text-align: center; padding: 0 15px; }
         .bh-tile .count { font-size: 0.65rem; font-weight: 400; color: #5b6259; margin-left: 2px; }
@@ -274,12 +276,16 @@ function BrandHubPreview({ brand, parsed, resolved }) {
         .bh-why-item a { font-size: 0.85rem; font-weight: 700; color: #20842e; text-decoration: underline; display: inline-block; margin-top: 0.4rem; }
         .bh-hub-links { display: flex; flex-wrap: wrap; gap: 0.7rem; justify-content: center; margin-top: 1.5rem; }
         .bh-hub-link { text-decoration: none; color: #1c1f1a; font-weight: 700; font-size: 0.9rem; padding: 0.6rem 1.1rem; border: 1px solid #e3e0d6; border-radius: 999px; }
+        .bh-clubhouse .bh-copy { text-align: center; }
         .bh-clubhouse h2 { margin: 0; }
         .bh-clubhouse p { margin-top: 0.8rem; }
         @media (max-width: 860px) { .bh-tile-grid { grid-template-columns: repeat(2, 1fr); } }
       `}</style>
 
       <section className="bh-hero">
+        {heroImageUrl && (
+          <div className="bh-hero-image"><img src={heroImageUrl} alt={brandName} /></div>
+        )}
         <div className="bh-wrap">
           <div className="bh-copy">
             <h1>{parsed.h1 || parsed.pageTitle || `${brand} Brand Hub`}</h1>
@@ -459,7 +465,32 @@ export default function BrandHubTemplate() {
   const [docLoading, setDocLoading] = useState(false)
   const [docLoadError, setDocLoadError] = useState(null)
   const [docImages, setDocImages] = useState([])
+  const [heroImageUrl, setHeroImageUrl] = useState('')
+  const [heroImageUploading, setHeroImageUploading] = useState(-1)
   const isProtectedHandle = !SAFE_TEST_HANDLES.includes(targetHandle.trim())
+
+  // Uploads one of the doc's own pasted reference images to Shopify Files as
+  // the page's real hero banner — reuses the same upload pipeline built for
+  // the blog tool (lib/shopify-files.js), just not wired to any UI there yet.
+  // `i` (the image's index in docImages) doubles as the "currently uploading"
+  // flag so only that one thumbnail shows a loading state.
+  async function handleUseAsHero(dataUri, i) {
+    setHeroImageUploading(i)
+    try {
+      const res = await fetch('/api/marketing/upload-doc-image', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ dataUri, filename: `${brandName || 'brand'}-hero-${Date.now()}` }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error)
+      setHeroImageUrl(data.url)
+    } catch (err) {
+      setStatus(`Hero image upload failed: ${err.message}`)
+    } finally {
+      setHeroImageUploading(-1)
+    }
+  }
 
   async function handleLoadFromUrl() {
     if (!docUrl.trim()) return
@@ -475,6 +506,9 @@ export default function BrandHubTemplate() {
       if (!res.ok) throw new Error(data.error)
       setDocText(data.text)
       setDocImages(data.images || [])
+      // A new doc means a new brand — don't let a previous brand's already-
+      // uploaded hero image silently carry over onto this one's push.
+      setHeroImageUrl('')
     } catch (err) {
       setDocLoadError(err.message)
     } finally {
@@ -556,7 +590,7 @@ export default function BrandHubTemplate() {
         // doc's own Suggested URL, often blank) — spreading it after the real
         // target handle would silently overwrite what's actually typed in the
         // box above with that, sending the wrong (or empty) handle instead.
-        body: JSON.stringify({ ...parsed, brandName, handle: targetHandle.trim(), confirmHandle: targetHandle.trim() }),
+        body: JSON.stringify({ ...parsed, brandName, heroImage: heroImageUrl, handle: targetHandle.trim(), confirmHandle: targetHandle.trim() }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
@@ -634,13 +668,30 @@ export default function BrandHubTemplate() {
         {docImages.length > 0 && (
           <div style={{ marginBottom: 10, padding: 10, background: '#fafafa', border: '1px solid #eee', borderRadius: 6 }}>
             <div style={{ fontSize: 12, color: '#888', marginBottom: 6 }}>
-              Reference image{docImages.length > 1 ? 's' : ''} pasted into the doc (visual reference only — not pushed to the page):
+              Reference image{docImages.length > 1 ? 's' : ''} pasted into the doc — pick one to use as the page's featured hero banner (uploaded to Shopify Files on push):
             </div>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               {docImages.map((src, i) => (
-                <img key={i} src={src} alt={`Doc reference ${i + 1}`} style={{ maxWidth: 260, maxHeight: 180, border: '1px solid #ddd', borderRadius: 4 }} />
+                <div key={i} style={{ textAlign: 'center' }}>
+                  <img src={src} alt={`Doc reference ${i + 1}`} style={{ maxWidth: 260, maxHeight: 180, border: '1px solid #ddd', borderRadius: 4, display: 'block' }} />
+                  <button
+                    className="btn btn-secondary"
+                    style={{ marginTop: 4, fontSize: 11, padding: '3px 8px' }}
+                    onClick={() => handleUseAsHero(src, i)}
+                    disabled={heroImageUploading !== -1}
+                  >
+                    {heroImageUploading === i ? 'Uploading…' : 'Use as hero image'}
+                  </button>
+                </div>
               ))}
             </div>
+          </div>
+        )}
+        {heroImageUrl && (
+          <div style={{ marginBottom: 10, padding: 10, background: '#f0f9f0', border: '1px solid #cde8cd', borderRadius: 6, display: 'flex', gap: 10, alignItems: 'center' }}>
+            <img src={heroImageUrl} alt="Selected hero" style={{ width: 120, height: 48, objectFit: 'cover', borderRadius: 4 }} />
+            <div style={{ fontSize: 12, color: '#3a7d3a', flex: 1 }}>Hero image set — uploaded to Shopify Files, will be pushed as the page's featured banner.</div>
+            <button className="btn btn-secondary" style={{ fontSize: 11, padding: '3px 8px' }} onClick={() => setHeroImageUrl('')}>Remove</button>
           </div>
         )}
         <textarea

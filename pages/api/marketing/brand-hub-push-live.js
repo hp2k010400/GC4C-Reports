@@ -15,7 +15,7 @@ export default async function handler(req, res) {
   }
 
   const {
-    handle, confirmHandle, brandName, pageTitle, metaDescription, h1, heroParagraphs,
+    handle, confirmHandle, brandName, pageTitle, metaDescription, h1, heroImage, heroParagraphs,
     whyBrandHeading, whyBrandParagraphs, mainCategoryUrls, otherCategoryUrls, otherBrandHubUrls,
     faqs, tradeInParagraphs, guidesUrl, guidesBody,
   } = req.body
@@ -30,6 +30,7 @@ export default async function handler(req, res) {
             templateSuffix
             mf_brand: metafield(namespace: "custom", key: "seo_brand_name") { value }
             mf_h1: metafield(namespace: "custom", key: "seo_h1") { value }
+            mf_hero_image: metafield(namespace: "custom", key: "seo_hero_image") { value }
             mf_hero: metafield(namespace: "custom", key: "seo_hero_paragraphs") { value }
             mf_why_h: metafield(namespace: "custom", key: "seo_why_brand_heading") { value }
             mf_why_p: metafield(namespace: "custom", key: "seo_why_brand_paragraphs") { value }
@@ -52,6 +53,7 @@ export default async function handler(req, res) {
       metafields: {
         seo_brand_name: page.mf_brand?.value || '',
         seo_h1: page.mf_h1?.value || '',
+        seo_hero_image: page.mf_hero_image?.value || '',
         seo_hero_paragraphs: page.mf_hero?.value || '',
         seo_why_brand_heading: page.mf_why_h?.value || '',
         seo_why_brand_paragraphs: page.mf_why_p?.value || '',
@@ -75,6 +77,7 @@ export default async function handler(req, res) {
     const metafields = [
       { namespace: 'custom', key: 'seo_brand_name', type: 'single_line_text_field', value: brandName || '' },
       { namespace: 'custom', key: 'seo_h1', type: 'single_line_text_field', value: h1 || '' },
+      { namespace: 'custom', key: 'seo_hero_image', type: 'single_line_text_field', value: heroImage || '' },
       { namespace: 'custom', key: 'seo_hero_paragraphs', type: 'json', value: JSON.stringify(heroParagraphs || []) },
       { namespace: 'custom', key: 'seo_why_brand_heading', type: 'single_line_text_field', value: whyBrandHeading || '' },
       { namespace: 'custom', key: 'seo_why_brand_paragraphs', type: 'json', value: JSON.stringify(whyBrandParagraphs || []) },

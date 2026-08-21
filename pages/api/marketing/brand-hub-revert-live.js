@@ -47,6 +47,7 @@ export default async function handler(req, res) {
         metafields: [
           { namespace: 'custom', key: 'seo_brand_name', type: 'single_line_text_field', value: mf.seo_brand_name || '' },
           { namespace: 'custom', key: 'seo_h1', type: 'single_line_text_field', value: mf.seo_h1 || '' },
+          { namespace: 'custom', key: 'seo_hero_image', type: 'single_line_text_field', value: mf.seo_hero_image || '' },
           { namespace: 'custom', key: 'seo_hero_paragraphs', type: 'json', value: mf.seo_hero_paragraphs || '[]' },
           { namespace: 'custom', key: 'seo_why_brand_heading', type: 'single_line_text_field', value: mf.seo_why_brand_heading || '' },
           { namespace: 'custom', key: 'seo_why_brand_paragraphs', type: 'json', value: mf.seo_why_brand_paragraphs || '[]' },
