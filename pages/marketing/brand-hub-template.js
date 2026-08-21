@@ -364,9 +364,23 @@ function BrandHubPreview({ brand, parsed, resolved, heroImageUrl }) {
               <h2 className="bh-title">Explore our other brand hubs</h2>
               <div className="bh-hub-links">
                 {resolved.otherBrandHubs.map((h, i) => (
-                  <a className="bh-hub-link" href={`/pages/${h.handle}`} key={i} onClick={e => e.preventDefault()}>{h.label}</a>
+                  <a
+                    className="bh-hub-link"
+                    href={`/pages/${h.handle}`}
+                    key={i}
+                    onClick={e => e.preventDefault()}
+                    style={h.warning ? { borderColor: '#c0392b', color: '#c0392b' } : undefined}
+                    title={h.warning || undefined}
+                  >
+                    {h.warning ? `⚠️ ${h.label}` : h.label}
+                  </a>
                 ))}
               </div>
+              {resolved.otherBrandHubs.some(h => h.warning) && (
+                <div style={{ marginTop: 10, fontSize: 12, color: '#c0392b', textAlign: 'center' }}>
+                  {resolved.otherBrandHubs.filter(h => h.warning).map((h, i) => <div key={i}>⚠️ /pages/{h.handle}: {h.warning}</div>)}
+                </div>
+              )}
             </div>
           </div>
         </section>
