@@ -90,25 +90,65 @@ function parseClpDoc(text) {
   const pageTitle = getField(text, 'SEO Page Title')
   const metaDescription = getField(text, 'SEO Meta Description')
 
-  // Hero: topic name, H1, intro paragraph(s), trust signals, CTA button
-  const heroBlock = sectionText(text, 'Hero Section', SECTION_MARKERS)
-  const heroLines = heroBlock.split('\n').map(l => l.trim()).filter(Boolean)
-  let topic = heroLines[0] || ''
+  // Hero: topic name, H1, intro paragraph(s), trust signals, CTA button.
+  // Some docs explicitly label this "Hero Section" (the format this parser
+  // was originally built against); the real "Drivers" doc has no such
+  // label at all — it goes straight from the metadata block into the H1
+  // with just a horizontal-rule divider between them. sectionText silently
+  // returns '' when the label doesn't exist, which dropped the ENTIRE hero
+  // — H1, intro copy, trust badges, CTA button, all of it — with no error.
+  // Falls back to "everything after SEO Meta Description, up to the first
+  // real section marker" when no explicit "Hero Section" label is found.
+  let heroBlock = sectionText(text, 'Hero Section', SECTION_MARKERS)
+  if (!heroBlock) {
+    const metaMatch = text.match(/^SEO Meta Description:.*$/m)
+    if (metaMatch) {
+      const after = text.slice(metaMatch.index + metaMatch[0].length)
+      let endIdx = after.length
+      for (const end of SECTION_MARKERS) {
+        const m = after.match(new RegExp('^' + end + '.*$', 'm'))
+        if (m && m.index < endIdx) endIdx = m.index
+      }
+      heroBlock = after.slice(0, endIdx).trim()
+    }
+  }
+  // A bare horizontal-rule divider line ("________________") survives the
+  // blank-line filter since it isn't actually blank — strip it separately
+  // so it doesn't get mistaken for the topic/H1 line below.
+  const heroLines = heroBlock.split('\n').map(l => l.trim()).filter(l => l && !/^_{3,}$/.test(l))
+  let topic = ''
   let h1 = ''
   const introParagraphs = []
   const trustSignals = []
   let browseAllLabel = ''
   let browseAllUrl = ''
   let mode = 'intro'
-  for (const rawLine of heroLines.slice(1)) {
+  let sawFirstLine = false
+  // Trust-signal bullets ("✅ Hand-graded by our team...") have no "Trust
+  // signals" label in the real doc either — they're just bulleted lines
+  // sitting in the default 'intro' mode, which would otherwise dump them
+  // in with the actual intro prose. An emoji-leading bullet is a reliable
+  // enough signal on its own to route it to trustSignals regardless of mode.
+  const EMOJI_RE = /^[\u{1F300}-\u{1FAFF}☀-➿]/u
+  for (const rawLine of heroLines) {
     // Strip the leading "* " bullet once, up front, so every check below
     // works against the real content regardless of whether the doc bulleted
     // that particular line — this is what "* H1: ..." was silently failing
     // on before (the H1 check only ever looked for a line starting with
     // "H1:", not "* H1:").
     const line = rawLine.replace(/^\*+\s*/, '')
-    const h1Match = line.match(/^H1:\s*(.+)$/i)
-    if (h1Match) { h1 = h1Match[1].trim(); continue }
+    // H1 marker: either a "H1: text" prefix, or a "text - H1" suffix — the
+    // real Drivers doc writes it the other way round, combining the topic
+    // and H1 into one line with no separate topic line at all ("Drivers at
+    // golfclubs4cash - H1"). topic is derived from the H1 text itself (up
+    // to " at ") only when no separate topic line already set it.
+    const h1PrefixMatch = line.match(/^H1:\s*(.+)$/i)
+    const h1SuffixMatch = !h1PrefixMatch && line.match(/^(.+?)\s*-\s*H1$/i)
+    if (h1PrefixMatch || h1SuffixMatch) {
+      h1 = (h1PrefixMatch ? h1PrefixMatch[1] : h1SuffixMatch[1]).trim()
+      if (!topic) topic = h1.split(/\s+at\s+/i)[0].trim()
+      continue
+    }
     if (/^Short SEO introduction/i.test(line)) { mode = 'intro'; continue }
     if (/^Trust signals/i.test(line)) { mode = 'trust'; continue }
     const ctaMatch = line.match(/^"([^"]+)"\s*CTA LINK\/BUTTON/i)
@@ -119,8 +159,17 @@ function parseClpDoc(text) {
       continue
     }
     if (/^["“]/.test(line)) continue // stray quote-only placeholder lines like "copy"
+    if (/^\(/.test(line)) continue // instructional aside, e.g. "(Swap in the author name...)"
     const urlOnly = line.match(/^https?:\/\/\S+$/)
     if (urlOnly && !browseAllUrl) { browseAllUrl = urlOnly[0]; continue }
+    // Old-format docs ("Hero Section" / topic on its own line / then a
+    // separate "H1:" line) still work: the first unrecognized line before
+    // any H1 has been found is that explicit topic line.
+    if (!h1 && !topic && !sawFirstLine) { topic = line; sawFirstLine = true; continue }
+    // The preview already prefixes every trust signal with its own ✓
+    // checkmark — strip the source line's own leading emoji so it doesn't
+    // render doubled up.
+    if (EMOJI_RE.test(line)) { trustSignals.push(line.replace(EMOJI_RE, '').trim()); continue }
     if (mode === 'trust') {
       trustSignals.push(...line.split(',').map(s => s.trim()).filter(Boolean))
     } else if (mode === 'intro') {
