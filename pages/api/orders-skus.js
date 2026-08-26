@@ -12,7 +12,7 @@ import { fetchSoldSkusPage, buildSoldSkusParams } from '../../lib/reports/sold-s
 const PAGES_PER_CALL = 7
 
 export default async function handler(req, res) {
-  const { page_info, startDate, endDate } = req.query
+  const { page_info, startDate, endDate, sinceISO } = req.query
 
   try {
     const skus = []
@@ -21,7 +21,7 @@ export default async function handler(req, res) {
     let pagesCount = 0
 
     do {
-      const params = buildSoldSkusParams({ pageInfo: currentPageInfo, startDate, endDate })
+      const params = buildSoldSkusParams({ pageInfo: currentPageInfo, startDate, endDate, sinceISO })
       const { skus: pageSkus, nextPageInfo: next } = await fetchSoldSkusPage(params)
 
       skus.push(...pageSkus)

@@ -179,6 +179,23 @@ export default function DeletionCandidatesPage() {
       const cache = await cacheRes.json()
       if (cache.hit && cache.skus) {
         const skuSet = new Set(cache.skus)
+        // The cache is only rebuilt once a night (~3am) — top it up with
+        // anything sold since it was written, so same-day sales aren't
+        // missed and their products don't wrongly show as deletion
+        // candidates. Best-effort: if this fails, the nightly snapshot is
+        // still far better than no report at all.
+        try {
+          const sinceISO = new Date(cache.timestamp).toISOString()
+          let deltaPageInfo = null
+          do {
+            const params = new URLSearchParams()
+            if (deltaPageInfo) params.set('page_info', deltaPageInfo)
+            else params.set('sinceISO', sinceISO)
+            const json = await fetchOrdersPageWithRetry(params)
+            for (const sku of json.skus || []) skuSet.add(sku)
+            deltaPageInfo = json.nextPageInfo
+          } while (deltaPageInfo)
+        } catch {}
         setOrderCount(skuSet.size)
         return skuSet
       }
