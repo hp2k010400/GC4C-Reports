@@ -50,6 +50,13 @@ async function handlePatch(req, res, id) {
     patch.claim_form_received_at = today()
   }
 
+  // Distinct from updated_at (which bumps on any edit) — this only moves
+  // when claim_status itself changes, so the team can see how long a claim
+  // has actually sat at its current status.
+  if ('claim_status' in patch) {
+    patch.claim_status_changed_at = new Date().toISOString()
+  }
+
   if (!Object.keys(patch).length) return res.status(400).json({ error: 'No fields to update' })
   patch.updated_at = new Date().toISOString()
 

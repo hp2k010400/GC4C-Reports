@@ -1,20 +1,17 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import {
-  DEFAULT_WEIGHT_KG, COURIERS, VALUE_TIERS, STAGES, ISSUE_TYPES, CLAIM_STATUSES,
+  COURIERS, VALUE_TIERS, STAGES, ISSUE_TYPES, CLAIM_STATUSES,
   stageLabel, stageColour, stageRowBg, issueColour, claimStatusLabel, claimStatusColour,
-  expectedPayout, expectedShortfall, fmtGbp, fmtDate, today,
+  shortfall, fmtGbp, fmtDate, today,
 } from '../lib/parcelClaims'
 import ParcelClaimsReport from '../components/ParcelClaimsReport'
 
 function emptyForm() {
   return {
     date_started: today(), customer_name: '', email: '', ebay_username: '',
-    courier: 'DPD', consignment_ref: '', value_tier: '', retail: '', cost: '', claim_amount: '', recovered_amount: '',
-    // DPD is always declared at 10kg regardless of the actual item (confirmed
-    // with Phil Barron 2026-08-11) - default here, still editable for the
-    // rare case DPD pays out differently.
-    claim_ref: '', weight_kg: String(DEFAULT_WEIGHT_KG), stage: 'investigating', issue_type: '', notes: '', handled_by: '',
+    courier: 'DPD', consignment_ref: '', value_tier: '', cost: '', claim_amount: '', recovered_amount: '',
+    claim_ref: '', stage: 'investigating', issue_type: '', notes: '', handled_by: '',
   }
 }
 
@@ -22,11 +19,11 @@ function toCSV(rows) {
   if (!rows.length) return ''
   const headers = [
     'Date', 'Name', 'Email', 'eBay Username', 'Courier', 'Consignment Ref',
-    'Retail', 'Cost', 'Claim Amount', 'Recovered Amount', 'Claim Ref', 'Stage', 'Issue', 'Claim Status', 'Notes',
+    'Cost', 'Claim Amount', 'Recovered Amount', 'Claim Ref', 'Stage', 'Issue', 'Claim Status', 'Notes',
   ]
   const lines = rows.map(r => [
     r.date_started, r.customer_name, r.email, r.ebay_username, r.courier, r.consignment_ref,
-    r.retail, r.cost, r.claim_amount, r.recovered_amount, r.claim_ref, stageLabel(r.stage),
+    r.cost, r.claim_amount, r.recovered_amount, r.claim_ref, stageLabel(r.stage),
     r.issue_type ? (ISSUE_TYPES.find(i => i.value === r.issue_type)?.label || r.issue_type) : '',
     claimStatusLabel(r.claim_status), r.notes,
   ])
@@ -272,14 +269,13 @@ export default function ParcelClaimsPage() {
     }
   }
 
-  // Shortfall badge — only meaningful once weight is recorded (payout is
-  // weight-based, £12/kg, not a flat cap). Positive shortfall + still open = flag it.
+  // Shortfall badge — cost minus what's actually been claimed for. Positive
+  // = a real loss even once the claim's paid, negative = we're claiming for
+  // more than the item cost (shown as "up"). Only shown while still open.
   function shortfallInfo(row) {
     const isClosed = row.stage === 'delivered_ok' || ['settled', 'denied'].includes(row.claim_status)
     if (isClosed) return null
-    const shortfall = expectedShortfall(row)
-    if (shortfall == null || shortfall <= 0) return null
-    return shortfall
+    return shortfall(row)
   }
 
   function editableText(row, field, display) {
@@ -391,14 +387,14 @@ export default function ParcelClaimsPage() {
           </div>
         </div>
         <div className="stat-card">
-          <div className="stat-label">Expected Shortfall (weighed)</div>
-          <div className="stat-value" style={{ color: stats?.totalExpectedShortfall > 0 ? '#dc2626' : undefined }}>
-            {stats ? fmtGbp(stats.totalExpectedShortfall) : '—'}
+          <div className="stat-label">Shortfall (Cost − Claimed)</div>
+          <div className="stat-value" style={{ color: stats?.totalShortfall > 0 ? '#dc2626' : undefined }}>
+            {stats ? fmtGbp(stats.totalShortfall) : '—'}
           </div>
         </div>
       </div>
       <div style={{ fontSize: 11, color: '#999', marginTop: -6, marginBottom: 12 }}>
-        Open Cost Exposure = money tied up in unresolved cases · Claimed = sent to DPD, awaiting an outcome · Recovered = actually paid back · Denied = lost for good · Expected Shortfall = what you'll likely never get back even once DPD pays out
+        Open Cost Exposure = money tied up in unresolved cases · Claimed = sent to DPD, awaiting an outcome · Recovered = actually paid back · Denied = lost for good · Shortfall = cost minus what's actually been claimed for, on still-open cases
       </div>
 
       {/* --- Running total chart --- */}
@@ -539,17 +535,17 @@ export default function ParcelClaimsPage() {
             </select>
           </div>
           <div className="filter-row">
-            <input className="form-input" style={{ maxWidth: 130 }} type="number" step="0.01" placeholder="Retail £" value={form.retail} onChange={e => setForm(f => ({ ...f, retail: e.target.value }))} />
             <input className="form-input" style={{ maxWidth: 130 }} type="number" step="0.01" placeholder="Cost £" value={form.cost} onChange={e => setForm(f => ({ ...f, cost: e.target.value }))} />
-            <input className="form-input" style={{ maxWidth: 130 }} type="number" step="0.01" placeholder="Claim amount £" value={form.claim_amount} onChange={e => setForm(f => ({ ...f, claim_amount: e.target.value }))} />
-            <input className="form-input" style={{ maxWidth: 130 }} type="number" step="0.01" placeholder="Recovered £" value={form.recovered_amount} onChange={e => setForm(f => ({ ...f, recovered_amount: e.target.value }))} />
             <div>
-              <input className="form-input" style={{ maxWidth: 130 }} type="number" step="0.01" placeholder="Weight (kg)" value={form.weight_kg} onChange={e => setForm(f => ({ ...f, weight_kg: e.target.value }))} />
-              {form.weight_kg && form.cost && (() => {
-                const s = expectedShortfall({ weight_kg: form.weight_kg, cost: form.cost })
-                return s > 0 ? <span className="cap-warning">SHORT £{s.toFixed(2)}</span> : null
+              <input className="form-input" style={{ maxWidth: 130 }} type="number" step="0.01" placeholder="Claim amount £" value={form.claim_amount} onChange={e => setForm(f => ({ ...f, claim_amount: e.target.value }))} />
+              {form.cost && form.claim_amount && (() => {
+                const s = shortfall({ cost: form.cost, claim_amount: form.claim_amount })
+                if (s > 0) return <span className="cap-warning">SHORT £{s.toFixed(2)}</span>
+                if (s < 0) return <span style={{ color: '#16a34a', fontSize: 10, fontWeight: 700 }}>UP £{Math.abs(s).toFixed(2)}</span>
+                return null
               })()}
             </div>
+            <input className="form-input" style={{ maxWidth: 130 }} type="number" step="0.01" placeholder="Recovered £" value={form.recovered_amount} onChange={e => setForm(f => ({ ...f, recovered_amount: e.target.value }))} />
           </div>
           <div className="filter-row">
             <select className="form-select" value={form.stage} onChange={e => setForm(f => ({ ...f, stage: e.target.value }))}>
@@ -595,7 +591,7 @@ export default function ParcelClaimsPage() {
                 <th>Date</th>
                 <th>Customer</th>
                 <th>Courier</th>
-                <th style={{ textAlign: 'right' }}>Retail / Cost / Weight</th>
+                <th style={{ textAlign: 'right' }}>Cost</th>
                 <th style={{ textAlign: 'right' }}>Claim / Recovered / Ref</th>
                 <th>Stage / Issue</th>
                 <th>Claim Status</th>
@@ -625,15 +621,19 @@ export default function ParcelClaimsPage() {
                         <div style={{ fontSize: 10, color: '#aaa' }} className="sku-cell">{row.consignment_ref || '—'}</div>
                       </td>
                       <td style={{ textAlign: 'right', whiteSpace: 'nowrap', backgroundColor: bg }}>
-                        <div>{editableNumber(row, 'retail')}</div>
-                        <div style={{ fontSize: 10, color: '#aaa' }}>{editableNumber(row, 'cost')}</div>
-                        <div style={{ fontSize: 10, color: '#aaa' }}>{editableNumber(row, 'weight_kg', v => `${v}kg`)}</div>
+                        <div>{editableNumber(row, 'cost')}</div>
                       </td>
                       <td style={{ textAlign: 'right', whiteSpace: 'nowrap', backgroundColor: bg }}>
                         <div>{editableNumber(row, 'claim_amount')}</div>
                         <div style={{ fontSize: 10, color: '#16a34a' }}>{editableNumber(row, 'recovered_amount')}</div>
                         <div style={{ fontSize: 10, color: '#aaa' }}>{editableText(row, 'claim_ref', row.claim_ref || '—')}</div>
-                        {shortfallInfo(row) != null && <span className="cap-warning">SHORT £{shortfallInfo(row).toFixed(2)}</span>}
+                        {(() => {
+                          const s = shortfallInfo(row)
+                          if (s == null) return null
+                          if (s > 0) return <span className="cap-warning">SHORT £{s.toFixed(2)}</span>
+                          if (s < 0) return <span style={{ color: '#16a34a', fontSize: 10, fontWeight: 700 }}>UP £{Math.abs(s).toFixed(2)}</span>
+                          return null
+                        })()}
                       </td>
                       <td style={{ backgroundColor: bg }}>
                         <select
@@ -662,10 +662,11 @@ export default function ParcelClaimsPage() {
                         >
                           {CLAIM_STATUSES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
                         </select>
-                        {(row.claim_form_sent_at || row.claim_form_received_at) && (
+                        {(row.claim_form_sent_at || row.claim_form_received_at || row.claim_status_changed_at) && (
                           <div style={{ fontSize: 10, color: '#888', marginTop: 2, whiteSpace: 'nowrap' }}>
                             {row.claim_form_sent_at && <div>Sent: {fmtDate(row.claim_form_sent_at)}</div>}
                             {row.claim_form_received_at && <div>Received: {fmtDate(row.claim_form_received_at)}</div>}
+                            {row.claim_status_changed_at && <div>Status since: {fmtDate(row.claim_status_changed_at)}</div>}
                           </div>
                         )}
                       </td>

@@ -36,7 +36,7 @@ export default async function handler(req, res) {
   while (true) {
     const { data: page, error } = await supabase
       .from('parcel_claims')
-      .select('date_started, retail, cost, claim_amount, courier, value_tier, stage, claim_status')
+      .select('date_started, cost, claim_amount, courier, value_tier, stage, claim_status')
       .gte('date_started', yearStart)
       .lte('date_started', yearEnd)
       .range(offset, offset + PAGE_SIZE - 1)
@@ -63,7 +63,7 @@ export default async function handler(req, res) {
 
   function blank() {
     return {
-      retail: 0, cost: 0, claimAmount: 0, count: 0,
+      cost: 0, claimAmount: 0, count: 0,
       hv: 0, lv: 0, otherValueTier: 0,
       byCourier: {},
       byStage: {}, byClaimStatus: {},
@@ -79,7 +79,6 @@ export default async function handler(req, res) {
     if (!key) noDateCount++
 
     bucket.count += 1
-    bucket.retail += Number(r.retail) || 0
     bucket.cost += Number(r.cost) || 0
     bucket.claimAmount += Number(r.claim_amount) || 0
 
@@ -102,7 +101,6 @@ export default async function handler(req, res) {
   // Grand total row, same shape as a period row
   const grand = blank()
   for (const row of rows) {
-    grand.retail += row.retail
     grand.cost += row.cost
     grand.claimAmount += row.claimAmount
     grand.count += row.count

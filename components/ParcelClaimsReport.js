@@ -73,9 +73,9 @@ export default function ParcelClaimsReport() {
 
   function exportCSV() {
     if (!data) return
-    const headers = ['Period', 'Retail', 'Cost', 'Claim Amount', 'HV', 'LV', ...data.couriers]
+    const headers = ['Period', 'Cost', 'Claim Amount', 'HV', 'LV', ...data.couriers]
     const lines = [headers, ...data.rows.map(r => [
-      fmtPeriod(r.period, data.granularity), r.retail.toFixed(2), r.cost.toFixed(2), r.claimAmount.toFixed(2),
+      fmtPeriod(r.period, data.granularity), r.cost.toFixed(2), r.claimAmount.toFixed(2),
       r.hv, r.lv, ...data.couriers.map(c => r.byCourier[c] || 0),
     ])]
     downloadCSV(lines.map(l => l.join(',')).join('\n'), `missing-parcels-report-${granularity}.csv`)
@@ -117,7 +117,6 @@ export default function ParcelClaimsReport() {
                 <thead>
                   <tr style={{ background: HEAD_BG }}>
                     <th>{gLabel}</th>
-                    <th style={{ textAlign: 'right' }}>Sum of Retail</th>
                     <th style={{ textAlign: 'right' }}>Sum of Cost</th>
                     <th style={{ textAlign: 'right' }}>Sum of Claim</th>
                   </tr>
@@ -126,14 +125,12 @@ export default function ParcelClaimsReport() {
                   {data.rows.map(r => (
                     <tr key={r.period}>
                       <td>{fmtPeriod(r.period, data.granularity)}</td>
-                      <td style={{ textAlign: 'right' }}>{fmtGbp(r.retail)}</td>
                       <td style={{ textAlign: 'right', background: costHeat(r.cost, maxCost) }}>{fmtGbp(r.cost)}</td>
                       <td style={{ textAlign: 'right' }}>{fmtGbp(r.claimAmount)}</td>
                     </tr>
                   ))}
                   <tr style={{ fontWeight: 700, background: TOTAL_BG }}>
                     <td>Grand Total</td>
-                    <td style={{ textAlign: 'right' }}>{fmtGbp(data.grand.retail)}</td>
                     <td style={{ textAlign: 'right' }}>{fmtGbp(data.grand.cost)}</td>
                     <td style={{ textAlign: 'right' }}>{fmtGbp(data.grand.claimAmount)}</td>
                   </tr>

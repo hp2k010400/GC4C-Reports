@@ -1,5 +1,5 @@
 import { getSupabase } from '../../../lib/supabase'
-import { expectedShortfall } from '../../../lib/parcelClaims'
+import { shortfall } from '../../../lib/parcelClaims'
 
 // Aggregates are computed here (server-side, over a lean column selection)
 // rather than shipping all 5,000+ raw rows to the browser just to sum them —
@@ -17,7 +17,7 @@ export default async function handler(req, res) {
   function buildQuery() {
     let q = supabase
       .from('parcel_claims')
-      .select('cost, claim_amount, recovered_amount, weight_kg, stage, claim_status, courier, date_started')
+      .select('cost, claim_amount, recovered_amount, stage, claim_status, courier, date_started')
     if (status) q = q.eq('claim_status', status)
     if (stage) q = q.eq('stage', stage)
     if (courier) q = q.eq('courier', courier)
@@ -50,7 +50,7 @@ export default async function handler(req, res) {
   let totalClaimed = 0
   let totalRecovered = 0
   let totalDenied = 0
-  let totalExpectedShortfall = 0
+  let totalShortfall = 0
   const byCourier = {}
 
   // Running-total chart always spans the current calendar year, Jan-Dec,
@@ -73,8 +73,8 @@ export default async function handler(req, res) {
 
     if (!isClosed) {
       openCostExposure += cost
-      const shortfall = expectedShortfall(r)
-      if (shortfall != null && shortfall > 0) totalExpectedShortfall += shortfall
+      const s = shortfall(r)
+      if (s != null && s > 0) totalShortfall += s
 
       if (!byCourier[r.courier || 'Unknown']) byCourier[r.courier || 'Unknown'] = { courier: r.courier || 'Unknown', count: 0, cost: 0 }
       byCourier[r.courier || 'Unknown'].count += 1
@@ -118,7 +118,7 @@ export default async function handler(req, res) {
     totalClaimed: parseFloat(totalClaimed.toFixed(2)),
     totalRecovered: parseFloat(totalRecovered.toFixed(2)),
     totalDenied: parseFloat(totalDenied.toFixed(2)),
-    totalExpectedShortfall: parseFloat(totalExpectedShortfall.toFixed(2)),
+    totalShortfall: parseFloat(totalShortfall.toFixed(2)),
     byCourier: Object.values(byCourier).sort((a, b) => b.cost - a.cost),
     series,
     totalRows: data.length,
