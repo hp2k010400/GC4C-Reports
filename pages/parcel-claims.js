@@ -6,6 +6,7 @@ import {
   shortfall, fmtGbp, fmtDate, today,
 } from '../lib/parcelClaims'
 import ParcelClaimsReport from '../components/ParcelClaimsReport'
+import ParcelClaimsCalendar from '../components/ParcelClaimsCalendar'
 
 function emptyForm() {
   return {
@@ -59,7 +60,7 @@ function monthLabel(ym) {
 }
 
 export default function ParcelClaimsPage() {
-  const [view, setView] = useState('claims') // 'claims' | 'report'
+  const [view, setView] = useState('claims') // 'claims' | 'report' | 'calendar'
 
   // --- Password gate (no persistence — same pattern as /adjustments) ---
   const [unlocked, setUnlocked] = useState(false)
@@ -356,9 +357,11 @@ export default function ParcelClaimsPage() {
       <div className="chip-bar" style={{ marginBottom: 16 }}>
         <button className={`chip-btn${view === 'claims' ? ' active' : ''}`} onClick={() => setView('claims')}>Claims</button>
         <button className={`chip-btn${view === 'report' ? ' active' : ''}`} onClick={() => setView('report')}>Report</button>
+        <button className={`chip-btn${view === 'calendar' ? ' active' : ''}`} onClick={() => setView('calendar')}>Calendar</button>
       </div>
 
       {view === 'report' && <ParcelClaimsReport />}
+      {view === 'calendar' && <ParcelClaimsCalendar />}
       {view === 'claims' && <>
 
       {/* --- Stats --- */}
