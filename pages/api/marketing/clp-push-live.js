@@ -78,13 +78,17 @@ export default async function handler(req, res) {
       },
     } : null
 
-    const [resolvedMostViewed, resolvedPlayerType, resolvedBrand, resolvedModel, resolvedFeatured] = await Promise.all([
+    // resolveCategory returns null for a link that could never be a real
+    // collection (a search-results URL pasted in by mistake, e.g.
+    // "driver?search=mini") — filtered out so it doesn't push live as a
+    // broken, blank-image tile with the raw query string as its label.
+    const [resolvedMostViewed, resolvedPlayerType, resolvedBrand, resolvedModel, resolvedFeatured] = (await Promise.all([
       Promise.all((mostViewedUrls || []).map(resolveCategory)),
       Promise.all((playerTypeUrls || []).map(resolveCategory)),
       Promise.all((brandUrls || []).map(resolveCategory)),
       Promise.all((modelUrls || []).map(resolveCategory)),
       Promise.all((featuredUrls || []).map(resolveCategory)),
-    ])
+    ])).map(list => list.filter(Boolean))
 
     const metafields = [
       { namespace: 'custom', key: 'seo_topic', type: 'single_line_text_field', value: topic || '' },

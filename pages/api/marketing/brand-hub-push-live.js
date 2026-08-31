@@ -68,9 +68,12 @@ export default async function handler(req, res) {
       },
     } : null
 
+    // resolveCategory returns null for a link that could never be a real
+    // collection (a search-results URL pasted in by mistake) — filtered out
+    // so it doesn't push live as a broken, blank-image tile.
     const [resolvedMain, resolvedOther, resolvedOtherHubs] = await Promise.all([
-      Promise.all((mainCategoryUrls || []).map(resolveCategory)),
-      Promise.all((otherCategoryUrls || []).map(resolveCategory)),
+      Promise.all((mainCategoryUrls || []).map(resolveCategory)).then(list => list.filter(Boolean)),
+      Promise.all((otherCategoryUrls || []).map(resolveCategory)).then(list => list.filter(Boolean)),
       Promise.all((otherBrandHubUrls || []).map(resolvePageLink)),
     ])
 

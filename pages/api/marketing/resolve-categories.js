@@ -14,7 +14,10 @@ export default async function handler(req, res) {
       Promise.all((otherCategoryUrls || []).map(resolveCategory)),
       Promise.all((otherBrandHubUrls || []).map(resolvePageLink)),
     ])
-    return res.status(200).json({ main, other, otherBrandHubs })
+    // resolveCategory returns null for a link that could never be a real
+    // collection (a search-results URL pasted in by mistake) — filtered out
+    // here so it renders as nothing instead of a broken, blank-image tile.
+    return res.status(200).json({ main: main.filter(Boolean), other: other.filter(Boolean), otherBrandHubs })
   } catch (err) {
     return res.status(500).json({ error: err.message })
   }

@@ -382,8 +382,13 @@ function ClpPreview({ parsed, resolved, labelImages }) {
         <h1 className="clp-h1">{parsed.h1}</h1>
         {parsed.introParagraphs.map((p, i) => <p key={i} className="clp-body" style={{ color: '#5b6259', marginTop: '1rem' }}>{p}</p>)}
         {parsed.trustSignals.length > 0 && (
-          <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '0.5rem 1.4rem', marginTop: '1.2rem' }}>
-            {parsed.trustSignals.map((t, i) => <span key={i} style={{ fontSize: '0.85rem', fontWeight: 700, color: '#0d3d1f' }}>&#10003; {t}</span>)}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '0.8rem', marginTop: '1.6rem' }}>
+            {parsed.trustSignals.map((t, i) => (
+              <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: '0.7rem', background: '#f4f8f5', border: '1px solid #dce8de', borderRadius: 10, padding: '0.8rem 1rem', textAlign: 'left' }}>
+                <span style={{ flex: 'none', width: 24, height: 24, borderRadius: '50%', background: '#20842e', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', fontWeight: 700, marginTop: '0.1rem' }}>&#10003;</span>
+                <span style={{ fontSize: '0.88rem', fontWeight: 600, color: '#1c1f1a', lineHeight: 1.4 }}>{t}</span>
+              </div>
+            ))}
           </div>
         )}
         {parsed.browseAllUrl && (
