@@ -618,7 +618,6 @@ export default function ParcelClaimsPage() {
               {form.cost && form.claim_amount && (() => {
                 const s = shortfall({ cost: form.cost, claim_amount: form.claim_amount })
                 if (s > 0) return <span className="cap-warning">SHORT £{s.toFixed(2)}</span>
-                if (s < 0) return <span style={{ color: '#16a34a', fontSize: 10, fontWeight: 700 }}>UP £{Math.abs(s).toFixed(2)}</span>
                 return null
               })()}
             </div>
@@ -736,7 +735,6 @@ export default function ParcelClaimsPage() {
                           const s = shortfallInfo(row)
                           if (s == null) return null
                           if (s > 0) return <span className="cap-warning">SHORT £{s.toFixed(2)}</span>
-                          if (s < 0) return <span style={{ color: '#16a34a', fontSize: 10, fontWeight: 700 }}>UP £{Math.abs(s).toFixed(2)}</span>
                           return null
                         })()}
                       </td>
