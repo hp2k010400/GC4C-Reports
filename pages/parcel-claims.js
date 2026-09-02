@@ -96,6 +96,8 @@ export default function ParcelClaimsPage() {
   const [form, setForm] = useState(emptyForm())
   const [addSubmitting, setAddSubmitting] = useState(false)
   const [addError, setAddError] = useState(null)
+  const [dupMatches, setDupMatches] = useState([])
+  const dupCheckDebounce = useRef(null)
 
   const [editing, setEditing] = useState(null) // { id, field }
   const [editValue, setEditValue] = useState('')
@@ -261,6 +263,26 @@ export default function ParcelClaimsPage() {
     setSearchLive('')
   }
 
+  // Checks for an existing claim with a matching consignment ref (or, if
+  // that's blank, customer name) — including closed ones, since that's
+  // exactly what caused real duplicate rows on 2026-09-02 (someone re-adding
+  // a case from the old sheet that was already imported and just hidden by
+  // the default closed-cases filter). Warns, doesn't block — a genuine
+  // second claim for the same parcel is rare but not impossible.
+  function checkForDuplicate(nextForm) {
+    clearTimeout(dupCheckDebounce.current)
+    const q = (nextForm.consignment_ref || nextForm.customer_name || '').trim()
+    if (q.length < 4) { setDupMatches([]); return }
+    dupCheckDebounce.current = setTimeout(async () => {
+      try {
+        const params = new URLSearchParams({ search: q, closed: '1', limit: '5' })
+        const res = await fetch(`/api/parcel-claims?${params}`)
+        const data = await res.json()
+        if (res.ok) setDupMatches(data.rows || [])
+      } catch {}
+    }, 400)
+  }
+
   async function handleAddSubmit(e) {
     e.preventDefault()
     if (!form.customer_name.trim()) return
@@ -276,6 +298,7 @@ export default function ParcelClaimsPage() {
       if (!res.ok) throw new Error(data.error || 'Failed to save')
       setRows(rs => [data.row, ...rs])
       setForm(emptyForm())
+      setDupMatches([])
       setShowAddForm(false)
       loadStats()
     } catch (err) {
@@ -468,7 +491,7 @@ export default function ParcelClaimsPage() {
       {/* --- Filters --- */}
       <div className="filter-builder">
         <div className="filter-builder-header">
-          <button className="add-filter-btn" onClick={() => setShowAddForm(s => !s)}>
+          <button className="add-filter-btn" onClick={() => { setShowAddForm(s => !s); setDupMatches([]) }}>
             {showAddForm ? '× Close' : '+ Add Claim'}
           </button>
           <button className="btn btn-secondary" style={{ fontSize: 12, padding: '4px 10px' }} onClick={() => setShowClosed(s => !s)}>
@@ -542,7 +565,7 @@ export default function ParcelClaimsPage() {
           <div className="chart-card-title">New Claim</div>
           <div className="filter-row">
             <input className="form-input" style={{ maxWidth: 150 }} type="date" value={form.date_started} onChange={e => setForm(f => ({ ...f, date_started: e.target.value }))} />
-            <input className="form-input" placeholder="Customer name *" required value={form.customer_name} onChange={e => setForm(f => ({ ...f, customer_name: e.target.value }))} />
+            <input className="form-input" placeholder="Customer name *" required value={form.customer_name} onChange={e => { const next = { ...form, customer_name: e.target.value }; setForm(next); checkForDuplicate(next) }} />
             <input className="form-input" placeholder="Email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} />
             <input className="form-input" placeholder="eBay username" value={form.ebay_username} onChange={e => setForm(f => ({ ...f, ebay_username: e.target.value }))} />
           </div>
@@ -550,13 +573,28 @@ export default function ParcelClaimsPage() {
             <select className="form-select" style={{ maxWidth: 130 }} value={form.courier} onChange={e => setForm(f => ({ ...f, courier: e.target.value }))}>
               {COURIERS.map(c => <option key={c} value={c}>{c}</option>)}
             </select>
-            <input className="form-input" placeholder="Consignment ref" value={form.consignment_ref} onChange={e => setForm(f => ({ ...f, consignment_ref: e.target.value }))} />
+            <input className="form-input" placeholder="Consignment ref" value={form.consignment_ref} onChange={e => { const next = { ...form, consignment_ref: e.target.value }; setForm(next); checkForDuplicate(next) }} />
             <input className="form-input" placeholder="Claim ref" value={form.claim_ref} onChange={e => setForm(f => ({ ...f, claim_ref: e.target.value }))} />
             <select className="form-select" style={{ maxWidth: 130 }} value={form.value_tier} onChange={e => setForm(f => ({ ...f, value_tier: e.target.value }))}>
               <option value="">Value tier?</option>
               {VALUE_TIERS.map(v => <option key={v} value={v}>{v}</option>)}
             </select>
           </div>
+
+          {dupMatches.length > 0 && (
+            <div style={{ padding: '8px 12px', borderRadius: 6, background: '#fdeeee', border: '1px solid #f3b8b8', color: '#8a2a2a', fontSize: 12 }}>
+              <strong>⚠ Possibly already in the system</strong> — found {dupMatches.length} existing claim{dupMatches.length === 1 ? '' : 's'} matching this (checked closed cases too):
+              <ul style={{ margin: '4px 0 0', paddingLeft: 18 }}>
+                {dupMatches.map(m => (
+                  <li key={m.id}>
+                    {m.customer_name} — {fmtDate(m.date_started)} — {stageLabel(m.stage)}{m.consignment_ref ? ` — ${m.consignment_ref}` : ''}
+                  </li>
+                ))}
+              </ul>
+              Check it's not already there (search above, tick "Show closed too") before saving a new one.
+            </div>
+          )}
+
           <div className="filter-row">
             <input className="form-input" style={{ maxWidth: 130 }} type="number" step="0.01" placeholder="Cost £" value={form.cost} onChange={e => setForm(f => ({ ...f, cost: e.target.value }))} />
             <div>
@@ -591,6 +629,26 @@ export default function ParcelClaimsPage() {
       )}
 
       {error && <div className="state-box error">Error: {error}</div>}
+
+      {!loading && hiddenClosedCount > 0 && (
+        <div
+          style={{
+            display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12,
+            padding: '10px 14px', borderRadius: 8,
+            background: '#fff6ea', border: '1px solid #f3d9a8', color: '#7a5a1e', fontSize: 13,
+          }}
+        >
+          <strong>🔒 {hiddenClosedCount.toLocaleString()} closed {hiddenClosedCount === 1 ? 'case is' : 'cases are'} hidden</strong>
+          <span>(Delivered OK / Settled / Denied) — not missing, just filtered out of the default view.</span>
+          <button
+            className="btn btn-secondary"
+            style={{ marginLeft: 'auto', fontSize: 12, padding: '4px 10px', whiteSpace: 'nowrap' }}
+            onClick={() => setShowClosed(true)}
+          >
+            Show them
+          </button>
+        </div>
+      )}
 
       <div className="results-bar">
         <span className="results-count">{loading ? 'Loading…' : `${rows.length} of ${total} claims`}</span>
