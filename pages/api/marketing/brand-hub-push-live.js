@@ -1,5 +1,5 @@
 import { shopifyGraphQL } from '../../../lib/shopify.js'
-import { resolveCategory, resolvePageLink } from '../../../lib/marketing-categories.js'
+import { resolveCategory, resolvePageLink, resolveFaqCtaUrl } from '../../../lib/marketing-categories.js'
 
 // Writes to a Page's metafields + assigns the shared "brand-hub" template
 // (built once, reused for all ~16 brands). Category tiles come in as plain
@@ -71,10 +71,21 @@ export default async function handler(req, res) {
     // resolveCategory returns null for a link that could never be a real
     // collection (a search-results URL pasted in by mistake) — filtered out
     // so it doesn't push live as a broken, blank-image tile.
-    const [resolvedMain, resolvedOther, resolvedOtherHubs] = await Promise.all([
+    const [resolvedMain, resolvedOther, resolvedOtherHubs, resolvedFaqs] = await Promise.all([
       Promise.all((mainCategoryUrls || []).map(resolveCategory)).then(list => list.filter(Boolean)),
       Promise.all((otherCategoryUrls || []).map(resolveCategory)).then(list => list.filter(Boolean)),
       Promise.all((otherBrandHubUrls || []).map(resolvePageLink)),
+      // The client-side parse only recognises a handful of fixed CTA-label
+      // patterns and leaves everything else blank ("PXG DRIVERS", "MODELS",
+      // "CALLAWAY IRONS" — real shorthand for a real collection, not literal
+      // button text). Re-resolved here with the full version, which can
+      // actually search live collections — ctaText still carries the raw
+      // label whenever it isn't already a literal URL (the one case
+      // ctaUrl is trusted as-is, since there's no better label to work from).
+      Promise.all((faqs || []).map(async f => ({
+        ...f,
+        ctaUrl: f.ctaText ? await resolveFaqCtaUrl(f.ctaText, { guidesUrl }) : (f.ctaUrl || ''),
+      }))),
     ])
 
     const metafields = [
@@ -87,7 +98,7 @@ export default async function handler(req, res) {
       { namespace: 'custom', key: 'seo_main_categories', type: 'json', value: JSON.stringify(resolvedMain) },
       { namespace: 'custom', key: 'seo_other_categories', type: 'json', value: JSON.stringify(resolvedOther) },
       { namespace: 'custom', key: 'seo_other_brand_hubs', type: 'json', value: JSON.stringify(resolvedOtherHubs) },
-      { namespace: 'custom', key: 'seo_faqs', type: 'json', value: JSON.stringify(faqs || []) },
+      { namespace: 'custom', key: 'seo_faqs', type: 'json', value: JSON.stringify(resolvedFaqs) },
       { namespace: 'custom', key: 'seo_tradein_paragraphs', type: 'json', value: JSON.stringify(tradeInParagraphs || []) },
       { namespace: 'custom', key: 'seo_guides_url', type: 'single_line_text_field', value: guidesUrl || '' },
       { namespace: 'custom', key: 'seo_guides_body', type: 'multi_line_text_field', value: guidesBody || '' },
