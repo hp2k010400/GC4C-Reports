@@ -564,8 +564,11 @@ export default function ParcelClaimsPage() {
             { label: '30 days', from: () => daysAgo(29) },
             { label: '90 days', from: () => daysAgo(89) },
             { label: 'This month', from: startOfMonth },
+            { label: '6 months', from: () => daysAgo(182) },
+            { label: '1 year', from: () => daysAgo(364) },
+            { label: 'All time', from: () => '' },
           ].map(p => (
-            <button key={p.label} className="preset-btn" onClick={() => { setDateFrom(p.from()); setDateTo(today()) }}>
+            <button key={p.label} className="preset-btn" onClick={() => { const f = p.from(); setDateFrom(f); setDateTo(f ? today() : '') }}>
               {p.label}
             </button>
           ))}
