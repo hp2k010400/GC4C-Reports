@@ -79,7 +79,14 @@ export default async function handler(req, res) {
     if (!key) noDateCount++
 
     bucket.count += 1
-    bucket.cost += Number(r.cost) || 0
+    // Cost only counts toward the total while the case is still open — once
+    // it's Delivered OK (or Settled/Denied), there's no ongoing exposure, so
+    // it shouldn't inflate the monthly figure. Same definition of "closed"
+    // as the main page's Open Cost Exposure stat, per Phil Barron
+    // 2026-09-02 ("common sense says" exclude it from totals, not wipe the
+    // value off the row).
+    const isClosed = r.stage === 'delivered_ok' || ['settled', 'denied'].includes(r.claim_status)
+    if (!isClosed) bucket.cost += Number(r.cost) || 0
     bucket.claimAmount += Number(r.claim_amount) || 0
 
     const vt = (r.value_tier || '').toUpperCase()
