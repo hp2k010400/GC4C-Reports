@@ -68,7 +68,15 @@ function parseBlogDoc(text, tables = []) {
   const suggestedUrl = suggestedMatch ? suggestedMatch[1] : ''
   const urlParts = suggestedUrl.replace(/\?$/, '').split('/blogs/')[1] || ''
   const [blogHandle, articleHandleRaw] = urlParts.split('/')
-  const articleHandle = (articleHandleRaw || '').split('?')[0]
+  // Shopify silently strips a trailing "-" (not a valid handle character in
+  // that position) when the article is actually created — a doc whose
+  // "Suggested URL" itself carries one ("...so-special-") meant this field,
+  // the "View page" link, and what the user actually typed/navigated to all
+  // stayed one character longer than the real, live handle Shopify assigned
+  // — a real 404 on a page that, underneath, genuinely existed and was
+  // genuinely published. Stripped here so what's shown always matches what
+  // Shopify will actually create.
+  const articleHandle = (articleHandleRaw || '').split('?')[0].replace(/-+$/, '')
 
   const pageTitle = getField(text, ['Page Title', 'Meta title'])
   const metaDescription = getField(text, ['Meta Description', 'Meta description'])
@@ -519,6 +527,14 @@ export default function BlogTemplate() {
       if (!res.ok) throw new Error(data.error)
       setOriginalContent(data.original)
       setWasCreated(data.created)
+      // Shopify can create the article at a slightly different handle than
+      // what was actually sent (it strips a trailing "-", among other
+      // normalizations) — the input box and "View page" link stayed on the
+      // originally-typed handle regardless, so a doc whose own handle had
+      // one showed a real, published, live article as a 404 to whoever
+      // clicked through. articleHandle is what Shopify actually created it
+      // at — always the source of truth once the push has actually happened.
+      if (data.articleHandle && data.articleHandle !== targetHandle.trim()) setTargetHandle(data.articleHandle)
       setPushState('live')
     } catch (err) {
       setPushState('error')
