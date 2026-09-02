@@ -125,9 +125,19 @@ function parseBrandHubDoc(text) {
       tier = line.split('-')[0].trim()
       continue
     }
-    const qMatch = line.match(/^Q\??\s*[-:]?\s*(.+)$/)
-    const aMatch = line.match(/^A\s*[-:]\s*(.+)$/)
-    const ctaMatch = line.match(/^CTA LINK\s*[-:]?\s*(.+)$/i)
+    // A real doc (Cleveland) used "Q — ", "A — ", "CTA — " — an em-dash
+    // separator, not the "-"/":" every other doc so far used. The A and
+    // CTA regexes required one of those literally, so neither ever
+    // matched a single line in that doc: every "A — ..." and "CTA — ..."
+    // line fell through to the "still building the question" branch below
+    // and got silently appended onto current.q instead, merging every
+    // Q/A/CTA in the whole FAQ block into one wall of text with an empty
+    // answer. CTA also needed to work without the word "LINK" at all —
+    // this doc wrote "CTA — LINK TO MODELS" (LINK is part of the real
+    // label there, not a fixed prefix).
+    const qMatch = line.match(/^Q\??\s*[-:—]?\s*(.+)$/)
+    const aMatch = line.match(/^A\s*[-:—]\s*(.+)$/)
+    const ctaMatch = line.match(/^CTA(?:\s+LINK)?\s*[-:—]?\s*(.+)$/i)
     if (qMatch && !aMatch) {
       if (current) faqs.push(current)
       current = { tier, q: qMatch[1].trim(), a: '', ctaText: '', ctaUrl: '' }
