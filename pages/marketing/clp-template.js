@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import MarketingHistoryList from '../../components/MarketingHistoryList'
+import { extractUrls } from '../../lib/marketing-doc-parsing.js'
 
 const SAFE_TEST_HANDLES = ['marketing-automation-test-page', 'marketing-automation-test', 'marketing-automation-test-article']
 
@@ -48,7 +49,6 @@ function sectionText(text, startLabel, endLabels) {
   return after.slice(0, endIdx).trim()
 }
 
-const extractUrls = (blockText) => (blockText.match(/https?:\/\/\S+/g) || [])
 
 // Real names exist in the doc for these tile sections even before real
 // links are added ("Beginners", "Ping", "G430"...) — extracting them lets

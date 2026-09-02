@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import MarketingHistoryList from '../../components/MarketingHistoryList'
+import { extractUrls } from '../../lib/marketing-doc-parsing.js'
 
 // Mirrors lib/marketing-safety.js — pushing to anything outside this list
 // requires typing the handle out to confirm, not just clicking a dialog.
@@ -131,9 +132,6 @@ function parseBrandHubDoc(text) {
   }
   if (current) faqs.push(current)
 
-  const extractUrls = (blockText) =>
-    (blockText.match(/https?:\/\/\S+/g) || [])
-
   const mainCategoryUrls = extractUrls(sectionText(text, 'Child collection links Required', SECTION_MARKERS))
   const otherCategoryUrls = extractUrls(sectionText(text, 'Other Clubs suggestions', SECTION_MARKERS))
   const otherBrandHubUrls = extractUrls(sectionText(text, 'Other brand hubs', SECTION_MARKERS))
@@ -157,6 +155,70 @@ function parseBrandHubDoc(text) {
     mainCategoryUrls, otherCategoryUrls, otherBrandHubUrls,
     faqs, tradeInParagraphs, guidesUrl, guidesBody,
   }
+}
+
+// The reverse of parseBrandHubDoc — turns a real, already-pushed page's
+// data (from brand-hub-load.js) back into doc-shaped text, so "Edit" can
+// load a real live page back into the same box/parse/preview/push flow
+// instead of only pre-filling the target handle (which looked like a dead
+// button: nothing about the page's actual content ever appeared). The
+// metafields store RESOLVED category tiles ({label, handle, image, count}),
+// not the original doc URLs — reconstructed here as real /collections/ and
+// /pages/ links from each item's own handle, which round-trips correctly
+// through resolveCategory/resolvePageLink on the next parse.
+function buildDocTextFromPageData(data) {
+  const BASE = 'https://www.golfclubs4cash.co.uk'
+  const lines = []
+  lines.push(`Suggested URL(s):`, `${BASE}/pages/${data.handle || ''}`, '')
+  lines.push(`SEO Page Title: ${data.pageTitle || ''}`)
+  lines.push(`SEO Meta Description: ${data.metaDescription || ''}`)
+  lines.push('')
+  lines.push('Page Copy')
+  for (const p of (data.heroParagraphs || [])) {
+    // The real H1 paragraph carries the "- H1" suffix; every other hero
+    // line is plain intro prose. heroParagraphs doesn't tag which one was
+    // the H1 (that's tracked separately as data.h1), so match on content.
+    lines.push(p === data.h1 ? `${p} - H1` : p)
+  }
+  if (data.h1 && !(data.heroParagraphs || []).includes(data.h1)) lines.push(`${data.h1} - H1`)
+  lines.push('')
+  if ((data.faqs || []).length) {
+    lines.push('FAQs Blocks')
+    let tierSeen = ''
+    for (const f of data.faqs) {
+      if (f.tier && f.tier !== tierSeen) { lines.push(f.tier); tierSeen = f.tier }
+      lines.push(`Q? - ${f.q}`)
+      lines.push(`A - ${f.a}`)
+      if (f.ctaText || f.ctaUrl) lines.push(`CTA LINK - ${f.ctaUrl || f.ctaText}`)
+    }
+    lines.push('')
+  }
+  lines.push('Child collection links Required')
+  for (const c of (data.mainCategories || [])) lines.push(`${BASE}/collections/${c.handle}`)
+  lines.push('')
+  if ((data.otherBrandHubs || []).length) {
+    lines.push('Other brand hubs')
+    for (const h of data.otherBrandHubs) lines.push(`${BASE}/pages/${h.handle}`)
+    lines.push('')
+  }
+  if (data.whyBrandHeading || (data.whyBrandParagraphs || []).length) {
+    lines.push('long-form descriptions')
+    lines.push(data.whyBrandHeading || '')
+    for (const p of (data.whyBrandParagraphs || [])) lines.push(p)
+    lines.push('')
+  }
+  lines.push('Other Clubs suggestions')
+  for (const c of (data.otherCategories || [])) lines.push(`${BASE}/collections/${c.handle}`)
+  lines.push('')
+  if ((data.tradeInParagraphs || []).length) {
+    lines.push('Trade-Ins')
+    for (const p of data.tradeInParagraphs) lines.push(p)
+    lines.push('')
+  }
+  lines.push('Go to the clubhouse')
+  if (data.guidesBody) lines.push(data.guidesBody)
+  if (data.guidesUrl) lines.push(`CTA LINK: ${data.guidesUrl}`)
+  return lines.join('\n')
 }
 
 // Mirrors sections/brand-hub.liquid 1:1 (same classes, same markup order) so
@@ -734,7 +796,7 @@ export default function BrandHubTemplate() {
           onChange={e => setDocText(e.target.value)}
         />
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 10 }}>
-          <button className="btn btn-primary" onClick={handleParse} disabled={!docText.trim()}>Show preview</button>
+          <button className="btn btn-primary" onClick={() => handleParse()} disabled={!docText.trim()}>Show preview</button>
           {status && <span style={{ fontSize: 12, color: '#888' }}>{status}{previewLoading ? ' — resolving category images…' : ''}</span>}
         </div>
 
