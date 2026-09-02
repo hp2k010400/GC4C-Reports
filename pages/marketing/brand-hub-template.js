@@ -678,11 +678,20 @@ export default function BrandHubTemplate() {
           mainCategoryUrls: next.mainCategoryUrls,
           otherCategoryUrls: next.otherCategoryUrls,
           otherBrandHubUrls: next.otherBrandHubUrls,
+          faqs: next.faqs,
+          guidesUrl: next.guidesUrl,
         }),
       })
       const data = await res.json()
       if (res.ok) {
         setResolved({ main: data.main, other: data.other, otherBrandHubs: data.otherBrandHubs })
+        // Replaces the client-only-resolved ctaUrls (a handful of fixed
+        // patterns like "sell") with the real ones, including anything
+        // only resolvable via a live collection search ("PXG DRIVERS") —
+        // so what's previewed matches what an actual push produces, and
+        // pushing afterward carries these forward rather than re-deriving
+        // them from scratch (parsed is what the push body spreads).
+        if (data.faqs) setParsed(p => ({ ...p, faqs: data.faqs }))
         // "Page Featured image: One of the clubs in the collections or the
         // specific model" — an instruction, not an embedded image (this doc
         // format never pastes one in). The main/other category tiles are

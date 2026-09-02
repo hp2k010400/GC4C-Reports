@@ -70,6 +70,7 @@ export default function ParcelClaimsPage() {
 
   const [rows, setRows] = useState([])
   const [total, setTotal] = useState(0)
+  const [hiddenClosedCount, setHiddenClosedCount] = useState(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
 
@@ -137,6 +138,7 @@ export default function ParcelClaimsPage() {
       if (!res.ok) throw new Error(data.error || 'Failed to load')
       setRows(data.rows || [])
       setTotal(data.total ?? (data.rows || []).length)
+      setHiddenClosedCount(data.hiddenClosedCount ?? null)
     } catch (err) {
       setError(err.message)
     } finally {

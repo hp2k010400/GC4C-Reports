@@ -56,8 +56,36 @@ async function handleGet(req, res) {
   // Default view = open cases only, so the day-to-day list stays small even
   // with thousands of historical rows. `closed=1` (or any explicit
   // status/stage filter) overrides this.
-  if (closed !== '1' && !status && !stage) {
+  const defaultOpenOnly = closed !== '1' && !status && !stage
+  if (defaultOpenOnly) {
     query = query.neq('stage', 'delivered_ok').not('claim_status', 'in', '(settled,denied)')
+  }
+
+  // Closed cases are the majority of the table (over half, at time of
+  // writing) — someone adding/editing a case they expect to see as
+  // "Delivered OK" etc. gets no feedback that it's just filtered out, not
+  // missing (this genuinely happened — see the 2026-09-02 duplicate-row
+  // cleanup). Surface the count so the UI can show it can't be missed,
+  // rather than a small easy-to-miss toggle button.
+  let hiddenClosedCount = null
+  if (defaultOpenOnly) {
+    let closedCountQuery = supabase
+      .from('parcel_claims')
+      .select('*', { count: 'exact', head: true })
+      .or('stage.eq.delivered_ok,claim_status.in.(settled,denied)')
+    if (courier) closedCountQuery = closedCountQuery.eq('courier', courier)
+    if (from) closedCountQuery = closedCountQuery.gte('date_started', from)
+    if (to) closedCountQuery = closedCountQuery.lte('date_started', to)
+    if (search && search.trim()) {
+      const q = search.trim().replace(/[,%()]/g, '')
+      if (q) {
+        closedCountQuery = closedCountQuery.or(
+          `customer_name.ilike.%${q}%,email.ilike.%${q}%,ebay_username.ilike.%${q}%,consignment_ref.ilike.%${q}%,claim_ref.ilike.%${q}%`
+        )
+      }
+    }
+    const { count } = await closedCountQuery
+    hiddenClosedCount = count ?? 0
   }
 
   if (status) query = query.eq('claim_status', status)
@@ -102,7 +130,7 @@ async function handleGet(req, res) {
   const { data, error, count } = await query
   if (error) return res.status(500).json({ error: error.message })
 
-  res.status(200).json({ rows: data, total: count })
+  res.status(200).json({ rows: data, total: count, hiddenClosedCount })
 }
 
 async function handlePost(req, res) {
