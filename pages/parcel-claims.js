@@ -627,8 +627,16 @@ export default function ParcelClaimsPage() {
                 return (
                   <React.Fragment key={row.id}>
                     <tr>
-                      <td style={{ color: '#888', fontSize: 11, textAlign: 'center', cursor: 'pointer', backgroundColor: bg }} onClick={() => toggleExpand(row)}>
-                        {isOpen ? '▾' : '▸'}
+                      <td style={{ color: '#888', fontSize: 11, textAlign: 'center', backgroundColor: bg, whiteSpace: 'nowrap' }}>
+                        <span style={{ cursor: 'pointer' }} onClick={() => toggleExpand(row)}>{isOpen ? '▾' : '▸'}</span>
+                        {' '}
+                        <span
+                          onClick={() => deleteRow(row)}
+                          title="Delete this claim"
+                          style={{ cursor: 'pointer', color: '#dc2626', fontWeight: 700 }}
+                        >
+                          ×
+                        </span>
                       </td>
                       <td style={{ whiteSpace: 'nowrap', backgroundColor: bg }}>{editableText(row, 'date_started', fmtDate(row.date_started))}</td>
                       <td style={{ backgroundColor: bg }}>
