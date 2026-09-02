@@ -1234,9 +1234,11 @@ tbody tr:hover td { background: #f0f9f4 !important; }
 .issue-yellow       { background: #fef9c3; color: #a16207; }
 .issue-grey         { background: #e5e7eb; color: #374151; }
 .issue-sky-blue     { background: #e0f2fe; color: #0369a1; }
-/* DOR Sent / Received Back — added 2026-09-01, not part of the legacy key */
+/* DOR Sent / Received Back / Out of SLA — added 2026-09-01/02, not part of
+   the legacy key */
 .issue-teal         { background: #ccfbf1; color: #0f766e; }
 .issue-pink         { background: #fce7f3; color: #be185d; }
+.issue-indigo       { background: #e0e7ff; color: #4338ca; }
 
 /* --- Missing Parcels: claim-form pipeline badges --- */
 .claim-na        { background: #f0f2f5; color: #888; }
