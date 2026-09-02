@@ -92,6 +92,7 @@ export default function ParcelClaimsPage() {
   const [historyByRow, setHistoryByRow] = useState({})
   const [historyLoading, setHistoryLoading] = useState({})
 
+  const [showColourKey, setShowColourKey] = useState(false)
   const [showAddForm, setShowAddForm] = useState(false)
   const [form, setForm] = useState(emptyForm())
   const [addSubmitting, setAddSubmitting] = useState(false)
@@ -470,22 +471,34 @@ export default function ParcelClaimsPage() {
 
       {/* --- Colour key (same meanings as the old sheet's two colour columns) --- */}
       <div className="colour-key">
-        <div className="colour-key-row">
-          <span className="colour-key-title">Stage</span>
-          <div className="chip-bar">
-            {STAGES.map(s => (
-              <span key={s.value} className={`status-badge ${s.colour}`}>{s.label}</span>
-            ))}
-          </div>
-        </div>
-        <div className="colour-key-row">
-          <span className="colour-key-title">Issue</span>
-          <div className="chip-bar">
-            {ISSUE_TYPES.map(i => (
-              <span key={i.value} className={`status-badge ${i.colour}`}>{i.label}</span>
-            ))}
-          </div>
-        </div>
+        <button
+          type="button"
+          className="btn btn-secondary"
+          style={{ fontSize: 12, padding: '4px 10px' }}
+          onClick={() => setShowColourKey(s => !s)}
+        >
+          Colour Key {showColourKey ? '▾' : '▸'}
+        </button>
+        {showColourKey && (
+          <>
+            <div className="colour-key-row" style={{ marginTop: 10 }}>
+              <span className="colour-key-title">Stage</span>
+              <div className="chip-bar">
+                {STAGES.map(s => (
+                  <span key={s.value} className={`status-badge ${s.colour}`}>{s.label}</span>
+                ))}
+              </div>
+            </div>
+            <div className="colour-key-row">
+              <span className="colour-key-title">Issue</span>
+              <div className="chip-bar">
+                {ISSUE_TYPES.map(i => (
+                  <span key={i.value} className={`status-badge ${i.colour}`}>{i.label}</span>
+                ))}
+              </div>
+            </div>
+          </>
+        )}
       </div>
 
       {/* --- Filters --- */}
