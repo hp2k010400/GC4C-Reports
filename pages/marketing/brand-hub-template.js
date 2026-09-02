@@ -47,6 +47,13 @@ function resolveCtaUrl(label, guidesUrl) {
   if (l.includes('bag') || l.includes('blog')) return guidesUrl || ''
   if (l.includes('delivery')) return '/pages/delivery'
   if (l.includes('brand hub')) return '/collections/all'
+  // "HOW TO SELL / SELL TO US" (a PXG FAQ's real CTA label) fell through to
+  // this catch-all before — an empty ctaUrl rendered live as a broken
+  // self-link (Liquid treats "" as truthy, unlike JS, so the {% if %}
+  // guarding it still rendered the anchor with an empty href) rather than
+  // no link at all. Fixed at both ends: the render-side blank check, and
+  // resolving this specific, real, confirmed label here.
+  if (l.includes('sell')) return '/pages/how-to-sell'
   return '' // "MODELS", "fake drivers guide", etc. — no confirmed real URL, left blank on purpose
 }
 
