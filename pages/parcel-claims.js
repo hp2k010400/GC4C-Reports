@@ -246,6 +246,19 @@ export default function ParcelClaimsPage() {
     }
   }
 
+  function clearFilters() {
+    setStatusFilter('')
+    setStageFilter('')
+    setCourierFilter('')
+    setShowClosed(false)
+    setRepeatOnly(false)
+    setDateFrom('')
+    setDateTo('')
+    clearTimeout(searchDebounce.current)
+    setSearch('')
+    setSearchLive('')
+  }
+
   async function handleAddSubmit(e) {
     e.preventDefault()
     if (!form.customer_name.trim()) return
@@ -466,6 +479,11 @@ export default function ParcelClaimsPage() {
           >
             Serial Claimers
           </button>
+          {(statusFilter || stageFilter || courierFilter || showClosed || repeatOnly || dateFrom || dateTo || search.trim()) && (
+            <button className="btn btn-secondary" style={{ fontSize: 12, padding: '4px 10px' }} onClick={clearFilters}>
+              × Clear Filters
+            </button>
+          )}
           <input
             className="search-input"
             type="text"
