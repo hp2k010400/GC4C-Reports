@@ -652,7 +652,7 @@ export default function ParcelClaimsPage() {
           }}
         >
           <strong>🔒 {hiddenClosedCount.toLocaleString()} closed {hiddenClosedCount === 1 ? 'case is' : 'cases are'} hidden</strong>
-          <span>(Delivered OK / Settled / Denied) — not missing, just filtered out of the default view.</span>
+          <span>(Delivered OK / Settled / Denied). Not missing, just filtered out of the default view.</span>
           <button
             className="btn btn-secondary"
             style={{ marginLeft: 'auto', fontSize: 12, padding: '4px 10px', whiteSpace: 'nowrap' }}
