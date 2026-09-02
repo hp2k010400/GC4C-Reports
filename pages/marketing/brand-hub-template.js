@@ -39,8 +39,15 @@ const SAFE_TEST_HANDLES = ['marketing-automation-test-page', 'marketing-automati
 // than guessed, since a wrong link is worse than no link.
 function resolveCtaUrl(label, guidesUrl) {
   // If Murray's put the actual URL on the CTA LINK line itself, that always
-  // wins over guessing from a label like "MODELS" or "BRAND HUBS".
-  const urlMatch = (label || '').match(/https?:\/\/\S+/)
+  // wins over guessing from a label like "MODELS" or "BRAND HUBS". Also
+  // recognizes an already-resolved RELATIVE link ("/collections/pxg",
+  // "#popular-models") the same way — real round-trip bug: "Edit" turns an
+  // already-resolved FAQ back into doc text using its real resolved URL
+  // (a relative path, never an absolute one — resolveFaqCtaUrl never
+  // returns "https://..."), and re-parsing that text without recognizing
+  // the relative form here would treat the resolved link as if it were
+  // just another unresolved label, and silently lose it.
+  const urlMatch = (label || '').match(/^(https?:\/\/\S+|\/\S+|#\S+)/)
   if (urlMatch) return urlMatch[0]
   const l = (label || '').toLowerCase()
   if (l.includes('condition')) return '/pages/condition-rating-guide'
@@ -128,10 +135,12 @@ function parseBrandHubDoc(text) {
       current.a = aMatch[1].trim()
     } else if (ctaMatch && current) {
       const raw = ctaMatch[1].trim()
-      // A raw URL isn't meant to be shown as the button's own text — leave
-      // ctaText blank so it falls back to "Learn more" instead of printing
-      // the literal link.
-      current.ctaText = /^https?:\/\//.test(raw) ? '' : raw
+      // A raw URL (absolute or relative — "/collections/pxg", "#popular-
+      // models" included, matching resolveCtaUrl's own recognition below)
+      // isn't meant to be shown as the button's own text — leave ctaText
+      // blank so it falls back to "Learn more" instead of printing the
+      // literal link.
+      current.ctaText = /^(https?:\/\/\S+|\/\S+|#\S+)/.test(raw) ? '' : raw
       current.ctaUrl = resolveCtaUrl(raw, guidesUrlGlobal)
     } else if (current && !current.a) {
       current.q += ' ' + line
@@ -196,7 +205,13 @@ function buildDocTextFromPageData(data) {
       if (f.tier && f.tier !== tierSeen) { lines.push(f.tier); tierSeen = f.tier }
       lines.push(`Q? - ${f.q}`)
       lines.push(`A - ${f.a}`)
-      if (f.ctaText || f.ctaUrl) lines.push(`CTA LINK - ${f.ctaUrl || f.ctaText}`)
+      // Prefer the original human label ("PXG CLUBS") over its resolved
+      // URL — resolution is deterministic and reruns fresh at push time
+      // regardless, so the label survives losslessly through Edit, while
+      // writing the resolved URL instead would blank the label on
+      // re-parse (a URL always clears ctaText) and permanently downgrade
+      // the button to generic "Learn more" text on every future push.
+      if (f.ctaText || f.ctaUrl) lines.push(`CTA LINK - ${f.ctaText || f.ctaUrl}`)
     }
     lines.push('')
   }
@@ -555,6 +570,8 @@ export default function BrandHubTemplate() {
   const [docImages, setDocImages] = useState([])
   const [heroImageUrl, setHeroImageUrl] = useState('')
   const [heroImageUploading, setHeroImageUploading] = useState(-1)
+  const [editLoading, setEditLoading] = useState(false)
+  const [editError, setEditError] = useState(null)
   const isProtectedHandle = !SAFE_TEST_HANDLES.includes(targetHandle.trim())
 
   // Uploads one of the doc's own pasted reference images to Shopify Files as
@@ -604,8 +621,41 @@ export default function BrandHubTemplate() {
     }
   }
 
-  async function handleParse() {
-    const next = parseBrandHubDoc(docText)
+  // "Edit" on an already-pushed row used to only pre-fill the target
+  // handle — nothing about that page's actual content ever appeared, so
+  // clicking it looked like it did nothing. Loads the page's real,
+  // currently-live data (brand-hub-load.js) and turns it back into
+  // doc-shaped text via buildDocTextFromPageData, so it flows through the
+  // exact same parse/preview/push path as pasting the original doc would.
+  async function handleEditExisting(handle) {
+    setEditLoading(true)
+    setEditError(null)
+    try {
+      const res = await fetch(`/api/marketing/brand-hub-load?handle=${encodeURIComponent(handle)}`)
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error)
+      const text = buildDocTextFromPageData({ ...data, handle })
+      setDocText(text)
+      setDocImages([])
+      setHeroImageUrl(data.heroImage || '')
+      setBrandName(data.brandName || brandName)
+      setTargetHandle(handle)
+      await handleParse(text)
+    } catch (err) {
+      setEditError(err.message)
+    } finally {
+      setEditLoading(false)
+    }
+  }
+
+  async function handleParse(textOverride) {
+    // handleEditExisting needs to parse text the instant it's fetched —
+    // docText's setter hasn't actually applied yet at that point (React
+    // state updates aren't synchronous), so parsing docText itself here
+    // would still see the OLD value. textOverride lets it hand the fresh
+    // text straight through instead.
+    const sourceText = textOverride !== undefined ? textOverride : docText
+    const next = parseBrandHubDoc(sourceText)
     setParsed(next)
     setStatus('Loaded ' + new Date().toLocaleTimeString())
     // Freshly parsed content hasn't been pushed yet — always offer "Push live"
@@ -744,8 +794,10 @@ export default function BrandHubTemplate() {
         resetEndpoint="/api/marketing/brand-hub-reset"
         seoEndpoint="/api/marketing/brand-hub-seo"
         baseUrl="https://www.golfclubs4cash.co.uk/pages/"
-        onUseHandle={(handle) => setTargetHandle(handle)}
+        onUseHandle={handleEditExisting}
       />
+      {editLoading && <div style={{ fontSize: 12.5, color: '#888', marginBottom: 8 }}>Loading this page's real content for editing…</div>}
+      {editError && <div style={{ fontSize: 12.5, color: '#c0392b', marginBottom: 8 }}>Couldn't load that page for editing: {editError}</div>}
 
       <div className="settings-section">
         <h3 className="settings-section-title">1. Paste the copy doc</h3>
