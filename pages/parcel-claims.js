@@ -72,7 +72,6 @@ export default function ParcelClaimsPage() {
   const [total, setTotal] = useState(0)
   const [hiddenClosedCount, setHiddenClosedCount] = useState(null)
   const [loading, setLoading] = useState(false)
-  const [loadingMore, setLoadingMore] = useState(false)
   const [error, setError] = useState(null)
 
   const [stats, setStats] = useState(null)
@@ -139,48 +138,45 @@ export default function ParcelClaimsPage() {
 
   // Server caps a single request at 500 rows (see pages/api/parcel-claims —
   // same PostgREST-driven cap used everywhere else in this app), and the
-  // default is 200 - with nothing paginating past that, results silently
-  // stopped at whatever the newest 200 (or 500) matching rows were,
+  // old default of 200 with nothing paginating past that meant results
+  // silently stopped at whatever the newest 200 matching rows were,
   // regardless of how wide a date range was picked. This genuinely bit
   // someone for real (Phil Barron 2026-09-03 - picked a 12-month range,
   // could still only see ~6 weeks, because volume in that window already
   // filled the row cap before the older end of the range was ever reached).
-  // "Load More" appends the next batch instead of silently truncating.
+  // Now loops automatically until every matching row is loaded - no button,
+  // no manual clicking, just shows the running count while it goes (same
+  // "keep going until exhausted" shape used elsewhere in this app, e.g.
+  // deletion-candidates.js / stock-value.js).
   const loadRows = useCallback(async () => {
     setLoading(true)
     setError(null)
+    setRows([])
     try {
-      const params = buildFilterParams()
-      const res = await fetch(`/api/parcel-claims?${params}`)
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Failed to load')
-      setRows(data.rows || [])
-      setTotal(data.total ?? (data.rows || []).length)
-      setHiddenClosedCount(data.hiddenClosedCount ?? null)
+      const baseParams = buildFilterParams()
+      let allRows = []
+      let offset = 0
+      let totalCount = 0
+      do {
+        const params = new URLSearchParams(baseParams)
+        params.set('limit', '500')
+        params.set('offset', String(offset))
+        const res = await fetch(`/api/parcel-claims?${params}`)
+        const data = await res.json()
+        if (!res.ok) throw new Error(data.error || 'Failed to load')
+        allRows = allRows.concat(data.rows || [])
+        totalCount = data.total ?? allRows.length
+        offset += (data.rows || []).length
+        setRows(allRows)
+        setTotal(totalCount)
+        setHiddenClosedCount(data.hiddenClosedCount ?? null)
+      } while (offset < totalCount && (allRows.length > 0))
     } catch (err) {
       setError(err.message)
     } finally {
       setLoading(false)
     }
   }, [statusFilter, stageFilter, courierFilter, showClosed, repeatOnly, dateFrom, dateTo, searchLive])
-
-  async function loadMoreRows() {
-    setLoadingMore(true)
-    setError(null)
-    try {
-      const params = buildFilterParams()
-      params.set('limit', '500')
-      params.set('offset', String(rows.length))
-      const res = await fetch(`/api/parcel-claims?${params}`)
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Failed to load')
-      setRows(rs => [...rs, ...(data.rows || [])])
-    } catch (err) {
-      setError(err.message)
-    } finally {
-      setLoadingMore(false)
-    }
-  }
 
   const loadStats = useCallback(async () => {
     setStatsLoading(true)
@@ -699,12 +695,11 @@ export default function ParcelClaimsPage() {
       )}
 
       <div className="results-bar">
-        <span className="results-count">{loading ? 'Loading…' : `${rows.length} of ${total} claims`}</span>
-        {!loading && rows.length < total && (
-          <button className="btn btn-secondary" onClick={loadMoreRows} disabled={loadingMore}>
-            {loadingMore ? 'Loading…' : `Load More (${(total - rows.length).toLocaleString()} more)`}
-          </button>
-        )}
+        <span className="results-count">
+          {loading
+            ? `Loading… ${rows.length.toLocaleString()} of ${total.toLocaleString()} claims so far`
+            : `${rows.length.toLocaleString()} of ${total.toLocaleString()} claims`}
+        </span>
         {rows.length > 0 && (
           <button className="btn btn-secondary" onClick={() => downloadCSV(rows, `missing-parcels-${today()}.csv`)}>
             Download CSV
