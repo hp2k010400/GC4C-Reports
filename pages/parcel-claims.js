@@ -392,6 +392,36 @@ export default function ParcelClaimsPage() {
     )
   }
 
+  // A plain text box for date_started let people type UK-style dates
+  // (13/06/2024) straight into Postgres, which reads DD/MM/YYYY as
+  // MM/DD/YYYY and rejects anything with a "day" over 12 as an invalid
+  // month - confirmed for real (Phil Barron 2026-09-03, "13/06/2024" ->
+  // "date/time field value out of range"). A native date input always
+  // submits an unambiguous YYYY-MM-DD regardless of what format it
+  // displays in, so this can't happen — same fix already used by the Add
+  // Claim form and the date-range filters, just missing here.
+  function editableDate(row, field) {
+    const isEditing = editing?.id === row.id && editing?.field === field
+    if (isEditing) {
+      return (
+        <input
+          className="editable-input"
+          type="date"
+          autoFocus
+          value={editValue || ''}
+          onChange={e => setEditValue(e.target.value)}
+          onBlur={commitEdit}
+          onKeyDown={e => { if (e.key === 'Enter') commitEdit(); if (e.key === 'Escape') setEditing(null) }}
+        />
+      )
+    }
+    return (
+      <span className="editable-cell" onClick={() => startEdit(row, field, row[field])}>
+        {fmtDate(row[field])}
+      </span>
+    )
+  }
+
   if (!unlocked) {
     return (
       <div className="container" style={{ maxWidth: 380 }}>
@@ -746,7 +776,7 @@ export default function ParcelClaimsPage() {
                           ×
                         </span>
                       </td>
-                      <td style={{ whiteSpace: 'nowrap', backgroundColor: bg }}>{editableText(row, 'date_started', fmtDate(row.date_started))}</td>
+                      <td style={{ whiteSpace: 'nowrap', backgroundColor: bg }}>{editableDate(row, 'date_started')}</td>
                       <td style={{ backgroundColor: bg }}>
                         <div style={{ fontWeight: 500 }}>{editableText(row, 'customer_name', row.customer_name)}</div>
                         <div style={{ fontSize: 11, color: '#888', marginTop: 1 }}>
