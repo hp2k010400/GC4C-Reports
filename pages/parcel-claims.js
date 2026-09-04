@@ -3,7 +3,7 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsi
 import {
   COURIERS, VALUE_TIERS, STAGES, ISSUE_TYPES, CLAIM_STATUSES,
   stageLabel, stageColour, stageRowBg, issueColour, claimStatusLabel, claimStatusColour,
-  shortfall, fmtGbp, fmtDate, today,
+  costOutcome, fmtGbp, fmtDate, today,
 } from '../lib/parcelClaims'
 import ParcelClaimsReport from '../components/ParcelClaimsReport'
 import ParcelClaimsCalendar from '../components/ParcelClaimsCalendar'
@@ -338,13 +338,12 @@ export default function ParcelClaimsPage() {
     }
   }
 
-  // Shortfall badge — cost minus what's actually been claimed for. Positive
-  // = a real loss even once the claim's paid, negative = we're claiming for
-  // more than the item cost (shown as "up"). Only shown while still open.
+  // LOSS/GAIN badge — cost minus whatever's actually known (recovered
+  // amount once settled, else what's being claimed while still open).
+  // Always shown, including once closed — that's when the real number
+  // becomes known, per Phil Barron 2026-09-04.
   function shortfallInfo(row) {
-    const isClosed = row.stage === 'delivered_ok' || ['settled', 'denied'].includes(row.claim_status)
-    if (isClosed) return null
-    return shortfall(row)
+    return costOutcome(row)
   }
 
   function editableText(row, field, display) {
@@ -674,9 +673,11 @@ export default function ParcelClaimsPage() {
             <input className="form-input" style={{ maxWidth: 130 }} type="number" step="0.01" placeholder="Cost £" value={form.cost} onChange={e => setForm(f => ({ ...f, cost: e.target.value }))} />
             <div>
               <input className="form-input" style={{ maxWidth: 130 }} type="number" step="0.01" placeholder="Claim amount £" value={form.claim_amount} onChange={e => setForm(f => ({ ...f, claim_amount: e.target.value }))} />
-              {form.cost && form.claim_amount && (() => {
-                const s = shortfall({ cost: form.cost, claim_amount: form.claim_amount })
-                if (s > 0) return <span className="cap-warning">SHORT £{s.toFixed(2)}</span>
+              {form.cost && (form.claim_amount || form.recovered_amount) && (() => {
+                const s = costOutcome({ cost: form.cost, claim_amount: form.claim_amount, recovered_amount: form.recovered_amount })
+                if (s == null) return null
+                if (s > 0) return <span className="cap-warning">LOSS £{s.toFixed(2)}</span>
+                if (s < 0) return <span style={{ color: '#16a34a', fontSize: 10, fontWeight: 700 }}>GAIN £{Math.abs(s).toFixed(2)}</span>
                 return null
               })()}
             </div>
@@ -797,7 +798,8 @@ export default function ParcelClaimsPage() {
                         {(() => {
                           const s = shortfallInfo(row)
                           if (s == null) return null
-                          if (s > 0) return <span className="cap-warning">SHORT £{s.toFixed(2)}</span>
+                          if (s > 0) return <span className="cap-warning">LOSS £{s.toFixed(2)}</span>
+                          if (s < 0) return <span style={{ color: '#16a34a', fontSize: 10, fontWeight: 700 }}>GAIN £{Math.abs(s).toFixed(2)}</span>
                           return null
                         })()}
                       </td>
